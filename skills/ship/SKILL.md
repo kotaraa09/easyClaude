@@ -27,6 +27,11 @@ One commit per logical change. The message says **why**, not what — the diff a
 - Move finished tasks to `## Done` in `docs/STATE.md`.
 - Open the PR with a body covering: what changed, why, how to test it, and anything left in `## Debt`.
 
-## 6. Confirm before anything leaves the machine
+## 6. Before a repo goes public or deploys for the first time
+
+Run the `security-check` skill first. A first publish is when leaked keys stop being theoretical,
+and history keeps what a deleted file does not.
+
+## 7. Confirm before anything leaves the machine
 
 Pushing and opening a PR are outward-facing. Say what you're about to push and where, and get a yes — unless the user already told you to push in this turn.

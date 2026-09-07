@@ -23,6 +23,8 @@ Read `docs/STATE.md`. Take the first unchecked task under `## Now`, or promote t
 
 Run every step in `.claude/verify.json`. If a step fails, fix it — **do not report success on red, and do not describe the work as done, working, or complete while any step fails.**
 
+If a failure is not obvious, switch to the `debug` skill rather than trying edits until something sticks.
+
 If you cannot make it pass after a genuine attempt, stop and say exactly what's failing and what you tried. A clear failure is more useful than a confident lie.
 
 ## 4. Update state

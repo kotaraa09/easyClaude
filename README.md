@@ -66,6 +66,9 @@ You don't invoke any of this. It triggers on what you say.
 |---|---|
 | *"add user profiles"* | Spec and task list written first, for you to approve |
 | *"keep going"* | Next task built as one slice, then verified |
+| *"it's throwing an error"* | Reproduced, isolated, fixed, regression test added |
+| *"is this safe to make public?"* | Secrets, git history, endpoints and dependencies swept |
+| *"put it online"* | Production build proven, host picked, env vars set, live URL verified |
 | *"ship it"* | Verified, branched, reviewed, committed, PR opened |
 | *"/easyclaude:cheap fix the login redirect"* | Cheapest working fix, this turn only |
 
@@ -81,8 +84,8 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 .claude-plugin/   plugin + marketplace manifests
 hooks/            SessionStart orientation, adaptive Stop gate
 commands/         /easyclaude:cheap, :cheap-session, :full
-skills/           kickoff, plan-feature, build-task, ship, generate-asset,
-                  design-taste (vendored) + registry.json
+skills/           kickoff, plan-feature, build-task, debug, security-check,
+                  deploy, ship, generate-asset, design-taste (vendored)
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
@@ -100,7 +103,7 @@ Runs in CI on every push and PR. No dependencies — `node:` builtins only. It c
 
 ## Costs
 
-The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~1,037 tokens per turn** (~558 of rules, ~478 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~1,275 tokens per turn** (~585 of rules, ~690 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
 
 It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/easyclaude:cheap` is the answer.
 
