@@ -28,6 +28,22 @@ It won't trap you: Claude Code caps consecutive Stop-hook blocks and overrides a
 
 **`/easyclaude:cheap` for when credits are short.** One command, one turn: cheaper model, no subagents, narrowest working solution, and a closing line listing what it skipped. It expires by itself, so you can't forget you left it on.
 
+## Generating assets
+
+Claude can't draw, record, or model. easyClaude shells out to a provider that can:
+
+```bash
+node scripts/gen/generate.mjs --kind image --prompt "..." --out public/hero.webp
+node scripts/gen/generate.mjs --list      # modalities and default models
+node scripts/gen/generate.mjs ... --dry-run
+```
+
+Images, video, audio, and 3D behind a single `REPLICATE_API_TOKEN`. A script rather than an MCP server on purpose: no tool schemas riding along in every turn, it works in CI, and the token is read inside the script so it never enters the model's context.
+
+Every generation is logged to `docs/asset-log.md`, because it costs real money and otherwise leaves no trace. The skill confirms before spending, and defaults to `--dry-run` when unsure.
+
+Honest about limits: good for placeholders, backgrounds, textures, and mood; weak for final logos, where raster output only *looks* like a mark. Use `--model recraft-ai/recraft-v3-svg` if you need real vector.
+
 ## How it adapts to your stack
 
 Kickoff detects the stack from marker files and loads a [recipe](recipes/) — how to verify it, and what usually goes wrong. Ships with Next.js, Python/uv, and Go. Anything else, it writes a recipe by asking you, which you can contribute back.
@@ -57,11 +73,11 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 .claude-plugin/   plugin + marketplace manifests
 hooks/            SessionStart orientation, adaptive Stop gate
 commands/         /easyclaude:cheap, :cheap-session, :full
-skills/           kickoff, plan-feature, build-task, ship
+skills/           kickoff, plan-feature, build-task, ship, generate-asset
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
-scripts/          validate.mjs - structural checks, run in CI
+scripts/          validate.mjs (CI checks) + gen/ (asset generation)
 ```
 
 ## Contributing
@@ -75,7 +91,7 @@ Runs in CI on every push and PR. No dependencies — `node:` builtins only. It c
 
 ## Costs
 
-The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~810 tokens per turn** (~560 of rules, ~250 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~881 tokens per turn** (~558 of rules, ~322 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
 
 It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/easyclaude:cheap` is the answer.
 

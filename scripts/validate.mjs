@@ -196,6 +196,23 @@ for (const f of walk(root).filter((p) => p.endsWith('.md') && !p.startsWith(temp
   }
 }
 
+// --- 6b. docs must not claim hooks that do not exist -------------------------
+// /easyclaude:cheap-session once advertised a UserPromptSubmit hook that was never
+// implemented, so the command silently did nothing.
+const implemented = new Set(Object.keys(hooks ?? {}));
+for (const f of walk(root).filter((p) => p.endsWith('.md') && !p.startsWith(templateDir))) {
+  const r = rel(f);
+  const lines = readFileSync(f, 'utf8').split(/\r?\n/);
+  lines.forEach((line, i) => {
+    if (line.includes('validate-ignore') || line.trimStart().startsWith('<!--')) return;
+    for (const ev of HOOK_EVENTS) {
+      if (new RegExp(`\\b${ev}\\b`).test(line) && !implemented.has(ev)) {
+        err(`${r}:${i + 1}`, `mentions the "${ev}" hook, but hooks.json does not implement it`);
+      }
+    }
+  });
+}
+
 // --- 7. line endings ---------------------------------------------------------
 for (const f of walk(root).filter((p) => /\.(md|json|ya?ml|mjs)$/.test(p))) {
   if (readFileSync(f, 'utf8').includes('\r\n')) {
