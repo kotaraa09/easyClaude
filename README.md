@@ -44,6 +44,14 @@ Every generation is logged to `docs/asset-log.md`, because it costs real money a
 
 Honest about limits: good for placeholders, backgrounds, textures, and mood; weak for final logos, where raster output only *looks* like a mark. Use `--model recraft-ai/recraft-v3-svg` if you need real vector.
 
+## Curated skills
+
+Third-party skills are vendored deliberately and sparingly. Every skill's name and description sits in context *every session*, and overlapping descriptions make the wrong skill grab a turn — so ten good ones beat fifty. [`skills/registry.json`](skills/registry.json) records the bar, and CI enforces it: pinned 40-character SHAs (never a branch), a stated reason, present attribution files, and a prose-only claim that's checked against what's actually on disk.
+
+**Vendored:** [design-taste](skills/design-taste/) — `design/tokens.md` enforces consistency but says nothing about whether the result is any *good*. This carries specific, falsifiable rules: contrast ratios, easing curves, the eight interaction states, named anti-patterns. MIT, with upstream Apache-2.0 attribution preserved.
+
+**Recommended but not vendored:** [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) ("One Skill to Rule Them All") is genuinely good and worth installing alongside — but knowingly. It asks to be invoked before the first tool call of *every* session and before any plan, which collides with easyClaude's `SessionStart` hook and `plan-feature`; its SKILL.md is 44KB against a framework measured in hundreds of tokens; and it wants a persistent workspace plus Python scripts. It's a peer framework, not a component.
+
 ## How it adapts to your stack
 
 Kickoff detects the stack from marker files and loads a [recipe](recipes/) — how to verify it, and what usually goes wrong. Ships with Next.js, Python/uv, and Go. Anything else, it writes a recipe by asking you, which you can contribute back.
@@ -73,7 +81,8 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 .claude-plugin/   plugin + marketplace manifests
 hooks/            SessionStart orientation, adaptive Stop gate
 commands/         /easyclaude:cheap, :cheap-session, :full
-skills/           kickoff, plan-feature, build-task, ship, generate-asset
+skills/           kickoff, plan-feature, build-task, ship, generate-asset,
+                  design-taste (vendored) + registry.json
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
@@ -91,7 +100,7 @@ Runs in CI on every push and PR. No dependencies — `node:` builtins only. It c
 
 ## Costs
 
-The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~881 tokens per turn** (~558 of rules, ~322 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~1,037 tokens per turn** (~558 of rules, ~478 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
 
 It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/easyclaude:cheap` is the answer.
 

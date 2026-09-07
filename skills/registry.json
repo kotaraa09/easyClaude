@@ -1,0 +1,42 @@
+{
+  "_comment": "Curated third-party skills. Deliberately small. Every skill's name and description sits in context every session, and overlapping descriptions cause the wrong skill to grab a turn - so ten good skills beat fifty. Entries are pinned to a commit SHA, never a branch: a moving upstream is unreviewed code running on user machines.",
+  "bar": [
+    "Does it earn its permanent context cost, or is it a one-off you could just ask for?",
+    "Is it prose, or does it ship executable code? Code must be read line by line before vendoring.",
+    "Does its license permit redistribution, and have we carried the attribution files?",
+    "Does it conflict with easyClaude's own workflow, cost posture, or SessionStart hook?",
+    "Does it duplicate something already shipped, here or by Anthropic?"
+  ],
+  "max_vendored": 10,
+  "vendored": [
+    {
+      "name": "design-taste",
+      "source": "https://github.com/h3nryprod01/design-taste",
+      "commit": "c3596bc7a03d7e5867a92908270efb609add0658",
+      "vendored_on": "2026-09-07",
+      "license": "MIT",
+      "attribution_files": ["LICENSE", "NOTICE", "LICENSES/Apache-2.0.txt"],
+      "contains_executable_code": false,
+      "why": "design/tokens.md enforces consistency but says nothing about whether the result is good. This carries specific, falsifiable taste rules - contrast ratios, easing curves, the eight interaction states - rather than generic advice.",
+      "author": "Nguyễn Phú Cường, synthesising work by Emil Kowalski, Paul Bakaus, and Leonxlnx"
+    }
+  ],
+  "recommended_not_vendored": [
+    {
+      "name": "task-observer",
+      "aka": "One Skill to Rule Them All",
+      "source": "https://github.com/rebelytics/one-skill-to-rule-them-all",
+      "commit_reviewed": "2967fa5f2f16336677d216fe83d9832a52aadc00",
+      "license": "CC-BY-4.0",
+      "author": "Eoghan Henn / rebelytics.com",
+      "verdict": "Genuinely good and actively maintained. Install it alongside easyClaude if you want it - but knowingly, not by default.",
+      "why_not_vendored": [
+        "Its own instructions require invocation before the first tool call of every session and before any plan is written. easyClaude's SessionStart hook already owns the session opener and plan-feature owns planning, so the two would compete for the same moments.",
+        "Its SKILL.md is 44KB - roughly 11k tokens whenever it triggers, against a framework measured at ~881 tokens/turn that ships .mcp.json empty specifically to avoid this kind of cost.",
+        "It needs a persistent workspace at a stable absolute path and ships two Python scripts, against easyClaude's zero-runtime-dependency design.",
+        "It overlaps Anthropic's shipped skill-creator.",
+        "It is a peer framework, not a component. Bundling it would silently make easyClaude a different product."
+      ]
+    }
+  ]
+}

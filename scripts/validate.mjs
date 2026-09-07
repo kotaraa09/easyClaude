@@ -80,6 +80,8 @@ const skillNames = [];
 const skillsDir = join(root, 'skills');
 if (existsSync(skillsDir)) {
   for (const d of readdirSync(skillsDir)) {
+    // skills/ also holds registry.json; only directories are skills.
+    if (!statSync(join(skillsDir, d)).isDirectory()) continue;
     const p = join(skillsDir, d, 'SKILL.md');
     if (!existsSync(p)) {
       err(`skills/${d}`, 'missing SKILL.md');
@@ -177,12 +179,47 @@ if (!hooks) {
   }
 }
 
+// --- 5b. curated skill registry ----------------------------------------------
+const registry = json['skills/registry.json'];
+const vendoredDirs = new Set();
+if (registry) {
+  const v = registry.vendored ?? [];
+  if (registry.max_vendored && v.length > registry.max_vendored) {
+    err('skills/registry.json', `${v.length} vendored skills exceeds max_vendored ${registry.max_vendored}`);
+  }
+  for (const e of v) {
+    const where = `skills/registry.json (${e.name})`;
+    vendoredDirs.add(join(skillsDir, e.name));
+    if (!/^[0-9a-f]{40}$/.test(e.commit ?? '')) {
+      err(where, 'must pin a full 40-character commit SHA - a branch is unreviewed code on user machines');
+    }
+    if (!e.license) err(where, 'missing license');
+    if (!e.why) err(where, 'missing "why" - every vendored skill must justify its permanent context cost');
+    const dir = join(skillsDir, e.name);
+    if (!existsSync(dir)) {
+      err(where, `no directory at skills/${e.name}`);
+      continue;
+    }
+    if (!existsSync(join(dir, 'PROVENANCE.md'))) err(`skills/${e.name}`, 'vendored skill missing PROVENANCE.md');
+    for (const a of e.attribution_files ?? []) {
+      if (!existsSync(join(dir, a))) err(`skills/${e.name}`, `attribution file "${a}" is declared but missing - this is a licence violation`);
+    }
+    // A skill claiming to be prose-only must actually be prose-only.
+    if (e.contains_executable_code === false) {
+      const code = walk(dir).filter((p) => /\.(py|mjs|js|sh|ps1|rb|exe|bat)$/.test(p));
+      if (code.length) err(`skills/${e.name}`, `declared prose-only but ships executable files: ${code.map(rel).join(', ')}`);
+    }
+  }
+}
+
 // --- 6. docs use namespaced invocations --------------------------------------
 // The P0 shipping bug: every doc said /cheap, which does not exist.
 const ns = plugin?.name ?? 'easyclaude';
 const invocable = [...new Set([...commandNames, ...skillNames])];
 const templateDir = join(root, 'template');
-for (const f of walk(root).filter((p) => p.endsWith('.md') && !p.startsWith(templateDir))) {
+// Vendored skills are third-party prose; our doc conventions do not apply to them.
+const isOurs = (p) => !p.startsWith(templateDir) && ![...vendoredDirs].some((d) => p.startsWith(d));
+for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
   const r = rel(f);
   // A line may opt out with "validate-ignore" - for docs that must show the wrong form on purpose.
   const lines = readFileSync(f, 'utf8').split(/\r?\n/)
@@ -200,13 +237,13 @@ for (const f of walk(root).filter((p) => p.endsWith('.md') && !p.startsWith(temp
 // /easyclaude:cheap-session once advertised a UserPromptSubmit hook that was never
 // implemented, so the command silently did nothing.
 const implemented = new Set(Object.keys(hooks ?? {}));
-for (const f of walk(root).filter((p) => p.endsWith('.md') && !p.startsWith(templateDir))) {
+for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
   const r = rel(f);
   const lines = readFileSync(f, 'utf8').split(/\r?\n/);
   lines.forEach((line, i) => {
     if (line.includes('validate-ignore') || line.trimStart().startsWith('<!--')) return;
     for (const ev of HOOK_EVENTS) {
-      if (new RegExp(`\\b${ev}\\b`).test(line) && !implemented.has(ev)) {
+      if (/hook/i.test(line) && new RegExp(`\\b${ev}\\b`).test(line) && !implemented.has(ev)) {
         err(`${r}:${i + 1}`, `mentions the "${ev}" hook, but hooks.json does not implement it`);
       }
     }
@@ -225,6 +262,33 @@ for (const f of walk(join(root, 'recipes')).filter((p) => p.endsWith('.md') && !
   const text = readFileSync(f, 'utf8');
   for (const field of ['Detect:', 'Verify steps', 'Verification strength']) {
     if (!text.includes(field)) err(rel(f), `recipe missing "${field}"`);
+  }
+}
+
+// --- 9. skill descriptions must not collide ----------------------------------
+// Skills auto-trigger on their description. Two similar descriptions means the wrong
+// one grabs the turn, which is why the registry caps how many skills ship at all.
+const STOP_WORDS = new Set(['this', 'that', 'when', 'with', 'from', 'they', 'them', 'have',
+  'been', 'were', 'into', 'your', 'user', 'used', 'uses', 'using', 'will', 'does', 'each',
+  'here', 'what', 'which', 'their', 'there', 'about', 'would', 'could', 'should', 'skill']);
+const bag = (s) => new Set(
+  s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+    .filter((w) => w.length > 3 && !STOP_WORDS.has(w))
+);
+const descs = [];
+for (const d of skillNames) {
+  const fm = parseFrontmatter(readFileSync(join(skillsDir, d, 'SKILL.md'), 'utf8'), `skills/${d}`);
+  if (fm?.description) descs.push([d, bag(fm.description)]);
+}
+for (let i = 0; i < descs.length; i++) {
+  for (let j = i + 1; j < descs.length; j++) {
+    const [an, a] = descs[i];
+    const [bn, b] = descs[j];
+    const shared = [...a].filter((w) => b.has(w)).length;
+    const jaccard = shared / (a.size + b.size - shared);
+    if (jaccard > 0.35) {
+      warn('skills/', `"${an}" and "${bn}" descriptions overlap ${Math.round(jaccard * 100)}% - they may compete for the same turn`);
+    }
   }
 }
 
