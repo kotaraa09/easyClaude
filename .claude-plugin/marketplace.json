@@ -1,0 +1,15 @@
+{
+  "name": "easyclaude",
+  "owner": { "name": "YOUR_NAME" },
+  "metadata": {
+    "description": "easyClaude - a stack-agnostic harness for building real projects with Claude Code.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "easyclaude",
+      "source": "./",
+      "description": "Persistent project state, an adaptive verify gate, safety guardrails, stack recipes, and a one-shot cheap mode."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(curl:* | sh)",
+      "Bash(curl:* | bash)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(./.git/**)",
+      "Edit(./**/package-lock.json)",
+      "Edit(./**/pnpm-lock.yaml)",
+      "Edit(./**/uv.lock)",
+      "Edit(./**/Cargo.lock)",
+      "Edit(./**/go.sum)"
+    ]
+  }
+}

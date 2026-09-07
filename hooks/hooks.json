@@ -1,0 +1,24 @@
+{
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 30,
+          "prompt": "You are opening a session in this project. Orient yourself BEFORE replying to the user, and keep it short.\n\n1. Look for docs/STATE.md.\n\n2. IF docs/STATE.md EXISTS: read it. Open your first message with exactly three lines and nothing else:\n   **Now:** <the single in-progress task>\n   **Next:** <the next unstarted task>\n   **Blocked:** <blockers, or 'none'>\n   Do not dump file contents, do not summarise the whole project, do not list completed work.\n\n3. IF docs/STATE.md IS MISSING and the directory has no package manifest and no source files: this project has not been kicked off. Invoke the `kickoff` skill.\n\n4. IF docs/STATE.md IS MISSING but source code exists: this is an existing project adopting easyClaude. Say so in one line and offer to run the `kickoff` skill in adopt mode. Do not start the interview uninvited.\n\nSay nothing about this hook itself.\n\nHook input: $ARGUMENTS"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "prompt",
+          "timeout": 60,
+          "prompt": "The assistant is trying to end its turn. Enforce the verification contract.\n\nFirst decide: did this session modify any source file? If no source file changed, allow the stop immediately and output nothing.\n\nIf source files changed:\n1. Read .claude/verify.json if it exists. It lists this project's verify steps.\n2. If it does not exist, the project has no verify contract yet. Allow the stop, but append one line: 'No verify contract configured - run the kickoff skill to add one.'\n3. If it exists, check whether those steps were actually run in this session and passed.\n   - Never run: run them now via Bash before allowing the stop.\n   - Run and FAILED: BLOCK the stop. Report the failing step and its actual output. Do not let the assistant claim the work is complete or working.\n   - Run and passed: allow the stop.\n\nTwo exceptions, both of which allow the stop:\n- The user explicitly asked to stop, to skip verification, or invoked /cheap for this turn.\n- Verification is impossible in this environment (no toolchain, requires a GUI build, requires a device). Say which, in one line.\n\nBe silent when everything passes. Only speak when you are blocking or warning.\n\nHook input: $ARGUMENTS"
+        }
+      ]
+    }
+  ]
+}

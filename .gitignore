@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.next/
+.env
+.env.*
+!.env.example
+__pycache__/
+.venv/
+*.log
+.DS_Store
+.claude/settings.local.json
+.claude/cheap-session
