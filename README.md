@@ -78,6 +78,21 @@ You don't invoke any of this. It triggers on what you say.
 
 Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 
+## Shipping without being asked
+
+Off until you turn it on. `/easyclaude:autoship` checks whether git is actually set up — identity, a remote, `gh` installed and authenticated, whether you even have write access — and then offers only the levels that can work:
+
+| level | adds | what it gives up |
+|---|---|---|
+| `commit` | branch, self-review the diff, commit | little — a bad commit is one revert away |
+| `push` | the branch leaves your machine | it is now somewhere others can see |
+| `pr` | opens a pull request | — |
+| `merge` | merges it and syncs your local base | the last human checkpoint |
+
+It fires from `build-task` only when a *feature* is finished: every verify step passed, and `docs/STATE.md` has nothing left under `Now`, `Next`, or `Blocked`. A bug found mid-task goes under `## Next`, which by itself stops the ship — that coupling is deliberate, because "I found something" and "this is done" turn out to be the same moment surprisingly often.
+
+It refuses regardless of the config when verification failed, when the change touched auth, payments, or a migration, or when cheap mode is on. `SessionStart` says so at the top of every session while it is armed — you should never have to wonder whether this session can push on your behalf. The config lives in `.claude/autoship.json` and is gitignored: it is your authorisation, not the repository’s.
+
 ## Design assets
 
 `design/tokens.md` is the file that drives consistent UI. Reference screenshots go in `design/refs/` with a one-line description each in `INDEX.md` — images cost ~1.5k tokens to look at, so the text is what gets read and the images get opened only when they're worth it. Use them once to derive tokens, then let the tokens do the work.
@@ -87,7 +102,7 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 ```
 .claude-plugin/   plugin + marketplace manifests
 hooks/            SessionStart orientation, adaptive Stop gate
-commands/         /easyclaude:cheap, :cheap-session, :full
+commands/         /easyclaude:cheap, :cheap-session, :full, :autoship
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship
                   opt-in:    write-tests, rescue, security-check, deploy,
                              generate-asset, pick-library
