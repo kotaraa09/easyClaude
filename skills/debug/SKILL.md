@@ -55,7 +55,7 @@ Write a test that **fails before your fix and passes after**. Verify that orderi
 
 Every bug fixed this way permanently strengthens the verify contract. Over a project's life this is what turns the Stop gate from a formality into something that genuinely catches breakage.
 
-If the project has no test suite yet, this is the moment to start one: a single test for the bug you just fixed is a better beginning than a testing plan.
+If the project has no test suite yet, this is the moment to start one — `/easyclaude:write-tests` sets up the runner and wires the gate. A single test for the bug you just fixed is a better beginning than a testing plan.
 
 ## 7. Record it
 

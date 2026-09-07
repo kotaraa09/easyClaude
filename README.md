@@ -85,7 +85,8 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 hooks/            SessionStart orientation, adaptive Stop gate
 commands/         /easyclaude:cheap, :cheap-session, :full
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship
-                  opt-in:    security-check, deploy, generate-asset
+                  opt-in:    write-tests, rescue, security-check, deploy,
+                             generate-asset
                   vendored:  design-taste
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
@@ -106,17 +107,19 @@ Runs in CI on every push and PR. No dependencies — `node:` builtins only. It c
 
 The framework isn't free, and it says so out loud. A skill's name and description ride along on **every turn of every session** — so the standing cost is a real tax, not a rounding error.
 
-**~1,060 tokens per turn**: ~585 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+**~1,111 tokens per turn**: ~636 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
 
 **Skills are split by how often they fire.** The five that trigger constantly — kickoff, plan-feature, build-task, debug, ship — stay always-on so plain English keeps working. The three used a handful of times per project set `disable-model-invocation`, which removes them from per-turn cost **entirely** (that's the binary's own cost function: it skips them). They're invoked by name instead:
 
 ```
+/easyclaude:write-tests        start a suite, upgrade the gate to enforcing
+/easyclaude:rescue             undo it, get it back
 /easyclaude:security-check     before going public
 /easyclaude:deploy             to put it online
 /easyclaude:generate-asset     images, audio, 3D
 ```
 
-A one-line pointer in `rules/workflow.md` keeps them discoverable for ~40 tokens, instead of ~215 for three full descriptions.
+A one-line pointer in `rules/workflow.md` keeps all five discoverable for ~55 tokens, against ~340 for five full descriptions. Adding an opt-in skill is close to free; adding an always-on one is not.
 
 **CI enforces the budget.** `skills/registry.json` sets `max_always_on_tokens`, the validator computes the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill now means displacing one — which is the point. The vendored `design-taste` is ~156 of the total on its own and is left verbatim rather than edited, since modifying vendored frontmatter would break the pinned-SHA guarantee.
 

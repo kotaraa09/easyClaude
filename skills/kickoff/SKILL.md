@@ -61,6 +61,7 @@ Merge into the project's `.claude/settings.json`:
   { "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "<the test command>" } ] } ] } }
   ```
 - **If there are no tests yet**, add nothing. The plugin's own prompt-based Stop hook already warns. The gate arrives when the project has earned it.
+  Tell the user once that `/easyclaude:write-tests` will start a suite and upgrade the gate to enforcing. Don't push it.
 
 Also add the guardrails from `${CLAUDE_PLUGIN_ROOT}/rules/permissions.json` into `permissions.deny`.
 

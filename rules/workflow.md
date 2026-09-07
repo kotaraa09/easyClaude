@@ -9,4 +9,4 @@
 - **Verify before claiming done.** Run every step in `.claude/verify.json`. Never call work done, working, or complete while any step fails.
 - **Skipped work goes under `## Debt`** in STATE.md, specific enough to act on later.
 
-**Occasional, run on request:** `/easyclaude:security-check` before going public · `/easyclaude:deploy` to put it online · `/easyclaude:generate-asset` for images, audio or 3D.
+**Run on request:** `/easyclaude:` + `write-tests` (no suite yet) · `rescue` (undo something) · `security-check` (before going public) · `deploy` (put it online) · `generate-asset` (images, audio, 3D).

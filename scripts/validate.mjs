@@ -317,6 +317,14 @@ for (const d of skillNames) {
   alwaysOn += tok;
   costs.push([d, tok]);
 }
+// rules/*.md are copied into every project and loaded on every turn too - policing
+// only skill descriptions would police the smaller half.
+let rulesTok = 0;
+for (const f of walk(join(root, 'rules')).filter((p) => p.endsWith('.md'))) {
+  rulesTok += Math.round(readFileSync(f, 'utf8').length / 4);
+}
+alwaysOn += rulesTok;
+
 const budget = registry?.max_always_on_tokens;
 if (budget && alwaysOn > budget) {
   costs.sort((a, b) => b[1] - a[1]);
