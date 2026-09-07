@@ -28,6 +28,8 @@ It won't trap you: Claude Code caps consecutive Stop-hook blocks and overrides a
 
 **Guardrails that don't need cooperation.** `rm -rf`, force pushes, hard resets, curl-pipe-sh, reads and writes to `.env`, and lockfile edits are denied at the permission layer — not requested politely in a prompt.
 
+**It reaches for a library before writing one.** Custom code is the expensive default — a hand-rolled date parser is written once and debugged forever, on your credits. `/easyclaude:pick-library` finds what the ecosystem already settled on and runs a supply-chain check first: typosquats, install scripts, live advisories, abandonment, license. Adopting is still your call; what changed is that hand-rolling stops being treated as the safe option.
+
 **`/easyclaude:cheap` for when credits are short.** One command, one turn: cheaper model, no subagents, narrowest working solution, and a closing line listing what it skipped. It expires by itself, so you can't forget you left it on.
 
 ## Generating assets
@@ -88,7 +90,7 @@ hooks/            SessionStart orientation, adaptive Stop gate
 commands/         /easyclaude:cheap, :cheap-session, :full
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship
                   opt-in:    write-tests, rescue, security-check, deploy,
-                             generate-asset
+                             generate-asset, pick-library
                   vendored:  design-taste
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
@@ -102,16 +104,16 @@ scripts/          validate.mjs (CI checks) + gen/ (asset generation)
 node scripts/validate.mjs
 ```
 
-Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, and docs use the namespaced command form. Every check exists because that exact thing broke at least once.
+Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, docs use the namespaced command form, and the per-turn cost quoted below matches what the validator measures. Every check exists because that exact thing broke at least once.
 
 
 ## Costs
 
 The framework isn't free, and it says so out loud. A skill's name and description ride along on **every turn of every session** — so the standing cost is a real tax, not a rounding error.
 
-**~1,111 tokens per turn**: ~636 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+**~1,165 tokens per turn**: ~690 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
 
-**Skills are split by how often they fire.** The five that trigger constantly — kickoff, plan-feature, build-task, debug, ship — stay always-on so plain English keeps working. The three used a handful of times per project set `disable-model-invocation`, which removes them from per-turn cost **entirely** (that's the binary's own cost function: it skips them). They're invoked by name instead:
+**Skills are split by how often they fire.** The five that trigger constantly — kickoff, plan-feature, build-task, debug, ship — stay always-on so plain English keeps working. The six used a handful of times per project set `disable-model-invocation`, which removes them from per-turn cost **entirely** (that's the binary's own cost function: it skips them). They're invoked by name instead:
 
 ```
 /easyclaude:write-tests        start a suite, upgrade the gate to enforcing
@@ -119,9 +121,10 @@ The framework isn't free, and it says so out loud. A skill's name and descriptio
 /easyclaude:security-check     before going public
 /easyclaude:deploy             to put it online
 /easyclaude:generate-asset     images, audio, 3D
+/easyclaude:pick-library       adopt a vetted library instead of hand-rolling
 ```
 
-A one-line pointer in `rules/workflow.md` keeps all five discoverable for ~55 tokens, against ~340 for five full descriptions. Adding an opt-in skill is close to free; adding an always-on one is not.
+A one-line pointer in `rules/workflow.md` keeps all six discoverable for ~60 tokens, against ~424 if they rode along in full. Adding an opt-in skill is close to free; adding an always-on one is not.
 
 **CI enforces the budget.** `skills/registry.json` sets `max_always_on_tokens`, the validator computes the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill now means displacing one — which is the point. The vendored `design-taste` is ~156 of the total on its own and is left verbatim rather than edited, since modifying vendored frontmatter would break the pinned-SHA guarantee.
 

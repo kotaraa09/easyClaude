@@ -1,7 +1,7 @@
 # Standards
 
-- **No new dependency without asking.** Name what it's for and what it replaces.
-- **Reuse before writing.** Search the codebase first — a duplicate implementation is the most expensive kind of mistake here.
+- **Reuse before writing.** Search the codebase first, then the ecosystem — a duplicate implementation is the most expensive kind of mistake here. Custom code is not the safe default: hand-rolled dates, money, auth and parsers are where the debugging turns go. `/easyclaude:pick-library` vets one.
+- **No new dependency without asking.** Name what it's for, what it replaces, and what it pulls in.
 - **Match the surrounding code**, not your own preferences: naming, layout, error handling, comment density.
 - **Delete code, don't comment it out.** Git remembers.
 - **No mock or placeholder data outside tests.** If something isn't built yet, make it fail loudly rather than quietly return fake data.
