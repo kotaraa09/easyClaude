@@ -8,3 +8,5 @@
 - **One task per turn**, built as a vertical slice that actually runs.
 - **Verify before claiming done.** Run every step in `.claude/verify.json`. Never call work done, working, or complete while any step fails.
 - **Skipped work goes under `## Debt`** in STATE.md, specific enough to act on later.
+
+**Occasional, run on request:** `/easyclaude:security-check` before going public · `/easyclaude:deploy` to put it online · `/easyclaude:generate-asset` for images, audio or 3D.

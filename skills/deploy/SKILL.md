@@ -1,6 +1,7 @@
 ---
 name: deploy
 description: Get a project live on the internet for the first time, or ship an update to an existing deployment. Use when the user wants to publish, host, launch, go live, put something online, set up a domain, or asks how other people can actually use what was built.
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -12,7 +13,7 @@ Everything else in easyClaude produces software on one machine. This is the step
 
 Say what will be deployed, to which host, at what cost, and who will be able to reach it. **Wait for a yes.** Never deploy as a side effect of another task.
 
-Before the first deploy of anything with a login, a database, or a payment path, run the `security-check` skill. A first deploy is exactly when leaked keys stop being theoretical.
+Before the first deploy of anything with a login, a database, or a payment path, tell the user to run `/easyclaude:security-check` and wait for the result. A first deploy is exactly when leaked keys stop being theoretical.
 
 ## 1. Prove it builds — locally, in production mode
 

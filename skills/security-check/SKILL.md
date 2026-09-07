@@ -1,6 +1,7 @@
 ---
 name: security-check
 description: Sweep a project for leaked secrets, exposed endpoints, and vulnerable dependencies before it goes public or gets deployed. Use before making a repository public, before a first deploy, when the user mentions API keys, credentials, auth or ".env", or when they ask whether something is safe to ship.
+disable-model-invocation: true
 allowed-tools: Read, Bash, Glob, Grep
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: generate-asset
 description: Generate images, video, audio, or 3D models for a project using an external AI provider. Use when a project needs a hero image, placeholder art, icon, texture, background, sound effect, music bed, short video clip, or 3D asset and no suitable file exists yet.
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 

@@ -29,8 +29,9 @@ One commit per logical change. The message says **why**, not what — the diff a
 
 ## 6. Before a repo goes public or deploys for the first time
 
-Run the `security-check` skill first. A first publish is when leaked keys stop being theoretical,
-and history keeps what a deleted file does not.
+Tell the user to run `/easyclaude:security-check` first, and wait. A first publish is when leaked
+keys stop being theoretical, and history keeps what a deleted file does not. You cannot invoke it
+for them - it is opt-in precisely so it costs nothing on the turns it isn't needed.
 
 ## 7. Confirm before anything leaves the machine
 

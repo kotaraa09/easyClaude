@@ -84,8 +84,9 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 .claude-plugin/   plugin + marketplace manifests
 hooks/            SessionStart orientation, adaptive Stop gate
 commands/         /easyclaude:cheap, :cheap-session, :full
-skills/           kickoff, plan-feature, build-task, debug, security-check,
-                  deploy, ship, generate-asset, design-taste (vendored)
+skills/           always-on: kickoff, plan-feature, build-task, debug, ship
+                  opt-in:    security-check, deploy, generate-asset
+                  vendored:  design-taste
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
@@ -103,7 +104,21 @@ Runs in CI on every push and PR. No dependencies — `node:` builtins only. It c
 
 ## Costs
 
-The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~1,275 tokens per turn** (~585 of rules, ~690 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+The framework isn't free, and it says so out loud. A skill's name and description ride along on **every turn of every session** — so the standing cost is a real tax, not a rounding error.
+
+**~1,060 tokens per turn**: ~585 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+
+**Skills are split by how often they fire.** The five that trigger constantly — kickoff, plan-feature, build-task, debug, ship — stay always-on so plain English keeps working. The three used a handful of times per project set `disable-model-invocation`, which removes them from per-turn cost **entirely** (that's the binary's own cost function: it skips them). They're invoked by name instead:
+
+```
+/easyclaude:security-check     before going public
+/easyclaude:deploy             to put it online
+/easyclaude:generate-asset     images, audio, 3D
+```
+
+A one-line pointer in `rules/workflow.md` keeps them discoverable for ~40 tokens, instead of ~215 for three full descriptions.
+
+**CI enforces the budget.** `skills/registry.json` sets `max_always_on_tokens`, the validator computes the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill now means displacing one — which is the point. The vendored `design-taste` is ~156 of the total on its own and is left verbatim rather than edited, since modifying vendored frontmatter would break the pinned-SHA guarantee.
 
 It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/easyclaude:cheap` is the answer.
 

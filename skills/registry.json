@@ -15,7 +15,11 @@
       "commit": "c3596bc7a03d7e5867a92908270efb609add0658",
       "vendored_on": "2026-09-07",
       "license": "MIT",
-      "attribution_files": ["LICENSE", "NOTICE", "LICENSES/Apache-2.0.txt"],
+      "attribution_files": [
+        "LICENSE",
+        "NOTICE",
+        "LICENSES/Apache-2.0.txt"
+      ],
       "contains_executable_code": false,
       "why": "design/tokens.md enforces consistency but says nothing about whether the result is good. This carries specific, falsifiable taste rules - contrast ratios, easing curves, the eight interaction states - rather than generic advice.",
       "author": "Nguyễn Phú Cường, synthesising work by Emil Kowalski, Paul Bakaus, and Leonxlnx"
@@ -38,5 +42,7 @@
         "It is a peer framework, not a component. Bundling it would silently make easyClaude a different product."
       ]
     }
-  ]
+  ],
+  "max_always_on_tokens": 500,
+  "_budget_comment": "Skills without disable-model-invocation cost their name plus description on EVERY turn of EVERY session. Occasional skills (deploy, security-check, generate-asset) set disable-model-invocation and cost nothing until invoked as /easyclaude:<name>; rules/workflow.md carries a one-line pointer so they stay discoverable. CI fails if the always-on total exceeds max_always_on_tokens. The vendored design-taste alone is ~156 of the total and is left verbatim rather than modified, since editing vendored frontmatter would break the pinned-SHA guarantee. Adding another always-on skill now means displacing one."
 }

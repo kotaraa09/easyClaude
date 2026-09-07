@@ -298,6 +298,33 @@ for (let i = 0; i < descs.length; i++) {
   }
 }
 
+// --- 10. always-on token budget ----------------------------------------------
+// Mirrors the cost function in the Claude Code binary:
+//   skipped entirely when disableModelInvocation is set,
+//   otherwise 2 + name.length + 2 + description.length + 1 characters.
+// Skills without disable-model-invocation ride along on EVERY turn of EVERY
+// session, so this is the framework's standing tax on its users.
+let alwaysOn = 0;
+const costs = [];
+for (const d of skillNames) {
+  const fm = parseFrontmatter(readFileSync(join(skillsDir, d, 'SKILL.md'), 'utf8'), `skills/${d}`);
+  if (!fm?.description) continue;
+  if (String(fm['disable-model-invocation']).toLowerCase() === 'true') {
+    costs.push([d, 0]);
+    continue;
+  }
+  const tok = Math.round((2 + d.length + 2 + fm.description.length + 1) / 4);
+  alwaysOn += tok;
+  costs.push([d, tok]);
+}
+const budget = registry?.max_always_on_tokens;
+if (budget && alwaysOn > budget) {
+  costs.sort((a, b) => b[1] - a[1]);
+  err('skills/', `always-on cost ${alwaysOn} tok/turn exceeds budget ${budget}. ` +
+    `Largest: ${costs.slice(0, 3).map(([n, t]) => `${n} ${t}`).join(', ')}. ` +
+    `Set disable-model-invocation on occasional skills, or raise max_always_on_tokens deliberately.`);
+}
+
 // --- report ------------------------------------------------------------------
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
 for (const w of warnings) console.log(`  warn   ${w}`);
@@ -305,6 +332,6 @@ for (const e of errors) console.log(`  ERROR  ${e}`);
 console.log(
   errors.length
     ? `\nFAIL - ${plural(errors.length, 'error')}, ${plural(warnings.length, 'warning')}`
-    : `\nOK - ${commandNames.length} commands, ${skillNames.length} skills, ${Object.keys(json).length} JSON files, ${plural(warnings.length, 'warning')}`
+    : `\nOK - ${commandNames.length} commands, ${skillNames.length} skills (${alwaysOn} tok/turn always-on, budget ${budget ?? "unset"}), ${Object.keys(json).length} JSON files, ${plural(warnings.length, 'warning')}`
 );
 process.exit(errors.length ? 1 : 0);
