@@ -1,12 +1,12 @@
 # <PROJECT NAME>
 
-Built with [easyClaude](https://github.com/YOUR_GITHUB/easyClaude).
+Built with [easyClaude](https://github.com/kotaraa09/easyClaude).
 
 ## Start
 
 ```bash
 claude
-/plugin marketplace add YOUR_GITHUB/easyClaude
+/plugin marketplace add kotaraa09/easyClaude
 /plugin install easyclaude@easyclaude
 ```
 

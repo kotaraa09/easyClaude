@@ -8,7 +8,7 @@ It is **not** a starter template. It ships no scaffolding and assumes no stack. 
 
 ```bash
 claude
-/plugin marketplace add YOUR_GITHUB/easyClaude
+/plugin marketplace add kotaraa09/easyClaude
 /plugin install easyclaude@easyclaude
 ```
 
