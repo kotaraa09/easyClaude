@@ -10,10 +10,31 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 Claude cannot draw, record, or model. This skill shells out to a provider that can.
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/gen/generate.mjs --list
+node ${CLAUDE_PLUGIN_ROOT}/scripts/gen/generate.mjs --list    # providers and modalities
+node ${CLAUDE_PLUGIN_ROOT}/scripts/gen/generate.mjs --check   # prove a key works, free
 node ${CLAUDE_PLUGIN_ROOT}/scripts/gen/generate.mjs \
   --kind image --prompt "..." --out public/hero.webp
 ```
+
+## Pick the provider before the model
+
+Whichever key the user has is used automatically; `--provider` overrides. Two things worth
+knowing before you promise anything:
+
+- **Speech and sound effects need `--provider elevenlabs`.** The Replicate default is
+  `meta/musicgen`, which makes *music only* — asking it for a voice line gets you nothing
+  usable.
+- **`--provider local` costs nothing**, but needs Automatic1111 or ComfyUI already running.
+  Suggest it when the user is watching spend.
+
+`--list` marks every adapter `tested` or `UNTESTED`. UNTESTED means it follows the
+provider's documented API but nobody has produced a file with it yet. On an untested
+provider run `--check` first, and say plainly that it might not work — don't discover that
+mid-task.
+
+**A subscription is not an API key.** ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM
+do not include API access. If the user says they already pay for one of those, tell them it
+won't work here rather than letting them hunt for a key that doesn't exist.
 
 ## Every call spends the user's money
 
