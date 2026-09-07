@@ -1,0 +1,33 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No dependencies by design - the validator uses only node: builtins,
+      # so this stays fast and cannot break on a transitive update.
+      - name: Validate plugin structure
+        run: node scripts/validate.mjs
+
+      # The repo is checked out with LF via .gitattributes. If a diff appears
+      # here, something was committed with line endings that bypassed it.
+      - name: Check line endings survived checkout
+        run: |
+          if git diff --exit-code --stat; then
+            echo "working tree clean"
+          else
+            echo "::error::checkout produced a diff - line endings or filters are misconfigured"
+            exit 1
+          fi

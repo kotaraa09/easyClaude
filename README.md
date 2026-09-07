@@ -14,7 +14,7 @@ claude
 
 Then open any project and start typing. There is nothing to configure and no commands to memorise — on a project it doesn't recognise, it runs kickoff by itself.
 
-Commands are namespaced by the plugin, so it's `/easyclaude:cheap`, not `/cheap`. Skills trigger on plain English and never need to be typed at all — verified working via `claude --plugin-dir . -p "/easyclaude:cheap ..."`.
+Commands are namespaced by the plugin — `/easyclaude:cheap`, not the bare name. Skills trigger on plain English and never need to be typed at all.
 
 ## What you actually get
 
@@ -61,7 +61,17 @@ skills/           kickoff, plan-feature, build-task, ship
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
+scripts/          validate.mjs - structural checks, run in CI
 ```
+
+## Contributing
+
+```bash
+node scripts/validate.mjs
+```
+
+Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, and docs use the namespaced command form. Every check exists because that exact thing broke at least once.
+
 
 ## Costs
 
