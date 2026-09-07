@@ -358,6 +358,38 @@ if (budget && alwaysOn > budget) {
     `Set disable-model-invocation on occasional skills, or raise max_always_on_tokens deliberately.`);
 }
 
+// --- 10b. stated costs must match the measured figure ------------------------
+// Three places once disagreed about the same number: README said ~1,111 tok/turn,
+// registry.json said ~881, and this script measured 1,108. The framework argues
+// for itself on cost precision, so a stale figure undercuts the pitch. The README
+// sentence is mandatory and exact; the registry's rounded aside is checked only
+// if it is still phrased that way.
+const skillsTok = alwaysOn - rulesTok;
+const readme = readFileSync(join(root, 'README.md'), 'utf8');
+const claim = readme.match(
+  /\*\*~([\d,]+) tokens per turn\*\*: ~([\d,]+) of rules, ~([\d,]+) of skill descriptions/
+);
+if (!claim) {
+  err('README.md', 'the per-turn cost sentence is missing or reworded. It must read ' +
+    '"**~N tokens per turn**: ~N of rules, ~N of skill descriptions" so CI can check it ' +
+    `against the measured figure (currently ${alwaysOn}, ${rulesTok}, ${skillsTok}).`);
+} else {
+  const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok]];
+  parts.forEach(([label, measured], i) => {
+    if (Number(claim[i + 1].replace(/,/g, '')) !== measured) {
+      err('README.md', `claims ~${claim[i + 1]} tokens/turn of ${label}, measured ` +
+        `${measured.toLocaleString('en-US')}. Update the sentence in ## Costs.`);
+    }
+  });
+}
+
+const rounded = readFileSync(join(skillsDir, 'registry.json'), 'utf8')
+  .match(/framework measured at ~([\d.]+)k tokens\/turn/);
+if (rounded && rounded[1] !== (alwaysOn / 1000).toFixed(1)) {
+  err('skills/registry.json', `says the framework costs ~${rounded[1]}k tokens/turn, ` +
+    `measured ~${(alwaysOn / 1000).toFixed(1)}k.`);
+}
+
 // --- report ------------------------------------------------------------------
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
 for (const w of warnings) console.log(`  warn   ${w}`);

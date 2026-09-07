@@ -17,7 +17,7 @@ Read `docs/STATE.md`. Take the first unchecked task under `## Now`, or promote t
 - Make it run end to end, however thinly. A task is not done if it needs a later task to be observable.
 - Follow the existing code's conventions over your own preferences — naming, file layout, error handling, comment density.
 - Reuse what's there. Search before you write: a duplicate implementation is worse than an ugly reused one.
-- No new dependency without asking first.
+- If this task is a solved problem, do not hand-roll it — `/easyclaude:pick-library` finds and vets an existing one. No new dependency without asking first.
 
 ## 3. Verify
 
