@@ -14,6 +14,8 @@ claude
 
 Then open any project and start typing. There is nothing to configure and no commands to memorise — on a project it doesn't recognise, it runs kickoff by itself.
 
+Commands are namespaced by the plugin, so it's `/easyclaude:cheap`, not `/cheap`. Skills trigger on plain English and never need to be typed at all — verified working via `claude --plugin-dir . -p "/easyclaude:cheap ..."`.
+
 ## What you actually get
 
 **It remembers.** `docs/STATE.md` holds what's in progress, what's next, what's blocked, and what was skipped. Every session opens with a three-line orientation instead of you re-explaining the project.
@@ -24,7 +26,7 @@ It won't trap you: Claude Code caps consecutive Stop-hook blocks and overrides a
 
 **Guardrails that don't need cooperation.** `rm -rf`, force pushes, hard resets, curl-pipe-sh, reads and writes to `.env`, and lockfile edits are denied at the permission layer — not requested politely in a prompt.
 
-**`/cheap` for when credits are short.** One command, one turn: cheaper model, no subagents, narrowest working solution, and a closing line listing what it skipped. It expires by itself, so you can't forget you left it on.
+**`/easyclaude:cheap` for when credits are short.** One command, one turn: cheaper model, no subagents, narrowest working solution, and a closing line listing what it skipped. It expires by itself, so you can't forget you left it on.
 
 ## How it adapts to your stack
 
@@ -41,7 +43,7 @@ You don't invoke any of this. It triggers on what you say.
 | *"add user profiles"* | Spec and task list written first, for you to approve |
 | *"keep going"* | Next task built as one slice, then verified |
 | *"ship it"* | Verified, branched, reviewed, committed, PR opened |
-| *"/cheap fix the login redirect"* | Cheapest working fix, this turn only |
+| *"/easyclaude:cheap fix the login redirect"* | Cheapest working fix, this turn only |
 
 Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 
@@ -54,7 +56,7 @@ Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 ```
 .claude-plugin/   plugin + marketplace manifests
 hooks/            SessionStart orientation, adaptive Stop gate
-commands/         /cheap, /cheap-session, /full
+commands/         /easyclaude:cheap, :cheap-session, :full
 skills/           kickoff, plan-feature, build-task, ship
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
@@ -65,6 +67,6 @@ template/         thin front door to fork
 
 The framework isn't free — its rules and skill descriptions ride along in every turn. Measured footprint: **~810 tokens per turn** (~560 of rules, ~250 of skill descriptions). Skill bodies and recipes are another ~3.4k, but those load only when actually used.
 
-It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/cheap` is the answer.
+It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/easyclaude:cheap` is the answer.
 
 MIT.

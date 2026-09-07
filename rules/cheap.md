@@ -10,4 +10,4 @@ The user is low on credits. Optimise for fewest turns, not shortest prose.
 - **Except** on auth, payments, or migrations — never skip verification there. Say it needs full care instead.
 - Name what you skipped in one closing line.
 
-Clear this mode with `/full`.
+Clear this mode with `/easyclaude:full`.

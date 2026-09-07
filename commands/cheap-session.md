@@ -17,7 +17,7 @@ Do this:
 Cheap session armed. Two things to do yourself:
 
   1. Run: /model sonnet        ← the actual 5x saving; I can't do this for you
-  2. Run: /full                 ← when you're done, to clear the contract
+  2. Run: /easyclaude:full                 ← when you're done, to clear the contract
 
 Your model is shown in the UI, so you can't lose track of it.
 ```

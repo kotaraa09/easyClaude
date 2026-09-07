@@ -13,7 +13,7 @@ Budget mode, **this turn only**. The user is low on credits and wants a working 
 
 $ARGUMENTS
 
-If the above is empty, continue the previous `/cheap` task under this same contract.
+If the above is empty, continue the previous `/easyclaude:cheap` task under this same contract.
 
 ## Contract
 
@@ -28,7 +28,7 @@ If the above is empty, continue the previous `/cheap` task under this same contr
 
 ## Refuse to cut these corners
 
-If the change touches **authentication, payments, or a data migration**, do not skip verification. Say in one line that this one needs full care, and either do it properly or stop and tell the user to re-run without `/cheap`.
+If the change touches **authentication, payments, or a data migration**, do not skip verification. Say in one line that this one needs full care, and either do it properly or stop and tell the user to re-run without `/easyclaude:cheap`.
 
 ## If the task is too big for this
 
@@ -40,4 +40,4 @@ One line naming what you skipped, e.g. `Skipped: no tests, hardcoded retry limit
 
 Then exactly this reminder:
 
-`/cheap applied to this turn only — prefix /cheap again to continue.`
+`/easyclaude:cheap applied to this turn only — prefix /easyclaude:cheap again to continue.`
