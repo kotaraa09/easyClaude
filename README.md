@@ -18,7 +18,9 @@ Then open any project and start typing. There is nothing to configure and no com
 
 **It remembers.** `docs/STATE.md` holds what's in progress, what's next, what's blocked, and what was skipped. Every session opens with a three-line orientation instead of you re-explaining the project.
 
-**"Done" means verified.** Kickoff establishes a verify contract for *your* stack — the commands that must exit clean. Once you have a test suite, a Stop hook blocks the session from ending while they fail. No more `✅ All done!` on top of a red build.
+**"Done" means verified.** Kickoff establishes a verify contract for *your* stack — the commands that must exit clean. Once you have a test suite, a Stop hook blocks the turn from ending while they fail, sending Claude back to fix them. No more `✅ All done!` on top of a red build.
+
+It won't trap you: Claude Code caps consecutive Stop-hook blocks and overrides after a few, so a gate that can't be satisfied gives up rather than wedging your session. Raise the cap with `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` if you want it stricter.
 
 **Guardrails that don't need cooperation.** `rm -rf`, force pushes, hard resets, curl-pipe-sh, reads and writes to `.env`, and lockfile edits are denied at the permission layer — not requested politely in a prompt.
 

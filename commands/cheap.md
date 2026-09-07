@@ -2,6 +2,7 @@
 description: Cheapest working solution for this one request (this turn only)
 argument-hint: <what you want done> — or leave empty to continue the previous cheap task
 model: sonnet
+effort: low
 disable-model-invocation: true
 allowed-tools: Read, Edit, Write, Bash, Glob, Grep
 ---
