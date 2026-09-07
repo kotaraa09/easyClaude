@@ -263,6 +263,12 @@ for (const f of walk(join(root, 'recipes')).filter((p) => p.endsWith('.md') && !
   for (const field of ['Detect:', 'Verify steps', 'Verification strength']) {
     if (!text.includes(field)) err(rel(f), `recipe missing "${field}"`);
   }
+  // The strength claim sets user expectations, so it must come from a fixed
+  // vocabulary rather than being freely worded per recipe.
+  const m = text.match(/\*\*Verification strength:\*\*\s*\**\s*(strong|partial|compile-only|none)\b/i);
+  if (!m) {
+    err(rel(f), 'Verification strength must be one of: strong, partial, compile-only, none');
+  }
 }
 
 // --- 9. skill descriptions must not collide ----------------------------------

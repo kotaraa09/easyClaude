@@ -20,9 +20,19 @@ Copy this shape into `recipes/<stack>.md`. Keep it under a page.
 This field sets user expectations and it is the field most worth getting right.
 
 - **strong** — a real test suite runs headlessly and fast. The gate genuinely catches broken work.
+- **partial** — some layers verify (logic, units) while others cannot (UI, device, rendering). Say which half is covered.
 - **compile-only** — it builds, but nothing proves it behaves. Common for GUI-centric and game stacks.
-- **none** — needs a device, an emulator, a GUI, or a paid service. Say so out loud; don't fake a gate.
+- **none** — needs a device, an emulator, a GUI, or has no toolchain at all. Say so out loud; don't fake a gate.
 
-An honest `compile-only` is worth more than an aspirational `strong` that never runs.
+An honest `compile-only` is worth more than an aspirational `strong` that never runs. A verify contract that always passes is worse than no contract, because it teaches everyone to ignore the gate.
+
+## Shipped recipes
+
+| recipe | strength |
+|---|---|
+| `go`, `rust`, `python-uv`, `node-typescript`, `nextjs`, `vite-react`, `flutter` | strong |
+| `gradle-android` | partial |
+| `unity` | compile-only, often none |
+| `static-site` | none |
 
 Contributions welcome — one recipe per PR.

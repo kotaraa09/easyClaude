@@ -54,7 +54,7 @@ Third-party skills are vendored deliberately and sparingly. Every skill's name a
 
 ## How it adapts to your stack
 
-Kickoff detects the stack from marker files and loads a [recipe](recipes/) — how to verify it, and what usually goes wrong. Ships with Next.js, Python/uv, and Go. Anything else, it writes a recipe by asking you, which you can contribute back.
+Kickoff detects the stack from marker files and loads a [recipe](recipes/) — how to verify it, and what usually goes wrong. Ten ship today: Go, Rust, Python/uv, Node+TS, Next.js, Vite+React, Flutter, Android, Unity, and plain static sites. Anything else, it writes a recipe by asking you, which you can contribute back.
 
 **Verification is honest about its limits.** Web, Python, Go, Rust, and CLI projects verify strongly. Unity, Unreal, Android Studio, and iOS often can't be verified headlessly at all — on those, easyClaude tells you it can prove the code compiles but not that it works, rather than implying a guarantee it can't deliver.
 
