@@ -97,3 +97,5 @@ none
 ## 7. Close
 
 Three lines: what you set up, what the verify command is, and the single next action. Then stop — do not start building unless asked.
+
+If the project obviously wants a browser, a database, or live library docs, mention in **one line** that `/easyclaude:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.

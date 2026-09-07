@@ -42,11 +42,42 @@ node scripts/gen/generate.mjs --list      # modalities and default models
 node scripts/gen/generate.mjs ... --dry-run
 ```
 
-Images, video, audio, and 3D behind a single `REPLICATE_API_TOKEN`. A script rather than an MCP server on purpose: no tool schemas riding along in every turn, it works in CI, and the token is read inside the script so it never enters the model's context.
+Images, video, audio, and 3D. A script rather than an MCP server on purpose: no tool schemas riding along in every turn, it works in CI, and keys are read inside the script so they never enter the model's context.
+
+**Six providers, and whichever key you have gets used.** Replicate covers every modality with one key; ElevenLabs does speech and sound effects (Replicate's default is music-only, so this is the one that makes voice work at all); OpenAI, Gemini and Venice do images; and `--provider local` drives Automatic1111 or ComfyUI on your own machine for **nothing per image**. `--check` proves a key works without generating anything.
+
+**A subscription is not an API key.** ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM don't include API access — it's a separate account, billed separately. Providers are also rejected on a stated rule: they must do something Claude can't. That keeps Ollama, DeepSeek, Kimi and OpenRouter out (text-only, and Claude already writes text), and Midjourney out because it has **no official API** at all. The reasons ship in `providers.mjs` so the rule survives the next contributor.
+
+Adapters are marked `tested` or `UNTESTED` in `--list`, and the flag is honest: only Replicate has produced a real file.
 
 Every generation is logged to `docs/asset-log.md`, because it costs real money and otherwise leaves no trace. The skill confirms before spending, and defaults to `--dry-run` when unsure.
 
 Honest about limits: good for placeholders, backgrounds, textures, and mood; weak for final logos, where raster output only *looks* like a mark. Use `--model recraft-ai/recraft-v3-svg` if you need real vector.
+
+## Connecting things — advanced, and optional
+
+Nothing here is needed to build software. It exists because wiring up MCP servers by hand is fiddly and the failure modes are unobvious.
+
+`/easyclaude:connect` turns setup into filling in a form. `.env.example` lists every connector with a one-line description and where to get the key; you fill in only what you have, and blanks stay switched off — there is nothing to uninstall later. One command then reads the form and configures whatever it found:
+
+```bash
+node scripts/connect.mjs --list      # what's available
+node scripts/connect.mjs --status    # which keys are filled - names only, never values
+node scripts/connect.mjs --apply     # wire up everything that has a key
+```
+
+**Your keys never enter the model's context.** `.env` is denied to Claude for both read and write, so the script reads it and reports only which key *names* are present — the same reason `generate.mjs` reads its own token internally.
+
+**Scope is chosen per connector, and that's the part that matters:**
+
+| connector | lands in | why |
+|---|---|---|
+| needs no key | `.mcp.json`, committed | teammates get it, and Claude Code holds it at *pending approval* until a human accepts |
+| needs a key | `~/.claude.json`, outside the repo | a key cannot be committed by accident |
+
+**Browser sign-in connectors cannot be automated at all.** Figma, Notion, Linear, Slack and Sentry need the interactive `/mcp` flow — there is no key to paste. The script names them instead of pretending otherwise.
+
+`.mcp.json` ships with zero servers, and `enableAllProjectMcpServers` is deliberately absent from every settings file here: it auto-approves every server in a committed `.mcp.json`, so cloning a repo would silently run whatever a stranger put in it. That approval gate is the only reason shipping a committed `.mcp.json` is safe at all.
 
 ## Curated skills
 
@@ -101,8 +132,9 @@ It refuses regardless of the config when verification failed, when the change to
 
 ```
 .claude-plugin/   plugin + marketplace manifests
+.mcp.json         zero servers by design - /easyclaude:connect fills it
 hooks/            SessionStart orientation, adaptive Stop gate
-commands/         /easyclaude:cheap, :cheap-session, :full, :autoship
+commands/         /easyclaude:cheap, :cheap-session, :full, :autoship, :connect
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship
                   opt-in:    write-tests, rescue, security-check, deploy,
                              generate-asset, pick-library
@@ -110,7 +142,8 @@ skills/           always-on: kickoff, plan-feature, build-task, debug, ship
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
-scripts/          validate.mjs (CI checks) + gen/ (asset generation)
+scripts/          validate.mjs (CI checks), connect.mjs (MCP + keys),
+                  gen/ (asset generation)
 ```
 
 ## Contributing
@@ -143,6 +176,6 @@ A one-line pointer in `rules/workflow.md` keeps all six discoverable for ~60 tok
 
 **CI enforces the budget.** `skills/registry.json` sets `max_always_on_tokens`, the validator computes the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill now means displacing one — which is the point. The vendored `design-taste` is ~156 of the total on its own and is left verbatim rather than edited, since modifying vendored frontmatter would break the pinned-SHA guarantee.
 
-It ships `.mcp.json` empty on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them. If you're low on credits, `/easyclaude:cheap` is the answer.
+It ships `.mcp.json` with zero servers on purpose: MCP tool schemas are the single largest avoidable context cost, often larger than everything above combined. Add servers only when you need them — `/easyclaude:connect` does that from a form. If you're low on credits, `/easyclaude:cheap` is the answer.
 
 MIT.
