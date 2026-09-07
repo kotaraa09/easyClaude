@@ -14,6 +14,8 @@ claude
 
 Then open any project and start typing. There is nothing to configure and no commands to memorise — on a project it doesn't recognise, it runs kickoff by itself.
 
+Or fork [`template/`](template/), which pre-registers the marketplace in `.claude/settings.json` so a clone needs no install step at all — just approve the trust prompt on first run. CI checks those keys still match the real plugin and marketplace names, since a rename would otherwise break the template silently.
+
 Commands are namespaced by the plugin — `/easyclaude:cheap`, not the bare name. Skills trigger on plain English and never need to be typed at all.
 
 ## What you actually get

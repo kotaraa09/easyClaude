@@ -298,6 +298,31 @@ for (let i = 0; i < descs.length; i++) {
   }
 }
 
+// --- 9b. template settings must match the real plugin ------------------------
+// The template pre-registers the marketplace so a clone works with no setup. If
+// the plugin or marketplace is ever renamed, these keys break silently - the
+// template just quietly installs nothing.
+const tmplSettings = json['template/.claude/settings.json'];
+if (tmplSettings && plugin && market) {
+  const where = 'template/.claude/settings.json';
+  const mkts = Object.keys(tmplSettings.extraKnownMarketplaces ?? {});
+  if (!mkts.includes(market.name)) {
+    err(where, `extraKnownMarketplaces must contain "${market.name}" (found: ${mkts.join(', ') || 'none'})`);
+  }
+  for (const [name, entry] of Object.entries(tmplSettings.extraKnownMarketplaces ?? {})) {
+    const src = entry?.source;
+    if (!src?.source) err(where, `marketplace "${name}" needs a source object with a "source" kind`);
+    else if (src.source === 'github' && !/^[\w.-]+\/[\w.-]+$/.test(src.repo ?? '')) {
+      err(where, `marketplace "${name}" github source needs repo as "owner/repo", got "${src.repo}"`);
+    }
+  }
+  const expected = `${plugin.name}@${market.name}`;
+  const enabled = Object.keys(tmplSettings.enabledPlugins ?? {});
+  if (!enabled.includes(expected)) {
+    err(where, `enabledPlugins must contain "${expected}" (found: ${enabled.join(', ') || 'none'})`);
+  }
+}
+
 // --- 10. always-on token budget ----------------------------------------------
 // Mirrors the cost function in the Claude Code binary:
 //   skipped entirely when disableModelInvocation is set,

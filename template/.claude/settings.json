@@ -1,4 +1,15 @@
 {
+  "extraKnownMarketplaces": {
+    "easyclaude": {
+      "source": {
+        "source": "github",
+        "repo": "kotaraa09/easyClaude"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "easyclaude@easyclaude": true
+  },
   "permissions": {
     "deny": [
       "Bash(rm -rf /*)",

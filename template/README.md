@@ -6,11 +6,13 @@ Built with [easyClaude](https://github.com/kotaraa09/easyClaude).
 
 ```bash
 claude
-/plugin marketplace add kotaraa09/easyClaude
-/plugin install easyclaude@easyclaude
 ```
 
-Then just say what you want to build. Kickoff runs on its own the first time.
+That's it. `.claude/settings.json` already pre-registers the easyClaude marketplace and enables the plugin, so Claude Code offers to install it on first run — you just approve the trust prompt.
+
+Then say what you want to build. Kickoff runs on its own the first time.
+
+<sub>If it doesn't offer, install manually: `/plugin marketplace add kotaraa09/easyClaude` then `/plugin install easyclaude@easyclaude`.</sub>
 
 ## Where things are
 
