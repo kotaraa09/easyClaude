@@ -107,18 +107,29 @@ Kickoff detects the stack from marker files and loads a [recipe](recipes/) — h
 
 ## The workflow
 
-You don't invoke any of this. It triggers on what you say.
+Five skills trigger on what you say. You never type them.
 
-| You say | What happens |
-|---|---|
-| *"add user profiles"* | Spec and task list written first, for you to approve |
-| *"keep going"* | Next task built as one slice, then verified |
-| *"it needs to handle timezones"* | A vetted library found and adopted, instead of hand-rolled |
-| *"it's throwing an error"* | Reproduced, isolated, fixed, regression test added |
-| *"is this safe to make public?"* | Secrets, git history, endpoints and dependencies swept |
-| *"put it online"* | Production build proven, host picked, env vars set, live URL verified |
-| *"ship it"* | Verified, branched, reviewed, committed, PR opened |
-| *"/easyclaude:cheap fix the login redirect"* | Cheapest working fix, this turn only |
+| You say | What happens | skill |
+|---|---|---|
+| *(a directory with no `docs/STATE.md`)* | Interviewed, stack detected, verify contract established | `kickoff` |
+| *"add user profiles"* | Spec and task list written first, for you to approve | `plan-feature` |
+| *"keep going"* | Next task built as one slice, then verified | `build-task` |
+| *"it's throwing an error"* | Reproduced, isolated, fixed, regression test added | `debug` |
+| *"ship it"* | Verified, branched, reviewed, committed, PR opened | `ship` |
+
+The rest are typed. They fire a handful of times per project, and an always-on skill is never free — see [Costs](#costs):
+
+| You type | What happens | skill |
+|---|---|---|
+| `/easyclaude:pick-library` | A vetted library found and adopted, instead of hand-rolled | `pick-library` |
+| `/easyclaude:write-tests` | A suite started, so the gate catches behaviour and not just types | `write-tests` |
+| `/easyclaude:security-check` | Secrets, git history, endpoints and dependencies swept | `security-check` |
+| `/easyclaude:deploy` | Production build proven, host picked, env vars set, live URL verified | `deploy` |
+| `/easyclaude:generate-asset` | Images, audio, video or 3D generated through a provider | `generate-asset` |
+| `/easyclaude:rescue` | A change undone, or work recovered | `rescue` |
+| `/easyclaude:cheap fix the login redirect` | Cheapest working fix, this turn only | *(command)* |
+
+This table used to promise that *"is this safe to make public?"* and *"put it online"* would fire on their own. They cannot: those skills set `disable-model-invocation`, which is exactly what buys the per-turn cost down. Two sections of this file disagreed for four commits, so the validator now checks the table against the frontmatter.
 
 Small changes skip the ceremony entirely — a bug fix is just a bug fix.
 
@@ -165,7 +176,9 @@ scripts/          verify.mjs (the gate), validate.mjs (CI checks),
 node scripts/validate.mjs
 ```
 
-Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, docs use the namespaced command form, a hook that shells out points at a script that actually exists, and the per-turn cost quoted below matches what the validator measures. CI also runs the gate itself, both ways: the contract must pass, and a deliberately failing one must block. Every check exists because that exact thing broke at least once.
+Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, docs use the namespaced command form, a hook that shells out points at a script that actually exists, the workflow tables agree with each skill's frontmatter about whether it fires on plain English, and the per-turn cost quoted below matches what the validator measures. CI also runs the gate itself, both ways: the contract must pass, and a deliberately failing one must block.
+
+What it still cannot check is which skill actually wins a given sentence — a structural validator reads frontmatter, not meaning. [`evals/`](evals/) records why that suite isn't written yet and what to write first. Every check exists because that exact thing broke at least once.
 
 
 ## Costs

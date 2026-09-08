@@ -418,6 +418,39 @@ for (const f of [
   }
 }
 
+// --- 12. the workflow table must match how skills actually fire --------------
+// The README promised that "is this safe to make public?" and "put it online" would
+// trigger security-check and deploy on their own. Both set disable-model-invocation,
+// so neither can fire on plain English at all - that flag is precisely what removes
+// them from per-turn cost. The Costs section said so three screens further down.
+// Nothing in CI read a skill's description for meaning, so the two sections drifted.
+const ourSkills = skillNames.filter((d) => !vendoredDirs.has(join(skillsDir, d)));
+const firesOnItsOwn = new Map();
+for (const d of ourSkills) {
+  const fm = parseFrontmatter(readFileSync(join(skillsDir, d, 'SKILL.md'), 'utf8'), `skills/${d}`);
+  firesOnItsOwn.set(d, String(fm?.['disable-model-invocation']).toLowerCase() !== 'true');
+}
+const inTable = new Set();
+for (const line of readme.split(/\r?\n/)) {
+  const cells = line.split('|').map((c) => c.trim());
+  if (cells.length < 5) continue;
+  const skill = (cells[3].match(/^`([a-z][a-z-]*)`$/) ?? [])[1];
+  if (!skill || !firesOnItsOwn.has(skill)) continue;
+  inTable.add(skill);
+  const typed = cells[1].startsWith(`\`/${ns}:`);
+  if (typed && firesOnItsOwn.get(skill)) {
+    err('README.md', `the workflow table lists "${skill}" as typed, but it has no disable-model-invocation - it fires on plain English too, and costs on every turn`);
+  } else if (!typed && !firesOnItsOwn.get(skill)) {
+    err('README.md', `the workflow table promises "${skill}" fires on plain English, but it sets disable-model-invocation - it can only be run as /${ns}:${skill}`);
+  }
+}
+// A skill missing from the table is one whose triggering nobody has had to think about.
+for (const d of ourSkills) {
+  if (!inTable.has(d)) {
+    err('README.md', `skill "${d}" is in neither workflow table - every skill must state whether it fires on plain English or has to be typed`);
+  }
+}
+
 // --- report ------------------------------------------------------------------
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
 for (const w of warnings) console.log(`  warn   ${w}`);
