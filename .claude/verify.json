@@ -1,0 +1,6 @@
+{
+  "_comment": "easyClaude's own verify contract. The framework should run under its own gate; if the validator is red, no turn here should be allowed to end claiming otherwise.",
+  "steps": [
+    { "name": "validate", "cmd": "node scripts/validate.mjs" }
+  ]
+}

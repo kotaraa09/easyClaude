@@ -22,9 +22,16 @@ Commands are namespaced by the plugin — `/easyclaude:cheap`, not the bare name
 
 **It remembers.** `docs/STATE.md` holds what's in progress, what's next, what's blocked, and what was skipped. Every session opens with a three-line orientation instead of you re-explaining the project.
 
-**"Done" means verified.** Kickoff establishes a verify contract for *your* stack — the commands that must exit clean. Once you have a test suite, a Stop hook blocks the turn from ending while they fail, sending Claude back to fix them. No more `✅ All done!` on top of a red build.
+**"Done" means verified.** Kickoff establishes a verify contract for *your* stack — the commands that must exit clean. A Stop hook then runs them whenever Claude tries to end a turn that touched source, and blocks on a non-zero exit, sending it back to fix them. No more `✅ All done!` on top of a red build.
 
-It won't trap you: Claude Code caps consecutive Stop-hook blocks and overrides after a few, so a gate that can't be satisfied gives up rather than wedging your session. Raise the cap with `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` if you want it stricter.
+**The gate is a script, not a prompt.** `scripts/verify.mjs` runs the contract and blocks on the exit code — so it costs no tokens, adds no model call per turn, and cannot be reasoned out of a failure by the same model whose tests just failed. Run it yourself any time:
+
+```bash
+node scripts/verify.mjs          # one line per step, non-zero exit if any failed
+node scripts/verify.mjs --list   # show the contract without running it
+```
+
+It won't trap you, and it distinguishes the two ways a check goes wrong. A step that **fails** blocks. A step that **can't run at all** — no toolchain on this machine — warns and lets the turn end, because wedging every session on a missing compiler is not a safety feature. Turns that touched only `docs/`, `design/` or top-level markdown skip the contract entirely, so a `STATE.md` edit doesn't run your test suite. Beyond that, Claude Code caps consecutive Stop-hook blocks and overrides after a few; raise it with `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` if you want it stricter, or set `EASYCLAUDE_SKIP_VERIFY=1` to stand the gate down for one run.
 
 **Guardrails that don't need cooperation.** `rm -rf`, force pushes, hard resets, curl-pipe-sh, reads and writes to `.env`, and lockfile edits are denied at the permission layer — not requested politely in a prompt.
 
@@ -135,7 +142,7 @@ It refuses regardless of the config when verification failed, when the change to
 ```
 .claude-plugin/   plugin + marketplace manifests
 .mcp.json         zero servers by design - /easyclaude:connect fills it
-hooks/            SessionStart orientation, adaptive Stop gate
+hooks/            SessionStart orientation, Stop gate (runs verify.mjs)
 commands/         /easyclaude:cheap, :cheap-session, :full, :autoship, :connect
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship
                   opt-in:    write-tests, rescue, security-check, deploy,
@@ -144,8 +151,8 @@ skills/           always-on: kickoff, plan-feature, build-task, debug, ship
 rules/            copied into your project — ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
-scripts/          validate.mjs (CI checks), connect.mjs (MCP + keys),
-                  gen/ (asset generation)
+scripts/          verify.mjs (the gate), validate.mjs (CI checks),
+                  connect.mjs (MCP + keys), gen/ (asset generation)
 ```
 
 ## Contributing
@@ -154,19 +161,21 @@ scripts/          validate.mjs (CI checks), connect.mjs (MCP + keys),
 node scripts/validate.mjs
 ```
 
-Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, docs use the namespaced command form, and the per-turn cost quoted below matches what the validator measures. Every check exists because that exact thing broke at least once.
+Runs in CI on every push and PR. No dependencies — `node:` builtins only. It checks frontmatter parses and uses real keys, skill names match their directories, hook events and shapes are valid, manifests agree, recipes carry a verification-strength field, docs use the namespaced command form, a hook that shells out points at a script that actually exists, and the per-turn cost quoted below matches what the validator measures. CI also runs the gate itself, both ways: the contract must pass, and a deliberately failing one must block. Every check exists because that exact thing broke at least once.
 
 
 ## Costs
 
 The framework isn't free, and it says so out loud. A skill's name and description ride along on **every turn of every session** — so the standing cost is a real tax, not a rounding error.
 
-**~1,165 tokens per turn**: ~690 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+**~1,170 tokens per turn**: ~695 of rules, ~475 of skill descriptions. Skill bodies and recipes are another ~3.4k, but those load only when actually used.
+
+**Hooks are counted too, and one of them used to be the worst offender.** A `type: "prompt"` hook is a model call — the Stop gate fired one on every turn that touched a file, to ask the model whether its own tests had passed. It is now `scripts/verify.mjs` behind a `type: "command"` hook: zero tokens, no model call, and a verdict that comes from an exit code instead of a judgement. `SessionStart` stays a prompt hook, because orienting in a project genuinely is a judgement call and it fires once per session, not once per turn.
 
 **Skills are split by how often they fire.** The five that trigger constantly — kickoff, plan-feature, build-task, debug, ship — stay always-on so plain English keeps working. The six used a handful of times per project set `disable-model-invocation`, which removes them from per-turn cost **entirely** (that's the binary's own cost function: it skips them). They're invoked by name instead:
 
 ```
-/easyclaude:write-tests        start a suite, upgrade the gate to enforcing
+/easyclaude:write-tests        start a suite, so the gate catches behaviour
 /easyclaude:rescue             undo it, get it back
 /easyclaude:security-check     before going public
 /easyclaude:deploy             to put it online

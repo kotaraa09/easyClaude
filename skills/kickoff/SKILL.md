@@ -52,18 +52,18 @@ Rules:
 - If a step can't run because the toolchain is missing, say so plainly, tell the user exactly what to install, and omit that step. Do not invent a step you couldn't execute.
 - **Be honest about weak verification.** GUI-centric stacks (Unity, Unreal, Android Studio, iOS) often can't be verified headlessly. If so, write what you can (a compile step at minimum), and tell the user in one line: *"On this stack I can verify it compiles, but not that it works — you'll need to run it yourself."* Never imply a guarantee you can't deliver.
 
-## 5. Wire the gate — adaptive
+## 5. Wire the gate — writing step 4 already did it
 
-Merge into the project's `.claude/settings.json`:
+The plugin's Stop hook runs `.claude/verify.json` itself, so there is nothing further to wire.
+**Do not add a Stop hook to the project's `.claude/settings.json`** — a second one would run the
+same commands twice, and slow gates are the ones people delete.
 
-- **If a real test suite exists and passes**, add a hard gate. It blocks the session from ending on red:
-  ```json
-  { "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "<the test command>" } ] } ] } }
-  ```
-- **If there are no tests yet**, add nothing. The plugin's own prompt-based Stop hook already warns. The gate arrives when the project has earned it.
-  Tell the user once that `/easyclaude:write-tests` will start a suite and upgrade the gate to enforcing. Don't push it.
+Say in one line what the gate now covers, and be exact about it. A contract that is only a
+typecheck catches type errors and nothing else; it does not prove the thing works. That gap is
+the honest argument for `/easyclaude:write-tests`, which widens the contract — not a promise the
+gate already keeps. Mention it once and don't push it.
 
-Also add the guardrails from `${CLAUDE_PLUGIN_ROOT}/rules/permissions.json` into `permissions.deny`.
+Add the guardrails from `${CLAUDE_PLUGIN_ROOT}/rules/permissions.json` into `permissions.deny`.
 
 ## 6. Write the files
 

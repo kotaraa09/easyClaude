@@ -21,7 +21,13 @@ Read `docs/STATE.md`. Take the first unchecked task under `## Now`, or promote t
 
 ## 3. Verify
 
-Run every step in `.claude/verify.json`. If a step fails, fix it — **do not report success on red, and do not describe the work as done, working, or complete while any step fails.**
+Run the contract:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs
+```
+
+One line per step, non-zero exit if any failed. If a step fails, fix it — **do not report success on red, and do not describe the work as done, working, or complete while any step fails.** The Stop hook runs the same command when you try to end the turn, so a failure you talk past just blocks you a moment later.
 
 If a failure is not obvious, switch to the `debug` skill rather than trying edits until something sticks.
 

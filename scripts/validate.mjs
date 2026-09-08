@@ -170,9 +170,18 @@ if (!hooks) {
           err('hooks/hooks.json', `"${event}" command hook missing "command"`);
         }
         // Regression guard: a Stop hook ignoring stop_hook_active re-blocks until force-overridden.
+        // Only prompt hooks need it - a command hook blocks on an exit code, which a fix
+        // actually clears, and verify.mjs downgrades an unrunnable step to a warning.
         if ((event === 'Stop' || event === 'SubagentStop') && h.type === 'prompt' &&
             !/stop_hook_active/.test(h.prompt ?? '')) {
           err('hooks/hooks.json', `${event} prompt hook must check "stop_hook_active" or it loops until the block cap overrides it`);
+        }
+        // A command hook pointing at a script that was renamed fails open: the gate
+        // silently stops running and nothing says so.
+        for (const m of (h.command ?? '').matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^\s"']+)/g)) {
+          if (!existsSync(join(root, m[1]))) {
+            err('hooks/hooks.json', `"${event}" hook runs "${m[1]}", which does not exist in this plugin`);
+          }
         }
       }
     }
