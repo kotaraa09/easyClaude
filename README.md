@@ -221,6 +221,8 @@ node scripts/connect.mjs --apply     # wire up everything that has a key
 
 Your keys never reach Claude's context. `.env` is blocked for reading and writing, so the script opens it and reports back only which key names it found.
 
+They don't reach the command line either. `claude mcp add` can only take a key through its arguments, where any process running as you can read it, so the script passes a single-use placeholder and writes the real value into the config afterwards.
+
 <details>
 <summary><b>Where each connector lands, and why</b></summary>
 

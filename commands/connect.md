@@ -43,6 +43,11 @@ you cannot open it. That is deliberate: the script reads the file itself and rep
 which key *names* are filled, so a secret never enters your context. Don't try to work
 around it, and don't ask them to paste a key into the chat.
 
+The key does not reach the command line either. `claude mcp add` can only accept one
+through its arguments, where any process running as that user can read it, so the script
+passes a single-use placeholder and writes the real value into the config afterwards. So
+never run `claude mcp add` by hand with a key in it — that is the thing this avoids.
+
 ## 3. See what got filled
 
 ```bash
