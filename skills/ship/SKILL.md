@@ -26,7 +26,7 @@ One commit per logical change. The message says **why**, not what — the diff a
 
 ## 5. State, then PR
 
-- Move finished tasks to `## Done` in `docs/STATE.md`.
+- Move finished tasks to `## Done` in `docs/STATE.md`, keeping it to the ten most recent — older entries move to `docs/CHANGELOG.md`, newest first.
 - Open the PR with a body covering: what changed, why, how to test it, and anything left in `## Debt`.
 
 ## 6. Before a repo goes public or deploys for the first time

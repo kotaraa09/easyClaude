@@ -399,6 +399,25 @@ if (rounded && rounded[1] !== (alwaysOn / 1000).toFixed(1)) {
     `measured ~${(alwaysOn / 1000).toFixed(1)}k.`);
 }
 
+// --- 11. the STATE.md compaction rule must not drift -------------------------
+// docs/STATE.md is read at the start of every session, so the cap on "## Done" is
+// what keeps the framework's memory from becoming its largest cost. The rule is
+// stated in five places - the file's own comment, kickoff's template, build-task,
+// ship, and the README - and a number living in prose in five places is exactly
+// the drift the cost claim above is checked for.
+for (const f of [
+  'template/docs/STATE.md', 'skills/kickoff/SKILL.md',
+  'skills/build-task/SKILL.md', 'skills/ship/SKILL.md', 'README.md',
+]) {
+  const text = readFileSync(join(root, f), 'utf8');
+  if (!/ten most recent/.test(text)) {
+    err(f, 'must state the "## Done" cap as "ten most recent" - changing the cap means changing it in all five places at once');
+  }
+  if (!/docs\/CHANGELOG\.md/.test(text)) {
+    err(f, 'states the "## Done" cap but not where the older entries go (docs/CHANGELOG.md) - a cap without a destination reads as "delete them"');
+  }
+}
+
 // --- report ------------------------------------------------------------------
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
 for (const w of warnings) console.log(`  warn   ${w}`);

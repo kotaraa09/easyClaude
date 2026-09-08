@@ -91,8 +91,15 @@ Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 none
 
 ## Debt
-(skipped work gets recorded here)
+<!-- Deliberately skipped work, specific enough to act on later. Read back at plan
+     time: anything here touching the area being planned becomes a candidate task. -->
+
+## Done
+<!-- The ten most recent. Older entries move to docs/CHANGELOG.md, newest first -
+     never deleted, just moved. This file is read at the start of every session. -->
 ```
+
+Keep those two comments. They are the only thing stopping the file that every session reads first from growing without bound, and the next session has no other way to know the rule.
 
 ## 7. Close
 

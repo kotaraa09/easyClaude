@@ -22,6 +22,10 @@ Commands are namespaced by the plugin — `/easyclaude:cheap`, not the bare name
 
 **It remembers.** `docs/STATE.md` holds what's in progress, what's next, what's blocked, and what was skipped. Every session opens with a three-line orientation instead of you re-explaining the project.
 
+**And the memory stays small.** `## Done` is capped at the ten most recent entries; older ones move to `docs/CHANGELOG.md` rather than being deleted. A handover file read at the start of every session cannot be allowed to grow without bound — that would be a strange thing for the framework that measures its own per-turn cost to ship. The rule lives as a comment inside `STATE.md` itself, because that is the only place the next session is guaranteed to look.
+
+**Debt gets read back, not just written down.** Four skills record skipped work under `## Debt`, and nothing ever looked at it again — which makes it a slower way of forgetting. Now `plan-feature` checks it before planning in the same area, the one moment when fixing a stub costs a task instead of a rewrite, and the session opener adds a fourth line naming how many entries are waiting. On a project with no debt, nothing changes.
+
 **"Done" means verified.** Kickoff establishes a verify contract for *your* stack — the commands that must exit clean. A Stop hook then runs them whenever Claude tries to end a turn that touched source, and blocks on a non-zero exit, sending it back to fix them. No more `✅ All done!` on top of a red build.
 
 **The gate is a script, not a prompt.** `scripts/verify.mjs` runs the contract and blocks on the exit code — so it costs no tokens, adds no model call per turn, and cannot be reasoned out of a failure by the same model whose tests just failed. Run it yourself any time:
