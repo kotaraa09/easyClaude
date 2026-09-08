@@ -2,7 +2,7 @@
 
 A stack-agnostic harness that makes Claude Code work well on real projects — web, mobile, ML, games, anything.
 
-It is **not** a starter template. It ships no scaffolding and assumes no stack. It gives Claude four things it doesn't have on its own: memory between sessions, a definition of "done" it can't fake, guardrails that don't depend on it cooperating, and a way to work cheaply when you're low on credits.
+It is **not** a starter template. It ships no scaffolding and assumes no stack. It gives Claude five things it doesn't have on its own: memory between sessions, a definition of "done" it can't fake, guardrails that don't depend on it cooperating, a reason to reach for a proven library instead of hand-rolling one, and a way to work cheaply when you're low on credits.
 
 ## Install
 
@@ -38,7 +38,8 @@ Claude can't draw, record, or model. easyClaude shells out to a provider that ca
 
 ```bash
 node scripts/gen/generate.mjs --kind image --prompt "..." --out public/hero.webp
-node scripts/gen/generate.mjs --list      # modalities and default models
+node scripts/gen/generate.mjs --list      # modalities, providers, which are tested
+node scripts/gen/generate.mjs --check     # prove a key works, generating nothing
 node scripts/gen/generate.mjs ... --dry-run
 ```
 
@@ -85,7 +86,7 @@ Third-party skills are vendored deliberately and sparingly. Every skill's name a
 
 **Vendored:** [design-taste](skills/design-taste/) — `design/tokens.md` enforces consistency but says nothing about whether the result is any *good*. This carries specific, falsifiable rules: contrast ratios, easing curves, the eight interaction states, named anti-patterns. MIT, with upstream Apache-2.0 attribution preserved.
 
-**Recommended but not vendored:** [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) ("One Skill to Rule Them All") is genuinely good and worth installing alongside — but knowingly. It asks to be invoked before the first tool call of *every* session and before any plan, which collides with easyClaude's `SessionStart` hook and `plan-feature`; its SKILL.md is 44KB against a framework measured in hundreds of tokens; and it wants a persistent workspace plus Python scripts. It's a peer framework, not a component.
+**Recommended but not vendored:** [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) ("One Skill to Rule Them All") is genuinely good and worth installing alongside — but knowingly. It asks to be invoked before the first tool call of *every* session and before any plan, which collides with easyClaude's `SessionStart` hook and `plan-feature`; its SKILL.md is 44KB against a framework measured at ~1.2k tokens per turn; and it wants a persistent workspace plus Python scripts. It's a peer framework, not a component.
 
 ## How it adapts to your stack
 
@@ -101,6 +102,7 @@ You don't invoke any of this. It triggers on what you say.
 |---|---|
 | *"add user profiles"* | Spec and task list written first, for you to approve |
 | *"keep going"* | Next task built as one slice, then verified |
+| *"it needs to handle timezones"* | A vetted library found and adopted, instead of hand-rolled |
 | *"it's throwing an error"* | Reproduced, isolated, fixed, regression test added |
 | *"is this safe to make public?"* | Secrets, git history, endpoints and dependencies swept |
 | *"put it online"* | Production build proven, host picked, env vars set, live URL verified |
