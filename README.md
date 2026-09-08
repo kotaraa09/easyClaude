@@ -8,11 +8,12 @@
 <h1 align="center">easyClaude</h1>
 
 <p align="center">
-  A plugin that makes Claude Code remember your project and check its own work.
+  A workflow for Claude Code that runs the whole loop: plan, build, verify, ship.
 </p>
 
 <p align="center">
-  <b>English</b> · <a href="README.th.md">ไทย</a>
+  <kbd><b>English</b></kbd>
+  <a href="README.th.md"><kbd>ภาษาไทย</kbd></a>
 </p>
 
 <p align="center">
@@ -26,15 +27,21 @@
 
 ## What is this?
 
-Claude Code writes good code. It also has two habits that get expensive on a real project.
+easyClaude is a workflow, not a single feature. It sets up the loop you would otherwise run by hand on every task: write a plan, build one slice, check it works, record what changed, commit.
 
-It forgets. Close your laptop, come back tomorrow, and you start by explaining your own project to it again.
+You describe what you want in ordinary words. Each step runs because the one before it finished, and nothing is called done until the checks pass.
 
-And it is optimistic. It will tell you "✅ All done!" while the tests are failing, because nothing is stopping it.
+Four things come with it.
 
-easyClaude is a plugin that deals with both. You install it once, then open any project and type normally. There is nothing to configure and no commands to learn. It doesn't care what you're building or what language you use.
+**The workflow itself.** Memory that carries across sessions, a verify gate that won't let "done" be claimed while the build is red, dangerous commands blocked at the permission layer, and the git steps (branch, review, commit, PR) automated once you arm them.
 
-It won't create a project for you, pick your tools, or write any boilerplate. It isn't a starter template, and it sits alongside whatever you already do.
+**A library check before anything gets hand-rolled.** Writing your own date parser means debugging it forever. It looks up what the ecosystem settled on and runs a supply-chain check before suggesting it.
+
+**Cheap mode.** One command for when credits are short: cheaper model, smallest fix that works, and a list of what it skipped.
+
+**Connections to things Claude can't do alone.** MCP servers configured from a form, and image, audio and 3D generation handed off to providers that can actually produce files.
+
+It won't create a project, pick your tools, or write boilerplate. It runs alongside whatever you already build in, on any stack.
 
 ## Is this for me?
 
@@ -167,6 +174,84 @@ Four more control easyClaude itself:
 
 </details>
 
+## Generating images, audio and 3D
+
+Claude can't draw, record or model anything, so easyClaude hands that off to a service that can:
+
+```bash
+node scripts/gen/generate.mjs --kind image --prompt "..." --out public/hero.webp
+node scripts/gen/generate.mjs --list      # what's available, and what's been tested
+node scripts/gen/generate.mjs --check     # prove your key works without generating
+```
+
+Or ask for `/easyclaude:generate-asset` and let it drive.
+
+Whichever key you already have is the one it uses. Replicate covers every kind of asset with a single key. ElevenLabs does speech and sound effects. OpenAI, Gemini and Venice do images. And `--provider local` drives Automatic1111 or ComfyUI on your own machine, which costs nothing per image.
+
+One thing to watch: a subscription is not an API key. ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM don't include API access. That's a separate account and a separate bill.
+
+Every generation gets logged to `docs/asset-log.md`, since it costs real money and otherwise leaves no trace. It asks before spending, and falls back to `--dry-run` when it isn't sure.
+
+Where it's weak: raster models are fine for placeholders, backgrounds, textures and mood, and bad at final logos, where the output only looks like a real mark. Use `--model recraft-ai/recraft-v3-svg` if you need actual vector.
+
+<details>
+<summary><b>Why these providers and not others</b></summary>
+
+<br>
+
+A provider has to do something Claude can't already do. That rule rules out Ollama, DeepSeek, Kimi and OpenRouter, which are text-only. Midjourney is out because it has no official API. The reasons are written into `providers.mjs` so the rule outlives the next contributor.
+
+Adapters are marked `tested` or `UNTESTED` in `--list`, and so far only Replicate has produced a real file.
+
+Keys are read inside the script and never reach Claude's context. That's also why this is a plain script and not an MCP server: no tool schemas loaded on every turn, and it runs in CI.
+
+</details>
+
+## Connecting other tools
+
+Optional, and not needed to build anything. It exists because wiring up MCP servers by hand is fiddly and the failure modes aren't obvious.
+
+`/easyclaude:connect` turns it into filling in a form. `.env.example` lists every connector with a one-line description and where to get the key. Fill in the ones you have; blanks stay switched off and there's nothing to uninstall later.
+
+```bash
+node scripts/connect.mjs --list      # what's available
+node scripts/connect.mjs --status    # which keys are filled, names only, never values
+node scripts/connect.mjs --apply     # wire up everything that has a key
+```
+
+Your keys never reach Claude's context. `.env` is blocked for reading and writing, so the script opens it and reports back only which key names it found.
+
+<details>
+<summary><b>Where each connector lands, and why</b></summary>
+
+<br>
+
+| connector | lands in | why |
+|---|---|---|
+| needs no key | `.mcp.json`, committed | teammates get it, and Claude Code holds it at pending approval until a human accepts |
+| needs a key | `~/.claude.json`, outside the repo | a key can't be committed by accident |
+
+Some connectors can't be automated at all. Figma, Notion, Linear, Slack and Sentry sign in through the browser and have no key to paste, so they need the interactive `/mcp` flow. The script lists them by name so you know to do those by hand.
+
+`enableAllProjectMcpServers` is left out of every settings file here on purpose. It auto-approves every server in a committed `.mcp.json`, which would mean cloning a repo silently runs whatever a stranger put in it. That approval gate is what makes shipping a committed `.mcp.json` safe in the first place.
+
+</details>
+
+## Shipping on its own
+
+Off until you turn it on. `/easyclaude:autoship` starts by checking whether git is actually usable here: identity set, a remote configured, `gh` installed and authenticated, and whether you have write access at all. Then it offers only the levels that can work.
+
+| level | adds | what you give up |
+|---|---|---|
+| `commit` | branch, self-review the diff, commit | not much, a bad commit is one revert away |
+| `push` | the branch leaves your machine | it's now somewhere other people can see |
+| `pr` | opens a pull request | |
+| `merge` | merges it and syncs your local base | the last human checkpoint |
+
+It only fires when a whole feature is finished: every check passed, and nothing left under `Now`, `Next` or `Blocked`. A bug found mid-task goes under `## Next`, which on its own is enough to stop the ship. That coupling is intentional, since "I found something" and "this is done" are often the same moment.
+
+It refuses regardless of your settings if checks failed, if the change touched auth, payments or a database migration, or if cheap mode is on. Settings live in `.claude/autoship.json`, which is gitignored. The authorisation is yours, not the repository's.
+
 ## Questions people ask
 
 <details>
@@ -247,84 +332,6 @@ CI enforces the ceiling. `skills/registry.json` sets it, the validator measures 
 No MCP servers ship enabled. Their tool schemas are the largest avoidable context cost, often bigger than everything above put together, so `.mcp.json` starts empty and `/easyclaude:connect` adds only what you ask for.
 
 </details>
-
-## Generating images, audio and 3D
-
-Claude can't draw, record or model anything, so easyClaude hands that off to a service that can:
-
-```bash
-node scripts/gen/generate.mjs --kind image --prompt "..." --out public/hero.webp
-node scripts/gen/generate.mjs --list      # what's available, and what's been tested
-node scripts/gen/generate.mjs --check     # prove your key works without generating
-```
-
-Or ask for `/easyclaude:generate-asset` and let it drive.
-
-Whichever key you already have is the one it uses. Replicate covers every kind of asset with a single key. ElevenLabs does speech and sound effects. OpenAI, Gemini and Venice do images. And `--provider local` drives Automatic1111 or ComfyUI on your own machine, which costs nothing per image.
-
-One thing to watch: a subscription is not an API key. ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM don't include API access. That's a separate account and a separate bill.
-
-Every generation gets logged to `docs/asset-log.md`, since it costs real money and otherwise leaves no trace. It asks before spending, and falls back to `--dry-run` when it isn't sure.
-
-Where it's weak: raster models are fine for placeholders, backgrounds, textures and mood, and bad at final logos, where the output only looks like a real mark. Use `--model recraft-ai/recraft-v3-svg` if you need actual vector.
-
-<details>
-<summary><b>Why these providers and not others</b></summary>
-
-<br>
-
-A provider has to do something Claude can't already do. That rule rules out Ollama, DeepSeek, Kimi and OpenRouter, which are text-only. Midjourney is out because it has no official API. The reasons are written into `providers.mjs` so the rule outlives the next contributor.
-
-Adapters are marked `tested` or `UNTESTED` in `--list`, and so far only Replicate has produced a real file.
-
-Keys are read inside the script and never reach Claude's context. That's also why this is a plain script and not an MCP server: no tool schemas loaded on every turn, and it runs in CI.
-
-</details>
-
-## Connecting other tools
-
-Optional, and not needed to build anything. It exists because wiring up MCP servers by hand is fiddly and the failure modes aren't obvious.
-
-`/easyclaude:connect` turns it into filling in a form. `.env.example` lists every connector with a one-line description and where to get the key. Fill in the ones you have; blanks stay switched off and there's nothing to uninstall later.
-
-```bash
-node scripts/connect.mjs --list      # what's available
-node scripts/connect.mjs --status    # which keys are filled, names only, never values
-node scripts/connect.mjs --apply     # wire up everything that has a key
-```
-
-Your keys never reach Claude's context. `.env` is blocked for reading and writing, so the script opens it and reports back only which key names it found.
-
-<details>
-<summary><b>Where each connector lands, and why</b></summary>
-
-<br>
-
-| connector | lands in | why |
-|---|---|---|
-| needs no key | `.mcp.json`, committed | teammates get it, and Claude Code holds it at pending approval until a human accepts |
-| needs a key | `~/.claude.json`, outside the repo | a key can't be committed by accident |
-
-Some connectors can't be automated at all. Figma, Notion, Linear, Slack and Sentry sign in through the browser and have no key to paste, so they need the interactive `/mcp` flow. The script lists them by name so you know to do those by hand.
-
-`enableAllProjectMcpServers` is left out of every settings file here on purpose. It auto-approves every server in a committed `.mcp.json`, which would mean cloning a repo silently runs whatever a stranger put in it. That approval gate is what makes shipping a committed `.mcp.json` safe in the first place.
-
-</details>
-
-## Shipping on its own
-
-Off until you turn it on. `/easyclaude:autoship` starts by checking whether git is actually usable here: identity set, a remote configured, `gh` installed and authenticated, and whether you have write access at all. Then it offers only the levels that can work.
-
-| level | adds | what you give up |
-|---|---|---|
-| `commit` | branch, self-review the diff, commit | not much, a bad commit is one revert away |
-| `push` | the branch leaves your machine | it's now somewhere other people can see |
-| `pr` | opens a pull request | |
-| `merge` | merges it and syncs your local base | the last human checkpoint |
-
-It only fires when a whole feature is finished: every check passed, and nothing left under `Now`, `Next` or `Blocked`. A bug found mid-task goes under `## Next`, which on its own is enough to stop the ship. That coupling is intentional, since "I found something" and "this is done" are often the same moment.
-
-It refuses regardless of your settings if checks failed, if the change touched auth, payments or a database migration, or if cheap mode is on. Settings live in `.claude/autoship.json`, which is gitignored. The authorisation is yours, not the repository's.
 
 ## Under the hood
 
