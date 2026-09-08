@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
 
 ## 1. Refuse to ship broken work
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs` first, and read the exit code rather than the tail of the output. If anything fails, stop and report it. Shipping red is the one thing this framework exists to prevent.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs` first, with no flags so both tiers run, and read the exit code rather than the tail of the output. If anything fails, stop and report it. Shipping red is the one thing this framework exists to prevent.
 
 A step reported as `skip` is not a pass — it means the command could not run at all. Say which, and do not ship on the assumption it would have passed.
 

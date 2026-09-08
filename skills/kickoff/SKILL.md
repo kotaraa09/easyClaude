@@ -42,13 +42,14 @@ Every project needs one command per check that exits non-zero on failure. Write 
 {
   "steps": [
     { "name": "typecheck", "cmd": "npx tsc --noEmit" },
-    { "name": "test",      "cmd": "npm test" }
+    { "name": "test",      "cmd": "npm test", "tier": "full" }
   ]
 }
 ```
 
 Rules:
 - **Run every step once before writing the file.** A verify contract that has never passed is worse than none — it teaches the gate to be ignored.
+- **Time each step while you run it, and set `"tier": "full"` on anything slower than about 30 seconds.** Untagged steps are `fast` and run at the end of every turn; `full` steps run when a task is finished and when shipping. You have just measured these commands, so tier them on what you observed rather than on what you assume — a two-second typecheck belongs in the per-turn gate and a four-minute browser suite does not. If everything is quick, tag nothing; a single-tier contract is the stricter arrangement and there is no reason to give that up.
 - If a step can't run because the toolchain is missing, say so plainly, tell the user exactly what to install, and omit that step. Do not invent a step you couldn't execute.
 - **Be honest about weak verification.** GUI-centric stacks (Unity, Unreal, Android Studio, iOS) often can't be verified headlessly. If so, write what you can (a compile step at minimum), and tell the user in one line: *"On this stack I can verify it compiles, but not that it works — you'll need to run it yourself."* Never imply a guarantee you can't deliver.
 

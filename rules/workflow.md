@@ -6,7 +6,7 @@
 - **Small change** (bug fix, copy, styling, <30 lines) → just do it. No ceremony.
 - **Something is broken** → reproduce it before changing anything, and leave a regression test behind.
 - **One task per turn**, built as a vertical slice that actually runs.
-- **Verify before claiming done.** The Stop hook runs `.claude/verify.json` and blocks the turn on red.
+- **Verify before claiming done.** `verify.mjs` runs both tiers; the Stop hook runs only the fast ones each turn.
 - **Skipped work goes under `## Debt`** in STATE.md, specific enough to act on later.
 
 **Run on request:** `/easyclaude:` + `write-tests` (no suite yet) · `rescue` (undo something) · `security-check` (before going public) · `deploy` (put it online) · `generate-asset` (images, audio, 3D) · `pick-library` (before hand-rolling).

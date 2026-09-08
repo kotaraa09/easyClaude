@@ -46,6 +46,35 @@ jobs:
           fi
           echo "gate blocked as expected"
 
+      # Tiering is a way to make the gate quieter, so the risk is that it makes it
+      # silent. Both halves are asserted: the hook must hold a full-tier step back,
+      # and a full run must still catch it.
+      - name: Tiers hold back and catch the same failure
+        run: |
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/.claude"
+          cat > "$tmp/.claude/verify.json" <<'JSON'
+          { "steps": [
+            { "name": "quick", "cmd": "true" },
+            { "name": "slow",  "cmd": "exit 1", "tier": "full" }
+          ] }
+          JSON
+          set +e
+          echo '{}' | CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs --hook >/dev/null 2>&1
+          hook=$?
+          (cd "$tmp" && node "$GITHUB_WORKSPACE/scripts/verify.mjs" >/dev/null 2>&1)
+          full=$?
+          set -e
+          if [ "$hook" -ne 0 ]; then
+            echo "::error::Stop gate exited $hook; a full-tier step must not block a turn (expected 0)"
+            exit 1
+          fi
+          if [ "$full" -ne 1 ]; then
+            echo "::error::full run exited $full; a failing full-tier step must still fail (expected 1)"
+            exit 1
+          fi
+          echo "fast tier allowed the turn, full run caught the failure"
+
       # The repo is checked out with LF via .gitattributes. If a diff appears
       # here, something was committed with line endings that bypassed it.
       - name: Check line endings survived checkout

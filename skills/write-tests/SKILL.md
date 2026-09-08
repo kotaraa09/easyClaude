@@ -66,7 +66,9 @@ Adding tests is only half the job. Now make them count:
 
 Step 2 is the one that matters. A command that has never passed teaches everyone to ignore the gate, and a contract nobody trusts is worse than no contract at all.
 
-If the suite is slow enough to be annoying, keep the gate fast and honest rather than complete: put the slow half behind its own command, leave it out of `verify.json`, and say plainly that it isn't covered.
+If the suite is slow enough to be annoying, **tier it rather than dropping it**. Add `"tier": "full"` to the slow step: it stops running at the end of every turn and runs when a task is finished and when shipping instead. That is a real trade — a broken test no longer blocks the turn that broke it — but it is a far better one than the alternative, which is taking the step out of the contract and covering nothing at all.
+
+Tier on what you measured. `verify.mjs` prints each step's duration, so run the contract once and tier from those numbers. Anything under a couple of seconds should stay `fast`; there is no reason to give up per-turn coverage you can afford.
 
 ## 8. Report
 
