@@ -9,7 +9,7 @@ Copy this shape into `recipes/<stack>.md`. Keep it under a page.
 ```markdown
 # <Stack>
 **Detect:** <marker files that identify this stack>
-**Verify steps:** <name + command, each exiting non-zero on failure>
+**Verify steps:** <name + command, each exiting non-zero on failure; mark anything slower than ~30s `tier: full`>
 **Verification strength:** strong | compile-only | none — and why
 **Pitfalls:** <3-6 things Claude gets wrong on this stack>
 **Setup:** <commands for a greenfield project>

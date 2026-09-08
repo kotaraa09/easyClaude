@@ -270,6 +270,21 @@ No. Everything in the table above triggers on plain English, and you'll be told 
 
 It can't trap you. Claude Code counts how many times in a row a turn has been blocked and overrides the gate after a few, so a check that can never pass gives up before it can lock up your session. Set `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` higher if you want it stricter.
 
+A check that can't run at all — no compiler on this machine — warns instead of blocking, because wedging every session on a missing toolchain isn't a safety feature.
+
+</details>
+
+<details>
+<summary><b>My test suite takes four minutes. Will it run that every turn?</b></summary>
+
+<br>
+
+Only if you let it. Steps can be marked `"tier": "full"` in `.claude/verify.json`, which runs them when a task is finished and when shipping rather than at the end of every turn. Everything else stays `fast` and keeps running constantly.
+
+Setup times each command as it runs and only tiers what it actually measured above about 30 seconds, so quick projects stay single-tier — which is the stricter arrangement, and there's no reason to give it up.
+
+Be clear about what tiering costs: on a tiered contract, a broken test no longer blocks the turn that broke it. `ship` becomes the place that catches it, and it refuses to ship red. That's the same trade every team makes between a pre-commit hook and CI, and it's still much better than the alternative it replaces — dropping the slow half of the suite from the contract, where it covered nothing at all.
+
 </details>
 
 <details>
@@ -316,7 +331,7 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Every skill's name and description gets sent on every turn of every session, whether you use it or not:
 
-**~1,170 tokens per turn**: ~695 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
+**~1,172 tokens per turn**: ~697 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
 
 Call it a page of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 

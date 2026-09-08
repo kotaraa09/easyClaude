@@ -19,6 +19,18 @@ import { join } from 'node:path';
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
 const LIST = args.includes('--list');
+const FAST = args.includes('--fast');
+
+// Two tiers, because one tier is what gets a gate deleted. Every step is "fast"
+// unless it says otherwise, so a contract written before this existed behaves
+// exactly as it did - all fast, all run, every turn.
+//
+// The per-turn hook runs the fast tier. The full tier runs at the boundaries that
+// are worth waiting for: finishing a task, and shipping. That is the pre-commit
+// versus CI trade, made on purpose and written down, rather than the alternative
+// this replaces - which was to drop the slow half of the suite from the contract
+// altogether and leave it covering nothing.
+const TIERS = ['fast', 'full'];
 
 // Read the hook payload first, since it carries the project root. Only when something
 // is actually piped in - reading fd 0 from a terminal would sit there waiting for EOF.
@@ -100,12 +112,18 @@ function loadConfig() {
     if (!s || typeof s.cmd !== 'string' || !s.cmd.trim()) {
       return { error: '.claude/verify.json has a step with no "cmd"' };
     }
+    // A typo here would silently demote a step out of the per-turn gate, so it is an
+    // error rather than a default.
+    if (s.tier !== undefined && !TIERS.includes(s.tier)) {
+      return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has tier "${s.tier}" - must be ${TIERS.join(' or ')}` };
+    }
   }
   const fallback = Number(raw.timeoutMs) > 0 ? Number(raw.timeoutMs) : DEFAULT_TIMEOUT_MS;
   return {
     steps: steps.map((s, i) => ({
       name: s.name || `step ${i + 1}`,
       cmd: s.cmd,
+      tier: s.tier ?? 'fast',
       timeoutMs: Number(s.timeoutMs) > 0 ? Number(s.timeoutMs) : fallback,
     })),
     docsOnly: Array.isArray(raw.docsOnly) ? raw.docsOnly : DEFAULT_DOCS_ONLY,
@@ -197,7 +215,12 @@ if (HOOK) {
     process.exit(0);
   }
 
-  const results = cfg.steps.map(runStep);
+  // Fast tier only. On an untiered contract that is every step, so nothing changes
+  // for a project that never opted in.
+  const due = cfg.steps.filter((s) => s.tier === 'fast');
+  if (!due.length) process.exit(0);
+
+  const results = due.map(runStep);
   const failed = results.filter((r) => r.result === FAIL);
   const unrunnable = results.filter((r) => r.result === UNRUNNABLE);
 
@@ -208,8 +231,10 @@ if (HOOK) {
       : undefined);
   }
 
+  const heldBack = cfg.steps.length - due.length;
   const report = [
-    `Verification failed. ${failed.length} of ${results.length} step(s) in .claude/verify.json did not pass.`,
+    `Verification failed. ${failed.length} of ${results.length} ${heldBack ? 'fast-tier ' : ''}step(s) in .claude/verify.json did not pass.`,
+    ...(heldBack ? [`(${heldBack} full-tier step(s) were not run - those go at the end of a task, not every turn.)`] : []),
     '',
     ...failed.map((r) => [
       `[${r.name}] ${r.cmd} - ${r.why}`,
@@ -244,21 +269,36 @@ if (!cfg.steps.length) {
 
 const width = Math.max(...cfg.steps.map((s) => s.name.length));
 const pad = (s) => s.padEnd(width);
+const tiered = cfg.steps.some((s) => s.tier === 'full');
+const tierLabel = (s) => (tiered ? `[${s.tier}] ` : '');
+
+// Default is everything. Running the whole contract must stay the thing that happens
+// when you do not think about it, so only --fast narrows the run.
+const selected = FAST ? cfg.steps.filter((s) => s.tier === 'fast') : cfg.steps;
 
 if (LIST) {
   console.log(`verify contract - ${cfg.steps.length} step(s)\n`);
-  for (const s of cfg.steps) console.log(`  ${pad(s.name)}  ${s.cmd}`);
+  for (const s of cfg.steps) console.log(`  ${tierLabel(s)}${pad(s.name)}  ${s.cmd}`);
+  if (tiered) {
+    console.log('\n  fast runs on every turn, at the Stop hook. full runs here, and at ship.');
+  }
   process.exit(0);
 }
 
-console.log(`verify contract - ${cfg.steps.length} step(s)\n`);
+if (!selected.length) {
+  console.log('No fast-tier steps in this contract - nothing to run.');
+  process.exit(0);
+}
+
+console.log(`verify contract - ${selected.length} step(s)` +
+  (FAST && selected.length < cfg.steps.length ? ` (fast tier; ${cfg.steps.length - selected.length} full-tier held back)` : '') + '\n');
 const results = [];
-for (const step of cfg.steps) {
+for (const step of selected) {
   const r = runStep(step);
   results.push(r);
   const mark = r.result === PASS ? 'ok  ' : r.result === UNRUNNABLE ? 'skip' : 'FAIL';
   const note = r.result === PASS ? '' : `  ${r.why}`;
-  console.log(`  ${mark}  ${pad(r.name)}  ${r.cmd}  (${(r.ms / 1000).toFixed(1)}s)${note}`);
+  console.log(`  ${mark}  ${tierLabel(r)}${pad(r.name)}  ${r.cmd}  (${(r.ms / 1000).toFixed(1)}s)${note}`);
 }
 
 const failed = results.filter((r) => r.result === FAIL);
@@ -271,9 +311,14 @@ for (const r of unrunnable) {
   console.log(`\n${r.name}: could not run - ${r.why}. Install it, or take the step out of the contract.`);
 }
 
+// Said out loud, because "OK" after a fast-only run does not mean the contract passed.
+const heldBack = FAST && cfg.steps.length - selected.length > 0
+  ? ` - ${cfg.steps.length - selected.length} full-tier step(s) were NOT run`
+  : '';
+
 console.log(failed.length
-  ? `\nFAIL - ${failed.length} of ${results.length} step(s) failed`
+  ? `\nFAIL - ${failed.length} of ${results.length} step(s) failed${heldBack}`
   : `\nOK - ${results.length - unrunnable.length} of ${results.length} step(s) passed` +
-    (unrunnable.length ? `, ${unrunnable.length} could not run` : ''));
+    (unrunnable.length ? `, ${unrunnable.length} could not run` : '') + heldBack);
 
 process.exit(failed.length ? 1 : 0);
