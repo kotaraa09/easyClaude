@@ -12,6 +12,10 @@
 </p>
 
 <p align="center">
+  <b>English</b> · <a href="README.th.md">ไทย</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml"><img src="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml/badge.svg" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1F1E1D" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/works%20with-any%20stack-D97757" alt="Works with any stack">
