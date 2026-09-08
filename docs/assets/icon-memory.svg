@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Persistent project memory">
+  <title>Persistent project memory</title>
+  <style>.ink{stroke:#292524}@media (prefers-color-scheme:dark){.ink{stroke:#E7E5E4}}</style>
+  <g fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <rect class="ink" x="8" y="7" width="48" height="13" rx="3"/>
+    <rect class="ink" x="8" y="25" width="48" height="13" rx="3"/>
+    <rect class="ink" x="8" y="43" width="48" height="13" rx="3"/>
+    <path class="ink" fill="#D97757" d="M26 4h12v54l-6-6-6 6z"/>
+  </g>
+</svg>

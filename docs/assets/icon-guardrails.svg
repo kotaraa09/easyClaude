@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Guardrails at the permission layer">
+  <title>Guardrails at the permission layer</title>
+  <style>.ink{stroke:#292524}@media (prefers-color-scheme:dark){.ink{stroke:#E7E5E4}}</style>
+  <g fill="none" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <path class="ink" d="M32 6l22 8v18c0 12-10 22-22 26C20 54 10 44 10 32V14z"/>
+    <path class="ink" d="M32 16l13 5v11c0 7-5 13-13 16-8-3-13-9-13-16V21z"/>
+    <circle fill="#D97757" stroke="none" cx="32" cy="33" r="5"/>
+  </g>
+</svg>
