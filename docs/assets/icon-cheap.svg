@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Cheap mode">
+  <title>Cheap mode</title>
+  <style>.ink{stroke:#292524}@media (prefers-color-scheme:dark){.ink{stroke:#E7E5E4}}</style>
+  <g fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path class="ink" fill="#D97757" d="M53.97 32.64a16 16 0 0 0-22.64-22.64L13.33 28v22.67h22.67z"/>
+    <path class="ink" d="M42.67 21.33 5.33 58.67"/>
+    <path class="ink" d="M46.67 40H24"/>
+  </g>
+</svg>
