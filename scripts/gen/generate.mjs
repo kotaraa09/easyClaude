@@ -27,12 +27,32 @@ const MODELS = {
 };
 
 const args = process.argv.slice(2);
-const flag = (n, d = undefined) => {
-  const i = args.indexOf(`--${n}`);
-  return i === -1 ? d : (args[i + 1] ?? true);
-};
 const has = (n) => args.includes(`--${n}`);
 const die = (m) => { console.error(`error: ${m}`); process.exit(1); };
+
+// Every flag read through here takes a value; boolean switches go through has().
+//
+// The old version returned `args[i + 1] ?? true`, which meant `--prompt --out x.png`
+// silently took "--out" as the prompt, and a trailing `--prompt` became the boolean
+// true and then the string "true". Both passed the required-value checks below and
+// both reached a paid API. A generator that spends money on a typo has to refuse it
+// instead of guessing.
+const flag = (n, d = undefined) => {
+  // --name=value is checked first, so a value that legitimately begins with "--"
+  // stays expressible now that a bare "--" prefix is rejected.
+  const eq = args.find((a) => a.startsWith(`--${n}=`));
+  if (eq !== undefined) {
+    const v = eq.slice(n.length + 3);
+    if (!v) die(`--${n}= was given with nothing after it`);
+    return v;
+  }
+  const i = args.indexOf(`--${n}`);
+  if (i === -1) return d;
+  const next = args[i + 1];
+  if (next === undefined) die(`--${n} needs a value, but nothing followed it`);
+  if (next.startsWith('--')) die(`--${n} needs a value, but the next argument is "${next}". Use --${n}=<value> if the value really starts with "--".`);
+  return next;
+};
 
 // env first, then the project's .env. Returned only to the adapter, never printed.
 function keyFor(name) {

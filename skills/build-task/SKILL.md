@@ -1,7 +1,7 @@
 ---
 name: build-task
 description: Implement the next task from docs/STATE.md as one vertical slice, then verify it. Use when the user says continue, keep going, build it, next, or asks to implement something already planned in STATE.md.
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
 ---
 
 # Build the next task
