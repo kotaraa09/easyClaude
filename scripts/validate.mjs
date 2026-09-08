@@ -462,6 +462,32 @@ for (const f of walk(root)) {
   }
 }
 
+// --- 13. one security policy, two copies, no drift ---------------------------
+// rules/permissions.json is what kickoff merges into a project. template/.claude/
+// settings.json is what anyone forking the template gets. They are the same policy
+// written twice, and nothing noticed if a guardrail was added to one and not the
+// other - which fails silently and in the unsafe direction.
+const denyRules = json['rules/permissions.json']?.deny;
+const denyTemplate = json['template/.claude/settings.json']?.permissions?.deny;
+if (!Array.isArray(denyRules)) {
+  err('rules/permissions.json', 'missing the "deny" array');
+} else if (!Array.isArray(denyTemplate)) {
+  err('template/.claude/settings.json', 'missing permissions.deny');
+} else {
+  const inRules = new Set(denyRules);
+  const inTemplate = new Set(denyTemplate);
+  for (const rule of denyRules) {
+    if (!inTemplate.has(rule)) {
+      err('template/.claude/settings.json', `does not deny ${JSON.stringify(rule)}, which rules/permissions.json does - anyone forking the template runs without that guardrail`);
+    }
+  }
+  for (const rule of denyTemplate) {
+    if (!inRules.has(rule)) {
+      err('rules/permissions.json', `does not deny ${JSON.stringify(rule)}, which the template does - a project set up by kickoff runs without that guardrail`);
+    }
+  }
+}
+
 // --- report ------------------------------------------------------------------
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
 for (const w of warnings) console.log(`  warn   ${w}`);

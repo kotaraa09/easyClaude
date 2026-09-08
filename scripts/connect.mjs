@@ -20,7 +20,7 @@
 //   node scripts/connect.mjs --apply [--dry-run]
 
 import { readFileSync, existsSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { PROVIDERS as GEN } from './gen/providers.mjs';
 
@@ -69,6 +69,40 @@ const PROVIDERS = GEN.filter((p) => p.key).map((p) => ({
 const args = process.argv.slice(2);
 const has = (n) => args.includes(`--${n}`);
 const die = (m) => { console.error(`error: ${m}`); process.exit(1); };
+
+// Launching `claude` is not as simple as it looks on Windows. An npm install puts
+// `claude.cmd` on PATH, and Node cannot start that through execFile at all: the bare
+// name gets ENOENT because CreateProcess only ever appends .exe, and naming the shim
+// directly gets EINVAL because Node refuses .bat/.cmd without a shell (CVE-2024-27980).
+// A native install has a real binary and works first time, which is exactly why this
+// went unnoticed - it depends on how the user installed Claude Code.
+//
+// So: try execFile first, since that path never lets a shell see a key. Fall back to a
+// shell only when the executable itself could not be launched, never when `claude mcp
+// add` genuinely failed.
+const NEEDS_SHELL = new Set(['ENOENT', 'EINVAL']);
+
+// cmd.exe expands %VAR% even inside the double quotes Node adds around each argument,
+// and a bare " ends the quoting. A value carrying either would be silently corrupted
+// on the way into the config, which is worse than not writing it - so those are handed
+// back to the user instead. Ordinary API keys never contain them; a DATABASE_URL with a
+// percent-encoded password can.
+const shellHostile = (argv) => argv.some((a) => /[%"]/.test(a));
+
+function runClaude(argv) {
+  try {
+    return { ok: true, out: execFileSync('claude', argv, { stdio: 'pipe' }) };
+  } catch (e) {
+    if (!NEEDS_SHELL.has(e.code)) return { ok: false, error: e };
+    if (process.platform !== 'win32') return { ok: false, error: e, notFound: true };
+    if (shellHostile(argv)) return { ok: false, error: e, unsafeForShell: true };
+    // shell: true routes through cmd.exe, which can run the .cmd shim.
+    const r = spawnSync('claude', argv, { stdio: 'pipe', shell: true });
+    if (r.error) return { ok: false, error: r.error, notFound: true };
+    if (r.status !== 0) return { ok: false, error: new Error(String(r.stderr ?? '').trim() || `claude exited ${r.status}`) };
+    return { ok: true, out: r.stdout };
+  }
+}
 
 // Values are read but never returned to a caller that prints. Only `present` is safe to
 // show; `values` is passed straight to execFileSync and nowhere else.
@@ -147,12 +181,20 @@ for (const c of todo) {
   // Never log argv: it carries the real key for local-scope servers.
   const where = scope === 'project' ? '.mcp.json (needs your approval on next start)' : '~/.claude.json (private to you)';
   if (dry) { console.log(`  would add ${c.name.padEnd(12)} -> ${where}`); continue; }
-  try {
-    execFileSync('claude', ['mcp', 'add', ...argv], { stdio: 'pipe' });
+  const r = runClaude(['mcp', 'add', ...argv]);
+  if (r.ok) {
     console.log(`  added ${c.name.padEnd(12)} -> ${where}`);
-  } catch (e) {
-    failed++;
-    const msg = String(e.stderr ?? e.message).split('\n')[0].slice(0, 160);
+    continue;
+  }
+  failed++;
+  if (r.notFound) {
+    console.log(`  FAILED ${c.name.padEnd(12)} could not run the "claude" CLI - is it on your PATH?`);
+  } else if (r.unsafeForShell) {
+    // Names the connector, never the value.
+    console.log(`  SKIPPED ${c.name.padEnd(11)} its value contains % or ", which cmd.exe would corrupt on the`);
+    console.log(`          way into the config. Add this one by hand with /mcp instead.`);
+  } else {
+    const msg = String(r.error.stderr ?? r.error.message).split('\n')[0].slice(0, 160);
     console.log(`  FAILED ${c.name.padEnd(12)} ${msg}`);
   }
 }
