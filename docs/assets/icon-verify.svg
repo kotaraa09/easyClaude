@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Verified before done">
+  <title>Verified before done</title>
+  <style>.ink{stroke:#292524}@media (prefers-color-scheme:dark){.ink{stroke:#E7E5E4}}</style>
+  <g fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path class="ink" d="M7 12h50"/>
+    <path class="ink" d="M16 12v42M48 12v42"/>
+    <path stroke="#D97757" stroke-width="7" d="M23 34l7 8 14-17"/>
+  </g>
+</svg>
