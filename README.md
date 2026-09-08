@@ -87,9 +87,12 @@ Fork [`template/`](template/) instead. It already points at the plugin in `.clau
 Now:     Add password reset to the login form
 Next:    Rate-limit the reset endpoint
 Blocked: none
+Debt:    3 items - reset tokens never expire
 ```
 
 Three lines, then it waits. No summary of your codebase, no re-reading everything. Say "keep going" and it picks up from there.
+
+The fourth line only shows up when something was deliberately skipped, and it names the one most likely to bite. Skipped work that nobody ever reads again is just a slower way of forgetting it.<!--skill:kickoff-->
 
 ## What you get
 
@@ -98,12 +101,12 @@ Three lines, then it waits. No summary of your codebase, no re-reading everythin
 <td width="33%" valign="top">
 <img src="docs/assets/icon-memory.svg" width="44" alt="">
 <h3>It remembers</h3>
-<p>In progress, next up, blocked, and anything deliberately skipped all live in <code>docs/STATE.md</code>. Closing your laptop doesn't lose any of it.</p>
+<p>In progress, next up, blocked, and anything deliberately skipped all live in <code>docs/STATE.md</code>. Closing your laptop doesn't lose any of it. Finished work rolls into a changelog so the file stays short.</p>
 </td>
 <td width="33%" valign="top">
 <img src="docs/assets/icon-verify.svg" width="44" alt="">
 <h3>"Done" means checked</h3>
-<p>Setup works out which commands have to pass for your project. Once you have tests, Claude can't end its turn while they're failing. It gets sent back to fix them.</p>
+<p>Setup works out which commands have to pass for your project. From then on Claude can't end its turn while any of them fail. It gets sent back to fix them. That check is a script reading exit codes, not Claude marking its own homework.</p>
 </td>
 <td width="33%" valign="top">
 <img src="docs/assets/icon-guardrails.svg" width="44" alt="">
@@ -136,13 +139,10 @@ There are no commands to learn for the common things. Say what you want in norma
 
 | You say | What happens |
 |---|---|
-| *"add user profiles"* | It writes a plan and a task list, then waits for your yes |
-| *"keep going"* | It builds the next task, then checks it |
-| *"it needs to handle timezones"* | It finds a trusted library and adopts that |
-| *"it's throwing an error"* | Reproduced, fixed, and a test left behind so it can't come back |
-| *"is this safe to make public?"* | Sweeps secrets, git history, endpoints and dependencies |
-| *"put it online"* | Proves the build, picks a host, checks the live URL |
-| *"ship it"* | Checks, branches, reviews, commits, opens a pull request |
+| *"add user profiles"* | It writes a plan and a task list, then waits for your yes <!--skill:plan-feature--> |
+| *"keep going"* | It builds the next task, then checks it <!--skill:build-task--> |
+| *"it's throwing an error"* | Reproduced, fixed, and a test left behind so it can't come back <!--skill:debug--> |
+| *"ship it"* | Checks, branches, reviews, commits, opens a pull request <!--skill:ship--> |
 
 Small stuff skips all of that. A one-line bug fix is just a one-line bug fix.
 
@@ -151,13 +151,13 @@ Small stuff skips all of that. A one-line bug fix is just a one-line bug fix.
 
 <br>
 
-Six jobs come up rarely enough that they aren't listening in the background. You call them by name when you need them, and they cost nothing until you do.
+Six jobs come up rarely enough that they aren't listening in the background. You call them by name when you need them, and they cost nothing until you do. That is also why they are not in the table above: a skill that costs nothing per turn is one that cannot be listening for a phrase.
 
 ```
-/easyclaude:write-tests        start a test suite, and turn the safety gate on
+/easyclaude:write-tests        start a test suite, so the gate checks behaviour
 /easyclaude:rescue             undo something, get your work back
-/easyclaude:security-check     before making a repo public
-/easyclaude:deploy             put it online
+/easyclaude:security-check     sweep secrets, git history, endpoints, dependencies
+/easyclaude:deploy             prove the build, pick a host, check the live URL
 /easyclaude:generate-asset     images, audio, 3D
 /easyclaude:pick-library       find a vetted library instead of hand-rolling
 ```
@@ -316,7 +316,7 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Every skill's name and description gets sent on every turn of every session, whether you use it or not:
 
-**~1,165 tokens per turn**: ~690 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
+**~1,170 tokens per turn**: ~695 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
 
 Call it a page of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
@@ -328,6 +328,8 @@ Call it a page of text per turn. If that's more than you want to spend, use `/ea
 Skills are split by how often they fire. The five that trigger constantly (kickoff, plan-feature, build-task, debug, ship) stay always-on so plain English keeps working. The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable for about 60 tokens, against roughly 424 if they were loaded in full.
 
 CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill therefore means dropping one.
+
+Hooks count too, and one of them was the worst offender. A hook can be a prompt, which means a model call. The gate that checks your build used to be one, firing on every turn that touched a file, asking Claude whether Claude's own tests had passed. It is now a script that reads exit codes: no tokens, no model call, and a verdict it cannot argue with.
 
 No MCP servers ship enabled. Their tool schemas are the largest avoidable context cost, often bigger than everything above put together, so `.mcp.json` starts empty and `/easyclaude:connect` adds only what you ask for.
 
@@ -374,7 +376,7 @@ Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-
 ```
 .claude-plugin/   plugin + marketplace manifests
 .mcp.json         starts empty, /easyclaude:connect fills it
-hooks/            session orientation, adaptive verify gate
+hooks/            session orientation, verify gate (runs verify.mjs)
 commands/         cheap, cheap-session, full, autoship, connect
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship
                   opt-in:    write-tests, rescue, security-check, deploy,
@@ -383,8 +385,9 @@ skills/           always-on: kickoff, plan-feature, build-task, debug, ship
 rules/            copied into your project, ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
-scripts/          validate.mjs (CI checks), connect.mjs (MCP + keys),
-                  gen/ (asset generation)
+scripts/          verify.mjs (the gate), validate.mjs (CI checks),
+                  connect.mjs (MCP + keys), gen/ (asset generation)
+evals/            why there is no behavioural test suite yet
 docs/assets/      README artwork
 ```
 
@@ -396,9 +399,13 @@ docs/assets/      README artwork
 node scripts/validate.mjs
 ```
 
-This runs in CI on every push and pull request. It has no dependencies, only `node:` builtins. It checks that frontmatter parses and uses real keys, that skill names match their directories, that hook shapes are valid, that the manifests agree with each other, that recipes carry a verification-strength field, that docs use the namespaced command form, and that the per-turn cost quoted above matches what the validator measures.
+This runs in CI on every push and pull request. It has no dependencies, only `node:` builtins. It checks that frontmatter parses and uses real keys, that skill names match their directories, that hook shapes are valid, that the manifests agree with each other, that recipes carry a verification-strength field, that docs use the namespaced command form, that a hook shelling out points at a script that actually exists, that the table above only promises phrases for skills that can actually hear them, and that the per-turn cost quoted above matches what the validator measures.
 
 Each of those checks is there because that exact thing broke at least once.
+
+CI also runs the gate itself, both ways: the real contract has to pass, and a deliberately failing one has to block. A gate that never blocks is the failure nobody notices.
+
+What none of it can check is which skill actually wins a given sentence, since a validator reads frontmatter and not meaning. [`evals/`](evals/) records why that suite isn't written yet and what to write first.
 
 ---
 

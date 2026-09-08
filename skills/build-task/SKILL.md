@@ -21,7 +21,13 @@ Read `docs/STATE.md`. Take the first unchecked task under `## Now`, or promote t
 
 ## 3. Verify
 
-Run every step in `.claude/verify.json`. If a step fails, fix it — **do not report success on red, and do not describe the work as done, working, or complete while any step fails.**
+Run the contract:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs
+```
+
+One line per step, non-zero exit if any failed. If a step fails, fix it — **do not report success on red, and do not describe the work as done, working, or complete while any step fails.** The Stop hook runs the same command when you try to end the turn, so a failure you talk past just blocks you a moment later.
 
 If a failure is not obvious, switch to the `debug` skill rather than trying edits until something sticks.
 
@@ -30,7 +36,9 @@ If you cannot make it pass after a genuine attempt, stop and say exactly what's 
 ## 4. Update state
 
 - Move the task to `## Done` with a one-line note of what changed.
+- **Keep `## Done` to the ten most recent.** If your entry pushes older ones out, append them to `docs/CHANGELOG.md` — newest first, create it if it doesn't exist. Move them, never delete them. STATE.md is read at the start of every session and again by every skill that touches state, so an unbounded `## Done` is a tax on every session after this one.
 - Anything you skipped, hardcoded, or stubbed goes under `## Debt`, specifically enough to act on later.
+- **If `## Debt` passes ten entries, say so once in your report.** The fix is to promote a few into `## Next` or drop them deliberately, not to keep appending — a list nobody triages is a slower way of forgetting. Don't start paying it down uninvited.
 - Any decision that will confuse someone in a month goes in `docs/DECISIONS.md` with its reason.
 
 ## 5. Ship it, but only if nothing is left

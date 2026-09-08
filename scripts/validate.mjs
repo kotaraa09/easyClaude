@@ -170,9 +170,18 @@ if (!hooks) {
           err('hooks/hooks.json', `"${event}" command hook missing "command"`);
         }
         // Regression guard: a Stop hook ignoring stop_hook_active re-blocks until force-overridden.
+        // Only prompt hooks need it - a command hook blocks on an exit code, which a fix
+        // actually clears, and verify.mjs downgrades an unrunnable step to a warning.
         if ((event === 'Stop' || event === 'SubagentStop') && h.type === 'prompt' &&
             !/stop_hook_active/.test(h.prompt ?? '')) {
           err('hooks/hooks.json', `${event} prompt hook must check "stop_hook_active" or it loops until the block cap overrides it`);
+        }
+        // A command hook pointing at a script that was renamed fails open: the gate
+        // silently stops running and nothing says so.
+        for (const m of (h.command ?? '').matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^\s"']+)/g)) {
+          if (!existsSync(join(root, m[1]))) {
+            err('hooks/hooks.json', `"${event}" hook runs "${m[1]}", which does not exist in this plugin`);
+          }
         }
       }
     }
@@ -388,6 +397,69 @@ const rounded = readFileSync(join(skillsDir, 'registry.json'), 'utf8')
 if (rounded && rounded[1] !== (alwaysOn / 1000).toFixed(1)) {
   err('skills/registry.json', `says the framework costs ~${rounded[1]}k tokens/turn, ` +
     `measured ~${(alwaysOn / 1000).toFixed(1)}k.`);
+}
+
+// --- 11. the STATE.md compaction rule must not drift -------------------------
+// docs/STATE.md is read at the start of every session, so the cap on "## Done" is
+// what keeps the framework's memory from becoming its largest cost. The rule is
+// stated in four places - the file's own comment, kickoff's template, build-task
+// and ship - and a number living in prose in four places is exactly the drift the
+// cost claim above is checked for. The README is a pitch, not a spec, and says
+// "rolls into a changelog" without a number on purpose.
+for (const f of [
+  'template/docs/STATE.md', 'skills/kickoff/SKILL.md',
+  'skills/build-task/SKILL.md', 'skills/ship/SKILL.md',
+]) {
+  const text = readFileSync(join(root, f), 'utf8');
+  if (!/ten most recent/.test(text)) {
+    err(f, 'must state the "## Done" cap as "ten most recent" - changing the cap means changing it in all four places at once');
+  }
+  if (!/docs\/CHANGELOG\.md/.test(text)) {
+    err(f, 'states the "## Done" cap but not where the older entries go (docs/CHANGELOG.md) - a cap without a destination reads as "delete them"');
+  }
+}
+
+// --- 12. only skills that can hear a phrase may be promised one ----------------
+// Every README so far has promised that "is this safe to make public?" and "put it
+// online" trigger security-check and deploy on their own. Both set
+// disable-model-invocation - the flag that removes them from per-turn cost - so
+// neither can fire on plain English at all, and the costs section of the same file
+// said so. Nothing in CI read a description for meaning, so the two halves drifted.
+//
+// Each row of a "you say" table carries an invisible <!--skill:name--> marker. The
+// set of marked skills must equal the set that can actually fire unprompted - which
+// catches a phrase promised for a typed skill AND a spoken skill nobody documented.
+// Being a comment, it survives a rewrite of the surrounding prose and works the same
+// in a translation.
+const spoken = new Set();
+for (const d of skillNames) {
+  if (vendoredDirs.has(join(skillsDir, d))) continue;
+  const fm = parseFrontmatter(readFileSync(join(skillsDir, d, 'SKILL.md'), 'utf8'), `skills/${d}`);
+  if (String(fm?.['disable-model-invocation']).toLowerCase() !== 'true') spoken.add(d);
+}
+// Matched on the repo-relative path, which rel() has already normalised to forward
+// slashes - matching the absolute path needs a separator class that is easy to get
+// wrong on Windows and then passes anyway in Linux CI.
+for (const f of walk(root)) {
+  const r = rel(f);
+  if (!/^README(\.[a-z]{2})?\.md$/.test(r) || !isOurs(f)) continue;
+  const text = readFileSync(f, 'utf8');
+  // Every front-door README carries the full set, translations included. A
+  // translation restates the same promises, so letting an unmarked one through is
+  // exactly the drift this is for: README.th.md shipped the three bad rows too.
+  const marked = new Set([...text.matchAll(/<!--\s*skill:([a-z][a-z-]*)\s*-->/g)].map((m) => m[1]));
+  for (const m of marked) {
+    if (!spoken.has(m)) {
+      err(r, skillNames.includes(m)
+        ? `promises a phrase for "${m}", which sets disable-model-invocation - it can only be run as /${ns}:${m}`
+        : `marks "${m}", which is not a skill in this plugin`);
+    }
+  }
+  for (const d of spoken) {
+    if (!marked.has(d)) {
+      err(r, `skill "${d}" fires on plain English but no row is marked <!--skill:${d}--> - a trigger nobody documented is one nobody can check`);
+    }
+  }
 }
 
 // --- report ------------------------------------------------------------------

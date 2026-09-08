@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 
 # Write tests
 
-This is the skill that turns easyClaude's gate from advice into enforcement. Until a suite exists, the Stop hook can only warn. Once it exists, it blocks.
+The gate already blocks — on whatever `.claude/verify.json` holds. Until a suite exists that is usually just a typecheck, which catches type errors and proves nothing about behaviour. This is the skill that makes the gate catch behaviour.
 
 ## 1. Start with one test, not a plan
 
@@ -58,12 +58,15 @@ Target seconds. Push slow things — full browser runs, real network, large fixt
 Adding tests is only half the job. Now make them count:
 
 1. Add the test command to `.claude/verify.json`.
-2. Run the full contract once and confirm it passes.
-3. Upgrade `.claude/settings.json` from advisory to enforcing:
-   ```json
-   { "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "<the test command>" } ] } ] } }
+2. Run the whole contract and confirm it passes:
+   ```bash
+   node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs
    ```
-4. Tell the user what just changed: from here on, work cannot be reported as done while tests fail.
+3. Tell the user what just changed: the Stop hook already runs that file, so from here on the turn cannot end while a test fails. There is no setting to flip.
+
+Step 2 is the one that matters. A command that has never passed teaches everyone to ignore the gate, and a contract nobody trusts is worse than no contract at all.
+
+If the suite is slow enough to be annoying, keep the gate fast and honest rather than complete: put the slow half behind its own command, leave it out of `verify.json`, and say plainly that it isn't covered.
 
 ## 8. Report
 

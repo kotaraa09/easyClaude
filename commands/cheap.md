@@ -20,6 +20,7 @@ If the above is empty, continue the previous `/easyclaude:cheap` task under this
 - Ship the **narrowest thing that works**. Happy path only. No abstractions, no config surface, no defensive layers.
 - Prefer editing one existing file over creating new ones. **No new dependencies.**
 - No refactors. No doc updates. No writes to `docs/STATE.md`.
+- The verify gate still runs when the turn ends. It costs wall-clock, not tokens, and a cheap fix that doesn't compile is not a fix.
 - Read narrowly: `grep`/`glob` to locate, then read line ranges. Never read a whole file you only need part of. No screenshots.
 - Do not spawn subagents. Do not search the web.
 - Do not think longer than the task needs. Skip planning for anything under ~3 steps.

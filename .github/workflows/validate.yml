@@ -21,6 +21,31 @@ jobs:
       - name: Validate plugin structure
         run: node scripts/validate.mjs
 
+      # The Stop gate is now a script, so CI can actually test it. This runs
+      # easyClaude's own .claude/verify.json - which runs the validator again,
+      # deliberately: the point is to prove verify.mjs itself works on Linux.
+      - name: Verify contract passes
+        run: node scripts/verify.mjs
+
+      # The half that matters. A gate that never blocks is the failure nobody
+      # notices, so assert the hook exits 2 on a contract that fails. The temp
+      # directory is not a git repo, which also covers "cannot tell what changed
+      # -> run the contract anyway".
+      - name: Stop gate blocks a failing contract
+        run: |
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/.claude"
+          echo '{"steps":[{"name":"fails","cmd":"exit 1"}]}' > "$tmp/.claude/verify.json"
+          set +e
+          echo '{}' | CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs --hook >/dev/null 2>&1
+          code=$?
+          set -e
+          if [ "$code" -ne 2 ]; then
+            echo "::error::Stop gate exited $code on a failing contract, expected 2 (block)"
+            exit 1
+          fi
+          echo "gate blocked as expected"
+
       # The repo is checked out with LF via .gitattributes. If a diff appears
       # here, something was committed with line endings that bypassed it.
       - name: Check line endings survived checkout

@@ -14,6 +14,10 @@ Writing beats guessing. This step is cheap; a wrong build is not.
 
 Read the relevant existing code first. A plan that ignores what's already there produces duplicate implementations — the most common failure in a long-running vibe-coded project.
 
+Then read `## Debt` in `docs/STATE.md` and pull out anything that touches the area you are about to plan. **This is the moment debt is cheap.** A stub you are about to build three tasks on top of costs one task to fix now and a rewrite later — and planning time is the only point where that trade is still visible. Fold what's relevant into the task list and say which entries you took.
+
+Leave the rest alone. This is a readback, not a cleanup: turning a feature request into a debt-paydown plan the user didn't ask for is how the ceremony becomes the thing people delete.
+
 ## 2. Name the parts you should not be writing
 
 Before listing tasks, mark any that are long-solved problems — dates and timezones, money, auth, crypto, parsing a file format, validation, retries. Those become "adopt a library" tasks, not "build" tasks, and `/easyclaude:pick-library` handles them. Deciding this at plan time is far cheaper than discovering it halfway through an implementation.

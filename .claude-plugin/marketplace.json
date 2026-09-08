@@ -9,7 +9,7 @@
     {
       "name": "easyclaude",
       "source": "./",
-      "description": "Persistent project state, an adaptive verify gate, safety guardrails, stack recipes, and a one-shot cheap mode."
+      "description": "Persistent project state, an enforced verify gate, safety guardrails, stack recipes, and a one-shot cheap mode."
     }
   ]
 }
