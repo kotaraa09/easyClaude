@@ -3,12 +3,12 @@
 **Detect:** `next.config.{js,ts,mjs}`, or `next` in `package.json` dependencies.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| typecheck | `npx tsc --noEmit` |
-| lint | `npm run lint` |
-| test | `npm test` |
-| build | `npm run build` *(only in CI or before shipping — it's slow)* |
+| name | cmd | tier |
+|---|---|---|
+| typecheck | `npx tsc --noEmit` | fast |
+| lint | `npm run lint` | fast |
+| test | `npm test` | fast |
+| build | `npm run build` | full |
 
 **Verification strength:** strong. Add Vitest for units and Playwright for one smoke test of the critical path.
 

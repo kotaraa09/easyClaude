@@ -8,7 +8,23 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    # Windows is not a nice-to-have here. connect.mjs carries a whole code path for it -
+    # the .cmd shim that execFile cannot launch, exit code 9009, and the % and " guard on
+    # the cmd.exe fallback - and none of it ran in CI until now. A comment inside
+    # validate.mjs already said a Windows path bug "passes anyway in Linux CI". It did.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    # bash on both, so one copy of every step covers both platforms. windows-latest ships
+    # Git Bash, which converts a /c/... argument to C:\... on the way into node - so a path
+    # captured with pwd works unchanged on either side.
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
 
@@ -16,21 +32,91 @@ jobs:
         with:
           node-version: '20'
 
-      # No dependencies by design - the validator uses only node: builtins,
-      # so this stays fast and cannot break on a transitive update.
+      # No dependencies by design - the validator uses only node: builtins, so this stays
+      # fast and cannot break on a transitive update.
       - name: Validate plugin structure
         run: node scripts/validate.mjs
 
-      # The Stop gate is now a script, so CI can actually test it. This runs
-      # easyClaude's own .claude/verify.json - which runs the validator again,
-      # deliberately: the point is to prove verify.mjs itself works on Linux.
+      # The Stop gate is now a script, so CI can actually test it. This runs easyClaude's
+      # own .claude/verify.json - which runs the validator again, deliberately: the point
+      # is to prove verify.mjs itself works on this platform.
       - name: Verify contract passes
         run: node scripts/verify.mjs
 
-      # The half that matters. A gate that never blocks is the failure nobody
-      # notices, so assert the hook exits 2 on a contract that fails. The temp
-      # directory is not a git repo, which also covers "cannot tell what changed
-      # -> run the contract anyway".
+      # Two of the four scripts had no automated check of any kind. A stray brace in
+      # connect.mjs or providers.mjs passed the validator, passed the gate, and shipped.
+      # validate.mjs now runs `node --check` over scripts/, which catches syntax - but not
+      # a bad import path or a missing export, because --check never loads the file. So
+      # every entry point gets invoked here too. --list and --form are read-only: they
+      # print a catalog and exit, they touch no config and spend no money.
+      - name: Every script entry point runs
+        run: |
+          node scripts/connect.mjs --list  > /dev/null
+          node scripts/connect.mjs --form  > /dev/null
+          node scripts/connect.mjs --status > /dev/null
+          node scripts/gen/generate.mjs --list > /dev/null
+          node scripts/verify.mjs --list > /dev/null
+          echo "all four scripts loaded and ran"
+
+      # The generated form IS template/.env.example. They are the same text in two places,
+      # so adding a provider to providers.mjs silently staled the template that every fork
+      # starts from.
+      - name: The connector form still matches the template
+        run: |
+          tmp=$(mktemp -d)
+          node scripts/connect.mjs --form | sed -n '/--- easyClaude connectors/,$p' > "$tmp/form.txt"
+          sed -n '/--- easyClaude connectors/,$p' template/.env.example > "$tmp/tmpl.txt"
+          if diff -u "$tmp/form.txt" "$tmp/tmpl.txt"; then
+            echo "form matches the template"
+          else
+            echo "::error::template/.env.example is stale - regenerate it with: node scripts/connect.mjs --form"
+            exit 1
+          fi
+
+      # One reader for .env, shared by connect.mjs and generate.mjs. There were two, and
+      # they disagreed: an indented key was "present" to one and "missing" to the other,
+      # and both folded a trailing comment into the secret - so a corrupted key went into
+      # the user's config and failed later somewhere unrelated. All four forms below were
+      # broken in at least one of the two readers.
+      - name: The .env reader handles every form of a line
+        run: |
+          tmp=$(mktemp -d)
+          cat > "$tmp/.env" <<'ENV'
+          PLAIN=abc123
+            INDENTED=def456
+          export EXPORTED=ghi789
+          COMMENTED=jkl012 # this is a note, not part of the key
+          QUOTED="mno345 # inside quotes"
+          HASH_IN_VALUE=postgres://u:p#w@localhost:5432/db
+          BLANK=
+          PLACEHOLDER=<your key here>
+          ENV
+          node --input-type=module -e '
+            import { readEnv } from "./scripts/env.mjs";
+            const { values } = readEnv(process.argv[1]);
+            const want = {
+              PLAIN: "abc123",
+              INDENTED: "def456",
+              EXPORTED: "ghi789",
+              COMMENTED: "jkl012",
+              QUOTED: "mno345 # inside quotes",
+              HASH_IN_VALUE: "postgres://u:p#w@localhost:5432/db",
+            };
+            let bad = 0;
+            for (const [k, v] of Object.entries(want)) {
+              const got = values.get(k);
+              if (got !== v) { console.error(`${k}: expected ${JSON.stringify(v)}, got ${JSON.stringify(got)}`); bad++; }
+            }
+            for (const k of ["BLANK", "PLACEHOLDER"]) {
+              if (values.has(k)) { console.error(`${k} should be treated as unset`); bad++; }
+            }
+            if (bad) process.exit(1);
+            console.log("the .env reader agrees with itself on all eight lines");
+          ' "$tmp"
+
+      # The half that matters. A gate that never blocks is the failure nobody notices, so
+      # assert the hook exits 2 on a contract that fails. The temp directory is not a git
+      # repo, which also covers "cannot tell what changed -> run the contract anyway".
       - name: Stop gate blocks a failing contract
         run: |
           tmp=$(mktemp -d)
@@ -46,9 +132,10 @@ jobs:
           fi
           echo "gate blocked as expected"
 
-      # Tiering is a way to make the gate quieter, so the risk is that it makes it
-      # silent. Both halves are asserted: the hook must hold a full-tier step back,
-      # and a full run must still catch it.
+      # Tiering is a way to make the gate quieter, so the risk is that it makes it silent.
+      # Both halves are asserted: the hook must hold a full-tier step back, and a full run
+      # must still catch it. CLAUDE_PROJECT_DIR steers both modes, so neither call needs to
+      # cd anywhere or name the script by absolute path.
       - name: Tiers hold back and catch the same failure
         run: |
           tmp=$(mktemp -d)
@@ -62,7 +149,7 @@ jobs:
           set +e
           echo '{}' | CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs --hook >/dev/null 2>&1
           hook=$?
-          (cd "$tmp" && node "$GITHUB_WORKSPACE/scripts/verify.mjs" >/dev/null 2>&1)
+          CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs >/dev/null 2>&1
           full=$?
           set -e
           if [ "$hook" -ne 0 ]; then
@@ -75,8 +162,156 @@ jobs:
           fi
           echo "fast tier allowed the turn, full run caught the failure"
 
-      # The repo is checked out with LF via .gitattributes. If a diff appears
-      # here, something was committed with line endings that bypassed it.
+      # The other way to end up with a dead gate: tier every step "full" and the per-turn
+      # hook runs nothing, on every turn, forever. It cannot block (there is no failure to
+      # find), so the requirement is that it says so rather than exiting quietly.
+      - name: An all-full contract is reported, not passed over in silence
+        run: |
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/.claude"
+          echo '{"steps":[{"name":"slow","cmd":"exit 1","tier":"full"}]}' > "$tmp/.claude/verify.json"
+          set +e
+          out=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs --hook 2>&1)
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            echo "::error::hook exited $code; with no fast steps there is nothing to block on (expected 0)"
+            exit 1
+          fi
+          case "$out" in
+            *'per-turn gate is checking nothing'*) echo "gate reported that it covers nothing" ;;
+            *) echo "::error::hook said nothing about having no fast-tier steps: $out"; exit 1 ;;
+          esac
+
+      # The gate has three outcomes, and the third one was reachable by accident. "Cannot
+      # run" exists so a missing toolchain does not wedge a session, and it was decided from
+      # a phrase plus a short output - which ordinary test failures match. Four of these
+      # five passed the gate while it printed OK. Both directions are asserted, because a
+      # fix that blocks on a missing toolchain is a different bug, not a fix.
+      - name: A failing test is not mistaken for a missing command
+        run: |
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/.claude"
+          cat > "$tmp/.claude/verify.json" <<'JSON'
+          { "steps": [ { "name": "test", "cmd": "node -e \"process.stderr.write(require('fs').readFileSync('out.txt','utf8')); process.exit(1)\"" } ] }
+          JSON
+          blocks() {
+            printf '%b' "$1" > "$tmp/out.txt"
+            set +e
+            echo '{}' | CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs --hook >/dev/null 2>&1
+            code=$?
+            set -e
+            if [ "$code" -ne 2 ]; then
+              echo "::error::gate exited $code on a real test failure, expected 2 (block). Step output was: $1"
+              exit 1
+            fi
+          }
+          blocks 'FAIL  src/user.test.ts\nError: not found'
+          blocks 'Expected: found\nReceived: not found'
+          blocks '1 failing\n  AssertionError: not found\n    at Object.<anonymous>'
+          blocks 'AssertionError: not found'
+          blocks 'Error: user not found'
+          echo "five real failures all blocked the turn"
+
+          tolerates() {
+            printf '{ "steps": [ { "name": "step", "cmd": "%s" } ] }' "$1" > "$tmp/.claude/verify.json"
+            set +e
+            CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs >/dev/null 2>&1
+            code=$?
+            set -e
+            if [ "$code" -ne 0 ]; then
+              echo "::error::a missing toolchain exited $code, expected 0 - it must warn, not block: $1"
+              exit 1
+            fi
+          }
+          tolerates 'definitely-not-a-real-command-xyz'
+          tolerates 'definitely-not-a-real-command-xyz --version'
+          tolerates 'npx-not-real run build'
+          # cmd.exe has no VAR=value syntax and reports the prefix rather than the program,
+          # so this row is the reason the check reads both names. It only fails on Windows.
+          tolerates 'CI=1 definitely-not-a-real-command-xyz test'
+          echo "four missing toolchains all warned instead of blocking"
+
+      # The third route to a dead gate, and the quietest. EASYCLAUDE_SKIP_VERIFY is a real
+      # escape hatch and it stays, but set once in a shell profile it switched the gate off
+      # for every project and every turn while printing nothing at all. It must allow the
+      # turn AND say that it did.
+      - name: The skip switch allows the turn but announces itself
+        run: |
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/.claude"
+          echo '{"steps":[{"name":"fails","cmd":"exit 1"}]}' > "$tmp/.claude/verify.json"
+          set +e
+          out=$(echo '{}' | EASYCLAUDE_SKIP_VERIFY=1 CLAUDE_PROJECT_DIR="$tmp" node scripts/verify.mjs --hook 2>&1)
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            echo "::error::skip switch exited $code, expected 0 (allow)"
+            exit 1
+          fi
+          case "$out" in
+            *EASYCLAUDE_SKIP_VERIFY*) echo "the skip switch reported that the gate is off" ;;
+            *) echo "::error::the gate was switched off and said nothing: [$out]"; exit 1 ;;
+          esac
+
+      # validate.mjs resolves its own root, so it must work from anywhere. It used to read
+      # cwd and die with an ENOENT stack trace over the top of its own report.
+      - name: Validator runs from outside the repo
+        run: |
+          root="$(pwd)"
+          cd "$(mktemp -d)"
+          node "$root/scripts/validate.mjs"
+
+      # Two ways the validator used to hide its own report, tested against a copy of the
+      # tree so the real one is untouched. A missing README.md sent it into a null read and
+      # a TypeError landed on top of every other finding; a broken script was not read for
+      # syntax at all and passed. A finding is a finding - never a stack trace, never silence.
+      - name: The validator reports its own casualties instead of crashing
+        run: |
+          # A plain copy rather than `git archive | tar`, which needs a binary pipe and a
+          # tar that behaves the same on both runners. The working tree is what is under
+          # review anyway; .git is dropped because nothing here reads history.
+          copy() {
+            rm -rf "$1"
+            mkdir -p "$1"
+            cp -a . "$1"
+            rm -rf "$1/.git"
+          }
+          tmp=$(mktemp -d)
+
+          copy "$tmp/plug"
+          rm "$tmp/plug/README.md"
+          set +e
+          out=$(node "$tmp/plug/scripts/validate.mjs" 2>&1)
+          set -e
+          case "$out" in
+            *TypeError*|*"at Array.forEach"*)
+              echo "::error::a missing README.md crashed the validator instead of being reported:"
+              echo "$out"; exit 1 ;;
+          esac
+          case "$out" in
+            *README.md*) echo "missing README reported as a finding" ;;
+            *) echo "::error::a missing README.md was not reported at all: $out"; exit 1 ;;
+          esac
+
+          copy "$tmp/plug"
+          printf '\nconst broken = {{{;\n' >> "$tmp/plug/scripts/connect.mjs"
+          set +e
+          out=$(node "$tmp/plug/scripts/validate.mjs" 2>&1)
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "::error::a syntactically broken script passed the validator:"
+            echo "$out"; exit 1
+          fi
+          case "$out" in
+            *"scripts/connect.mjs"*) echo "broken script reported as a finding" ;;
+            *) echo "::error::the validator failed but never named the broken script: $out"; exit 1 ;;
+          esac
+
+      # The repo is checked out with LF via .gitattributes. If a diff appears here,
+      # something was committed with line endings that bypassed it - and this now runs on
+      # Windows too, where a mangled checkout is most likely to happen.
       - name: Check line endings survived checkout
         run: |
           if git diff --exit-code --stat; then

@@ -3,9 +3,9 @@
 **Detect:** `ProjectSettings/ProjectVersion.txt` and an `Assets/` directory.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| edit-mode tests | `Unity -batchmode -quit -projectPath . -runTests -testPlatform EditMode -logFile -` |
+| name | cmd | tier |
+|---|---|---|
+| edit-mode tests | `Unity -batchmode -quit -projectPath . -runTests -testPlatform EditMode -logFile -` | full |
 
 **Verification strength:** **compile-only at best, often none.** Be honest with the user about this.
 

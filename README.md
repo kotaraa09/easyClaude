@@ -333,7 +333,7 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Every skill's name and description gets sent on every turn of every session, whether you use it or not:
 
-**~1,172 tokens per turn**: ~697 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
+<!--cost:1172,697,475-->**~1,172 tokens per turn**: ~697 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
 
 Call it a page of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
@@ -342,7 +342,9 @@ Call it a page of text per turn. If that's more than you want to spend, use `/ea
 
 <br>
 
-Skills are split by how often they fire. The five that trigger constantly (kickoff, plan-feature, build-task, debug, ship) stay always-on so plain English keeps working. The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable for about 60 tokens, against roughly 424 if they were loaded in full.
+Skills are split by how often they fire. <!--always-on:6-->Six stay always-on so plain English keeps working: the five that trigger constantly (kickoff, plan-feature, build-task, debug, ship), plus the vendored design-taste — which is the single most expensive line in this budget at ~156 tokens, more than kickoff and plan-feature together. It stays because its description is what makes "make this look less generic" reach it at all, and because editing vendored frontmatter would break the pinned-SHA guarantee that makes vendoring safe. Worth knowing you're paying for it on every turn, UI project or not.
+
+The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable for about 60 tokens, against roughly 424 if they were loaded in full.
 
 CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill therefore means dropping one.
 

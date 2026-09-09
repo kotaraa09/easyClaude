@@ -28,18 +28,33 @@ Three groups come back, and the difference matters:
 
 ## 2. Put the form where they can fill it
 
-If `.env.example` has no connector block, append one:
+**Check `.gitignore` first, before you tell anyone to write a key anywhere.** If it does not
+ignore `.env`, add it — with `!.env.example` after it, so the blank form stays tracked:
+
+```
+.env
+.env.*
+!.env.example
+```
+
+This step is not optional and it comes first. Everything below asks the user to paste live
+credentials into a file in their repo; doing that in a repo that would commit the file is
+how keys reach GitHub. If the project has no `.gitignore` at all, create one.
+
+Append the connector block if it is not already there. **You cannot read `.env.example`** — the
+deny rule covers `.env.*`, which includes the example. So test for the block with `grep`
+rather than opening the file, and never append twice:
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/scripts/connect.mjs --form >> .env.example
+grep -q 'easyClaude connectors' .env.example 2>/dev/null || node ${CLAUDE_PLUGIN_ROOT}/scripts/connect.mjs --form >> .env.example
 ```
 
 Then tell them: copy `.env.example` to `.env`, fill in **only** what they already have, and
 leave the rest blank. A blank line is a connector that stays switched off — there is nothing
 to uninstall later.
 
-**You cannot check their work.** `.env` is in `permissions.deny` for both read and edit, so
-you cannot open it. That is deliberate: the script reads the file itself and reports only
+**You cannot check their work.** `.env` — and every `.env.*`, the example included — is in
+`permissions.deny` for both read and edit, so you cannot open it. That is deliberate: the script reads the file itself and reports only
 which key *names* are filled, so a secret never enters your context. Don't try to work
 around it, and don't ask them to paste a key into the chat.
 

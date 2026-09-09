@@ -3,10 +3,10 @@
 **Detect:** `package.json` **without** `next.config.*` or `vite.config.*`. Usually a `tsconfig.json` alongside.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| typecheck | `npx tsc --noEmit` |
-| test | `npm test` |
+| name | cmd | tier |
+|---|---|---|
+| typecheck | `npx tsc --noEmit` | fast |
+| test | `npm test` | fast |
 
 **Verification strength:** strong.
 

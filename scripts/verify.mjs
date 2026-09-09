@@ -5,6 +5,7 @@
 //   node verify.mjs            people and skills - prints a table, exits 0 (pass) or 1 (fail)
 //   node verify.mjs --hook     the Stop hook    - reads hook JSON on stdin, exits 0 or 2
 //   node verify.mjs --list     print the contract without running anything
+//   node verify.mjs --fast     run only the fast tier, the same subset the hook runs
 //
 // This replaced a prompt-type Stop hook. That hook cost a model call on every
 // source-touching turn, and it asked the model to confirm that its own tests had
@@ -47,6 +48,20 @@ const CONFIG = join(root, '.claude', 'verify.json');
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_LINES = 60;
 const MAX_OUTPUT_CHARS = 4000;
+
+// Must equal the Stop hook's own timeout in hooks/hooks.json - validate.mjs fails if the
+// two drift apart. Claude Code kills the hook at this point, so a fast tier that can take
+// longer than this is a gate that gets killed rather than answered: no verdict, no block,
+// and nothing said about why. Nine steps at the 120s default is already over it.
+const HOOK_TIMEOUT_MS = 600_000;
+const overHookBudget = (steps) => {
+  const total = steps.reduce((n, s) => n + s.timeoutMs, 0);
+  return total > HOOK_TIMEOUT_MS ? { total, budget: HOOK_TIMEOUT_MS } : null;
+};
+const budgetWarning = (over) =>
+  `the fast tier can take up to ${Math.round(over.total / 1000)}s, but the Stop hook is ` +
+  `killed at ${Math.round(over.budget / 1000)}s. Give slow steps "tier": "full", or lower ` +
+  'their "timeoutMs" - a gate that gets killed reports nothing at all.';
 
 // Changes that cannot break a build. If a turn touched nothing outside these, the
 // contract is not worth the wall clock - and build-task rewrites docs/STATE.md on
@@ -137,13 +152,56 @@ function loadConfig() {
 const PASS = 'pass', FAIL = 'fail', UNRUNNABLE = 'unrunnable';
 
 // Shells disagree on both the exit code and the wording for "that command does not
-// exist" - cmd.exe returns 1 here as often as 9009 - so neither signal is enough
-// alone. Requiring a short output as well keeps a real test failure that happens to
-// print one of these phrases from being downgraded to a warning.
+// exist" - cmd.exe returns 1 here as often as 9009 - so neither signal is enough alone.
 const NOT_FOUND = /(command not found|not recognized as (an internal|the name of)|:\s*not found\b)/i;
-const looksUnrunnable = (status, output) =>
-  status === 127 || status === 9009 ||
-  (status !== 0 && NOT_FOUND.test(output) && output.split(/\r?\n/).filter((l) => l.trim()).length <= 3);
+
+// The phrase and a short output used to be the whole test, and that let ordinary failing
+// tests through the gate reporting OK. Every one of these is a real failure that matched:
+//
+//   FAIL src/user.test.ts / Error: not found
+//   Expected: found / Received: not found
+//   1 failing / AssertionError: not found / at Object.<anonymous>
+//
+// So the phrase is now tied to the program. Every shell names what it could not start -
+// bash "npm: command not found", sh "sh: 1: npm: not found", cmd.exe "'npm' is not
+// recognized" - and a test complaining that a user record is missing never names the
+// program running it. That one extra condition is the difference between a warning and a
+// failure passed off as a pass.
+//
+// Returns every name the shell might use for "the thing I could not start".
+//
+// Usually that is the program: `CI=1 npm test` fails as "npm: command not found", so the
+// leading VAR=value assignments are skipped. But cmd.exe has no VAR=value syntax at all -
+// it reads the whole prefix as the command and reports "'CI' is not recognized" - so the
+// raw first token counts too, up to its "=". Both are names the contract itself supplies;
+// neither appears in a test complaining that a user record is missing.
+function programNames(cmd) {
+  const raw = String(cmd).trim();
+  const stripped = raw.replace(/^(?:\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s+)*/, '').trim();
+  const firstToken = (s) => {
+    const m = s.match(/^"([^"]*)"|^'([^']*)'|^(\S+)/);
+    return m ? (m[1] ?? m[2] ?? m[3] ?? '') : '';
+  };
+  const names = new Set();
+  for (const token of [firstToken(stripped), firstToken(raw), firstToken(raw).split('=')[0]]) {
+    if (!token) continue;
+    names.add(token);
+    const base = token.split(/[\\/]/).pop();
+    if (base) names.add(base);
+  }
+  return [...names];
+}
+
+function looksUnrunnable(status, output, cmd) {
+  // The one unambiguous signal. No shell returns these for a command that ran.
+  if (status === 127 || status === 9009) return true;
+  if (status === 0) return false;
+  if (!NOT_FOUND.test(output)) return false;
+  if (output.split(/\r?\n/).filter((l) => l.trim()).length > 3) return false;
+  // Compared with includes() rather than a regex: a program name carries dots, slashes
+  // and backslashes, and escaping those correctly is its own bug.
+  return programNames(cmd).some((n) => output.includes(n));
+}
 
 function runStep(step) {
   const started = Date.now();
@@ -167,7 +225,7 @@ function runStep(step) {
   if (r.error) {
     return { ...step, ms, output, result: UNRUNNABLE, why: r.error.message };
   }
-  if (looksUnrunnable(r.status, output)) {
+  if (looksUnrunnable(r.status, output, step.cmd)) {
     return { ...step, ms, output, result: UNRUNNABLE, why: `command not found (exit ${r.status})` };
   }
   return {
@@ -203,7 +261,15 @@ if (HOOK) {
     process.exit(0);
   };
 
-  if (skipRequested) allow();
+  // Says so out loud, for the same reason the all-full-tier case does. This is a real
+  // escape hatch and it stays, but set once in a shell profile it used to switch the gate
+  // off for every project, every turn, and print nothing - the dead gate this framework
+  // exists to prevent, reached by the quietest route available.
+  if (skipRequested) {
+    allow('easyClaude: the verify gate is OFF because EASYCLAUDE_SKIP_VERIFY is set in the ' +
+      'environment. Nothing was checked this turn, in this or any other project. Do not ' +
+      'describe this work as verified. Unset EASYCLAUDE_SKIP_VERIFY to turn the gate back on.');
+  }
 
   const cfg = loadConfig();
   if (!cfg) allow('No verify contract in this project - run the kickoff skill to add one.');
@@ -218,7 +284,16 @@ if (HOOK) {
   // Fast tier only. On an untiered contract that is every step, so nothing changes
   // for a project that never opted in.
   const due = cfg.steps.filter((s) => s.tier === 'fast');
-  if (!due.length) process.exit(0);
+  // Every step tiered "full" means the per-turn gate now runs nothing, every turn, for the
+  // life of the project - the exact failure tiering was supposed to prevent, arrived at by
+  // the other route. It cannot block on it (there is nothing to fail), so it says so out
+  // loud instead. A gate that stops checking silently is the one nobody notices.
+  if (!due.length) {
+    allow(`Every step in .claude/verify.json is tier "full", so the per-turn gate is checking ` +
+      'nothing. At least one step should be fast, or the contract only runs when someone ' +
+      'remembers to run it. Verify this work yourself before calling it done: ' +
+      `node "${process.argv[1]}"`);
+  }
 
   const results = due.map(runStep);
   const failed = results.filter((r) => r.result === FAIL);
@@ -276,19 +351,35 @@ const tierLabel = (s) => (tiered ? `[${s.tier}] ` : '');
 // when you do not think about it, so only --fast narrows the run.
 const selected = FAST ? cfg.steps.filter((s) => s.tier === 'fast') : cfg.steps;
 
+// Checked wherever someone is looking at the contract rather than only running it, which
+// is where a contract gets written and tiered in the first place.
+const overBudget = overHookBudget(cfg.steps.filter((s) => s.tier === 'fast'));
+
 if (LIST) {
   console.log(`verify contract - ${cfg.steps.length} step(s)\n`);
   for (const s of cfg.steps) console.log(`  ${tierLabel(s)}${pad(s.name)}  ${s.cmd}`);
   if (tiered) {
     console.log('\n  fast runs on every turn, at the Stop hook. full runs here, and at ship.');
   }
+  if (overBudget) console.log(`\n  WARN  ${budgetWarning(overBudget)}`);
   process.exit(0);
 }
 
 if (!selected.length) {
   console.log('No fast-tier steps in this contract - nothing to run.');
+  console.log('Every step is tier "full", so the Stop hook checks nothing on any turn.');
+  console.log('Give at least one step a fast tier, or drop --fast and run the whole contract.');
   process.exit(0);
 }
+
+// An explicit run always runs - asking for the contract is not the same as arming the
+// per-turn gate. But this is the one place a person is looking at the contract, so it is
+// where they should find out that the automatic half of it is switched off.
+if (skipRequested) {
+  console.log('NOTE  EASYCLAUDE_SKIP_VERIFY is set, so the per-turn Stop gate is OFF.');
+  console.log('      This run below is real. Nothing else is being checked automatically.\n');
+}
+if (overBudget) console.log(`WARN  ${budgetWarning(overBudget)}\n`);
 
 console.log(`verify contract - ${selected.length} step(s)` +
   (FAST && selected.length < cfg.steps.length ? ` (fast tier; ${cfg.steps.length - selected.length} full-tier held back)` : '') + '\n');

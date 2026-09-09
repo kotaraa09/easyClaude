@@ -3,10 +3,10 @@
 **Detect:** `pubspec.yaml` with a `flutter:` section, plus `lib/main.dart`.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| analyze | `flutter analyze` |
-| test | `flutter test` |
+| name | cmd | tier |
+|---|---|---|
+| analyze | `flutter analyze` | fast |
+| test | `flutter test` | fast |
 
 **Verification strength:** strong — and worth stating plainly, because most mobile stacks aren't. `flutter test` runs widget tests headlessly with no emulator, no device, and no platform SDK. Mobile is not inherently unverifiable; Android and iOS native just make it hard.
 

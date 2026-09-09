@@ -3,11 +3,11 @@
 **Detect:** `pyproject.toml`, `uv.lock`, `requirements.txt`, or `*.py` at the root.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| lint | `uv run ruff check .` |
-| typecheck | `uv run mypy .` *(only if the project already uses type hints)* |
-| test | `uv run pytest -q` |
+| name | cmd | tier |
+|---|---|---|
+| lint | `uv run ruff check .` | fast |
+| typecheck | `uv run mypy .` *(only if the project already uses type hints)* | fast |
+| test | `uv run pytest -q` | fast |
 
 **Verification strength:** strong.
 
