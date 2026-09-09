@@ -405,7 +405,9 @@ rules/            copied into your project, ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
 scripts/          verify.mjs (the gate), validate.mjs (CI checks),
-                  connect.mjs (MCP + keys), gen/ (asset generation)
+                  test.mjs (tests both), connect.mjs (MCP + keys),
+                  gen/ (asset generation)
+tests/            mutation tests for the checking machinery
 evals/            why there is no behavioural test suite yet
 docs/assets/      README artwork
 ```
@@ -415,14 +417,19 @@ docs/assets/      README artwork
 ## Contributing
 
 ```bash
-node scripts/validate.mjs
+node scripts/validate.mjs   # check the plugin
+node scripts/test.mjs       # check the checkers
 ```
 
-This runs in CI on every push and pull request. It has no dependencies, only `node:` builtins. It checks that frontmatter parses and uses real keys, that skill names match their directories, that hook shapes are valid, that the manifests agree with each other, that recipes carry a verification-strength field, that docs use the namespaced command form, that a hook shelling out points at a script that actually exists, that the table above only promises phrases for skills that can actually hear them, and that the per-turn cost quoted above matches what the validator measures.
+Both run in CI on every push and pull request. Neither has dependencies, only `node:` builtins.
+
+The validator checks that frontmatter parses and uses real keys, that skill names match their directories, that hook shapes are valid, that the manifests agree with each other, that recipes carry a verification-strength field, that docs use the namespaced command form, that a hook shelling out points at a script that actually exists, that the table above only promises phrases for skills that can actually hear them, and that the per-turn cost quoted above matches what the validator measures.
 
 Each of those checks is there because that exact thing broke at least once.
 
-CI also runs the gate itself, both ways: the real contract has to pass, and a deliberately failing one has to block. A gate that never blocks is the failure nobody notices.
+The test suite exists because four of them later stopped checking, and passed while they did — the gate reported OK on failing tests, a reworded heading switched off a check with its marker still in place, and a reversed pair of headings left another one reading an empty string. Every one was found by reading the source, which is not a process that scales.
+
+So the suite tests the checkers rather than the plugin. It copies the tree, breaks exactly one thing, and requires the validator to report it; a check that stops checking now fails a test instead of going quiet. It pins the gate's behaviour the same way — a failing step must block the turn, a missing toolchain must only warn, and test output that happens to say "not found" must not be mistaken for a missing toolchain. One case is about the suite itself: every numbered check in the validator must have at least one test, so a new check cannot ship untested and an old one cannot lose its last test unnoticed.
 
 What none of it can check is which skill actually wins a given sentence, since a validator reads frontmatter and not meaning. [`evals/`](evals/) records why that suite isn't written yet and what to write first.
 

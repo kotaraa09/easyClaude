@@ -1,0 +1,300 @@
+// Mutation tests for scripts/validate.mjs.
+//
+// Every case here breaks one thing in a copy of the tree and requires the validator to
+// report it. That is the only way to tell a check that works from a check that has quietly
+// stopped checking - the failure this repo has now had four times, and the reason this
+// file exists.
+//
+// Each case names the check it covers. The coverage case at the bottom reads the check
+// headings back out of validate.mjs and fails when any of them has no test, so a new check
+// cannot ship untested and an old one cannot lose its only test unnoticed.
+//
+// Mutations locate their target by pattern wherever they can, rather than by a literal
+// copy of the current text. A test that breaks every time someone edits prose is a test
+// that gets deleted.
+import {
+  test, assert, assertMatch, workspace, runValidate, covered, repoRoot,
+  readText, writeText, editText, editJson, removeFile, replaceOnce,
+} from './harness.mjs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// --- the two shapes of a mutation case ---------------------------------------
+
+// The validator must FAIL, and must name the thing that is wrong. Exit code alone is not
+// enough: a validator that fails for the wrong reason is still a broken validator, and a
+// report that does not say what broke sends the reader back into the source.
+function breaks(name, checkId, mutate, expected) {
+  test(`${checkId}: ${name}`, async () => {
+    const dir = workspace();
+    mutate(dir);
+    const r = await runValidate(dir);
+    assert(r.code !== 0,
+      `the validator passed after this mutation, so check ${checkId} is not checking:\n${r.out}`);
+    assertMatch(r.out, expected, `check ${checkId} fired, but the report does not identify the fault.`);
+  }, { covers: checkId });
+}
+
+// The validator must WARN and still pass. A warning that silently became an error is a
+// change of contract, so the exit code is asserted too.
+function warns(name, checkId, mutate, expected) {
+  test(`${checkId}: ${name}`, async () => {
+    const dir = workspace();
+    mutate(dir);
+    const r = await runValidate(dir);
+    assertMatch(r.out, expected, `check ${checkId} did not warn about this.`);
+    assert(r.code === 0,
+      `this must warn, not fail - it is waste or a risk, not breakage:\n${r.out}`);
+  }, { covers: checkId });
+}
+
+// Bumps the first number captured by `re`, so the expected figure is never hard-coded here.
+function bumpNumber(dir, rel, re) {
+  const before = readText(dir, rel);
+  const m = before.match(re);
+  if (!m) throw new Error(`no match for ${re} in ${rel} - update the mutation, do not delete it`);
+  const changed = String(Number(m[1]) + 7);
+  writeText(dir, rel, before.replace(m[0], m[0].replace(m[1], changed)));
+}
+
+const appendLine = (dir, rel, line) => editText(dir, rel, (t) => `${t}\n${line}\n`);
+
+// --- baseline ----------------------------------------------------------------
+// Without this, every case above could be passing because the copy is broken rather than
+// because the mutation worked.
+test('baseline: an unmutated copy of the tree validates clean', async () => {
+  const r = await runValidate(workspace());
+  assert(r.code === 0, `a clean copy of the repo must validate. Output:\n${r.out}`);
+  assertMatch(r.out, /^OK - /m, 'a clean copy must report OK.');
+});
+
+// --- 1. commands -------------------------------------------------------------
+breaks('a command with no description', '1',
+  (d) => editText(d, 'commands/full.md', (t) => t.replace(/^description:.*$/m, '')),
+  /commands\/full\.md.*description/i);
+
+// --- 2. skills ---------------------------------------------------------------
+breaks('a skill whose name does not match its directory', '2',
+  (d) => editText(d, 'skills/kickoff/SKILL.md', (t) => t.replace(/^name:.*$/m, 'name: kickof')),
+  /does not match directory/);
+
+// --- 3. every JSON file parses ----------------------------------------------
+breaks('a JSON file that does not parse', '3',
+  (d) => appendLine(d, '.claude/verify.json', '}}} not json'),
+  /verify\.json.*invalid JSON/);
+
+// --- 3b. every script parses -------------------------------------------------
+breaks('a script that is not valid JavaScript', '3b',
+  (d) => appendLine(d, 'scripts/env.mjs', 'const broken = {{{;'),
+  /scripts\/env\.mjs.*not valid JavaScript/);
+
+// --- 4. manifests agree ------------------------------------------------------
+breaks('a plugin the marketplace does not list', '4',
+  (d) => editJson(d, '.claude-plugin/plugin.json', (j) => { j.name = 'renamed-plugin'; }),
+  /marketplace\.json.*does not list plugin/);
+
+// --- 5. hooks ----------------------------------------------------------------
+breaks('a hook pointing at a script that is not there', '5',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => {
+    j.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/renamed.mjs" --hook';
+  }),
+  /scripts\/renamed\.mjs.*does not exist/);
+
+// --- 5b. curated skill registry ----------------------------------------------
+breaks('a vendored skill pinned to a branch instead of a commit', '5b',
+  (d) => editJson(d, 'skills/registry.json', (j) => { j.vendored[0].commit = 'main'; }),
+  /40-character commit SHA/);
+
+// --- 6. docs use namespaced invocations --------------------------------------
+breaks('a doc using the bare command form', '6',
+  (d) => appendLine(d, 'recipes/README.md', 'Run /kickoff to begin.'),
+  /references "\/kickoff"/);
+
+// --- 6b. docs must not claim hooks that do not exist -------------------------
+breaks('a doc promising a hook nobody implemented', '6b',
+  (d) => appendLine(d, 'recipes/README.md', 'A PreCompact hook trims this file for you.'),
+  /"PreCompact" hook, but hooks\.json does not implement it/);
+
+// --- 6c. paths named in prose must exist -------------------------------------
+breaks('prose naming a plugin file that is not there', '6c',
+  (d) => appendLine(d, 'recipes/README.md', 'See `${CLAUDE_PLUGIN_ROOT}/scripts/absent.mjs` for details.'),
+  /scripts\/absent\.mjs.*does not exist/);
+
+// --- 6d. shipped assets should be referenced ---------------------------------
+warns('an asset nothing points at', '6d',
+  (d) => writeFileSync(join(d, 'docs/assets/unreferenced-fixture.png'), Buffer.alloc(2048)),
+  /unreferenced-fixture\.png.*referenced by nothing/);
+
+// --- 7. line endings ---------------------------------------------------------
+warns('a file committed with CRLF', '7',
+  (d) => editText(d, 'recipes/rust.md', (t) => t.replace(/\r?\n/g, '\r\n')),
+  /recipes\/rust\.md.*CRLF/);
+
+// --- 8. recipes --------------------------------------------------------------
+breaks('a recipe step with a tier that is neither fast nor full', '8',
+  (d) => replaceOnce(d, 'recipes/go.md', '| fast |', '| WRONG |'),
+  /tier "WRONG"/);
+
+breaks('a recipe with its two headings in the wrong order', '8',
+  (d) => editText(d, 'recipes/go.md', (t) => {
+    // The order guard exists because the reversed form made the tier check read an empty
+    // string and pass. Rebuilding the file in the wrong order reproduces exactly that.
+    const steps = t.indexOf('**Verify steps:**');
+    const strength = t.indexOf('**Verification strength:**');
+    const table = t.slice(steps, strength);
+    const strengthLine = t.slice(strength).split('\n')[0];
+    return `${t.slice(0, steps)}${strengthLine}\n\n${table}\n`;
+  }),
+  /comes before "Verify steps"/);
+
+// --- 8b. kickoff must be able to find every recipe that ships ----------------
+breaks('a recipe detecting on a marker kickoff never looks for', '8b',
+  (d) => replaceOnce(d, 'recipes/go.md', '`go.mod`', '`go.manifest`'),
+  /not in kickoff's marker list/);
+
+// --- 9. skill descriptions must not collide ----------------------------------
+// Both skills set disable-model-invocation, so copying a description between them changes
+// no token figure and this case cannot be passing for some unrelated reason.
+warns('two skills competing for the same turn', '9',
+  (d) => {
+    const from = readText(d, 'skills/deploy/SKILL.md').match(/^description:(.*)$/m)[1];
+    editText(d, 'skills/rescue/SKILL.md', (t) => t.replace(/^description:.*$/m, `description:${from}`));
+  },
+  /descriptions overlap/);
+
+// --- 9b. template settings must match the real plugin ------------------------
+breaks('a template that enables no plugin', '9b',
+  (d) => editJson(d, 'template/.claude/settings.json', (j) => { j.enabledPlugins = {}; }),
+  /enabledPlugins must contain/);
+
+// --- 10. always-on token budget ----------------------------------------------
+breaks('an always-on cost over budget', '10',
+  (d) => editJson(d, 'skills/registry.json', (j) => { j.max_always_on_tokens = 10; }),
+  /exceeds budget 10/);
+
+// --- 10b. stated costs must match the measured figure ------------------------
+breaks("the README's cost sentence drifting from the measurement", '10b',
+  (d) => bumpNumber(d, 'README.md', /tokens per turn\*\*: ~([\d,]+) of rules/),
+  /claims ~[\d,]+ tokens\/turn of rules, measured/);
+
+breaks("the README's cost sentence being reworded away", '10b',
+  (d) => replaceOnce(d, 'README.md', 'tokens per turn**: ~', 'tokens each turn**: ~'),
+  /cost sentence is missing or reworded/);
+
+// --- 10c. every README's cost figures, translations included -----------------
+// Mutated in the translation, because the English sentence has its own check above and
+// this one exists for the file that had none.
+breaks("a translation's cost marker drifting", '10c',
+  (d) => bumpNumber(d, 'README.th.md', /<!--cost:(\d+),\d+,\d+-->/),
+  /cost marker claims \d+ tokens\/turn of total/);
+
+// --- 11. the STATE.md compaction rule must not drift -------------------------
+breaks('one of the four copies of the "## Done" cap drifting', '11',
+  (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replace('ten most recent', 'twenty most recent')),
+  /skills\/ship\/SKILL\.md.*ten most recent/);
+
+// --- 11b. the template must actually reach kickoff -------------------------
+breaks('a template that can never reach kickoff', '11b',
+  (d) => editText(d, 'template/docs/STATE.md', (t) => t.replace('<!-- easyclaude:not-kicked-off -->', '')),
+  /template\/docs\/STATE\.md: must carry/);
+
+breaks("kickoff's state template carrying the not-kicked-off marker", '11b',
+  (d) => editText(d, 'skills/kickoff/SKILL.md',
+    (t) => t.replace('`docs/STATE.md` starts as', '`docs/STATE.md` starts as <!-- easyclaude:not-kicked-off -->')),
+  /every project it sets up would then report itself as never set up/);
+
+breaks("kickoff's state anchor being reworded", '11b',
+  (d) => editText(d, 'skills/kickoff/SKILL.md',
+    (t) => t.replace('`docs/STATE.md` starts as', '`docs/STATE.md` begins as')),
+  /must introduce its state template with the exact phrase/);
+
+// --- 12. only skills that can hear a phrase may be promised one ----------------
+breaks('a spoken skill with no documented phrase', '12',
+  (d) => editText(d, 'README.md', (t) => t.replace('<!--skill:debug-->', '')),
+  /skill "debug" fires on plain English but no row is marked/);
+
+breaks('a phrase promised for a skill that cannot hear one', '12',
+  (d) => editText(d, 'README.md', (t) => t.replace('<!--skill:debug-->', '<!--skill:debug--><!--skill:deploy-->')),
+  /promises a phrase for "deploy"/);
+
+// --- 12a. the Stop hook must actually run the gate ---------------------------
+// The gate is the product. Each of these three left the framework enforcing nothing while
+// every other check still passed.
+breaks('a Stop hook that runs something else entirely', '12a',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => { j.Stop[0].hooks[0].command = 'echo hello'; }),
+  /does not invoke scripts\/verify\.mjs --hook/);
+
+breaks('a Stop hook that runs the gate without --hook', '12a',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => {
+    j.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs"';
+  }),
+  /does not invoke scripts\/verify\.mjs --hook/);
+
+breaks('no Stop hook at all', '12a',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => { delete j.Stop; }),
+  /no Stop command hook/);
+
+// --- 12b. the hook's time limit and the gate's own budget must agree ---------
+breaks("the hook's timeout drifting from the gate's budget", '12b',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => { j.Stop[0].hooks[0].timeout = 45; }),
+  /HOOK_TIMEOUT_MS is \d+ms, but the Stop hook/);
+
+// --- 13. one security policy, two copies, no drift ---------------------------
+breaks('a guardrail in one copy of the policy and not the other', '13',
+  (d) => editJson(d, 'template/.claude/settings.json', (j) => { j.permissions.deny.pop(); }),
+  /anyone forking the template runs without that guardrail/);
+
+// --- 14. the template must protect what its own docs say it protects ---------
+breaks('a template that does not ignore the file it tells you to put keys in', '14',
+  (d) => editText(d, 'template/.gitignore', (t) => t.replace(/^\.env$/m, '')),
+  /does not ignore "\.env"/);
+
+// --- 15. the cost section must count the skills that are actually always-on --
+breaks('an always-on count drifting from the measured set', '15',
+  (d) => bumpNumber(d, 'README.th.md', /<!--\s*always-on:(\d+)\s*-->/),
+  /claims \d+ always-on skills, measured/);
+
+// --- the validator must report, never crash and never go silent --------------
+// Both of these once replaced the whole report: a missing README.md sent the cost check
+// into a null read, and a broken script was not read for syntax at all.
+test('robustness: a missing README is a finding, not a stack trace', async () => {
+  const dir = workspace();
+  removeFile(dir, 'README.md');
+  const r = await runValidate(dir);
+  assert(!/TypeError|at Array\.forEach/.test(r.out),
+    `a missing README crashed the validator instead of being reported:\n${r.out}`);
+  assertMatch(r.out, /README\.md/, 'a missing README was not reported at all.');
+  assert(r.code !== 0, 'a missing README must fail the validator.');
+});
+
+test('robustness: the validator runs from a directory that is not the repo', async () => {
+  // It resolves its own root. It used to read cwd and die on ENOENT over its own report.
+  const dir = workspace();
+  const r = await runValidate(dir);
+  assert(r.code === 0, `the validator must work when run from elsewhere:\n${r.out}`);
+});
+
+// --- coverage ----------------------------------------------------------------
+// The case that ends the loop. Every numbered check in validate.mjs must have at least one
+// mutation test proving it fires. Adding check 16 with no test fails here, and so does
+// deleting the last test for check 8.
+test('coverage: every check in validate.mjs has a mutation test', () => {
+  const source = readFileSync(join(repoRoot, 'scripts', 'validate.mjs'), 'utf8');
+  const ids = [...source.matchAll(/^\/\/ --- (\d+[a-z]?)\. (.+?) -*$/gm)].map((m) => [m[1], m[2].trim()]);
+  assert(ids.length > 0,
+    'no check headings found in validate.mjs. They must read "// --- <id>. <title> ---", ' +
+    'because that is what this test counts. If the format changed, change it here too.');
+
+  const have = covered();
+  const missing = ids.filter(([id]) => !have.has(id));
+  assert(missing.length === 0,
+    `${missing.length} check(s) in validate.mjs have no mutation test, so nothing would ` +
+    'notice if they stopped checking:\n' +
+    missing.map(([id, title]) => `  ${id}. ${title}`).join('\n') +
+    '\nAdd a case to tests/validate.test.mjs that breaks what each one guards.');
+
+  const stale = [...have].filter((id) => !ids.some(([known]) => known === id));
+  assert(stale.length === 0,
+    `tests claim to cover check(s) that no longer exist in validate.mjs: ${stale.join(', ')}. ` +
+    'Either the check was removed and its test should go, or the heading was renumbered.');
+});
