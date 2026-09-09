@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       # No dependencies by design - the validator uses only node: builtins, so this stays
       # fast and cannot break on a transitive update.
