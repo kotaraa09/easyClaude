@@ -330,6 +330,29 @@ for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
   });
 }
 
+// --- 6d. shipped assets should be referenced ---------------------------------
+// Everything in docs/assets/ is installed on every user's machine. og-card.jpg sat there
+// at 324 KB with nothing pointing at it - GitHub takes a social preview through repository
+// settings, not from the repo, so it was never going to be read by anything. A framework
+// that argues this carefully about tokens per turn should not ship megabytes by accident.
+//
+// A warning, not an error: an unreferenced asset is waste, not breakage, and someone may
+// be keeping one on purpose.
+const assetsDir = join(root, 'docs', 'assets');
+if (existsSync(assetsDir)) {
+  const prose = walk(root)
+    .filter((p) => /\.(md|json|ya?ml|html)$/.test(p) && !p.startsWith(assetsDir))
+    .map((p) => readFileSync(p, 'utf8'))
+    .join('\n');
+  for (const f of walk(assetsDir)) {
+    const name = basename(f);
+    if (!prose.includes(name)) {
+      const kb = Math.round(statSync(f).size / 1024);
+      warn(`docs/assets/${name}`, `${kb} KB, referenced by nothing - it still ships to every user`);
+    }
+  }
+}
+
 // --- 7. line endings ---------------------------------------------------------
 for (const f of walk(root).filter((p) => /\.(md|json|ya?ml|mjs)$/.test(p))) {
   if (readFileSync(f, 'utf8').includes('\r\n')) {
@@ -356,7 +379,19 @@ for (const f of walk(join(root, 'recipes')).filter((p) => p.endsWith('.md') && !
   //
   // Scoped to the Verify steps section, so a recipe that grows a second table later is not
   // scanned as if it were the contract.
-  const section = text.slice(text.indexOf('Verify steps'), text.indexOf('Verification strength'));
+  //
+  // The two headings have to be in that order, and it is checked rather than assumed. An
+  // unguarded slice(indexOf(a), indexOf(b)) returns an empty string when b comes first, and
+  // the tier check below then runs over nothing and passes - a recipe with "WRONG" in every
+  // tier cell went green that way. Both headings are already required above, so the only
+  // thing left to establish is their order.
+  const stepsAt = text.indexOf('Verify steps');
+  const strengthAt = text.indexOf('Verification strength');
+  if (stepsAt !== -1 && strengthAt !== -1 && strengthAt < stepsAt) {
+    err(rel(f), '"Verification strength" comes before "Verify steps". Keep the order shown in ' +
+      'recipes/README.md - the tier check reads the block between them, and reversed it reads nothing.');
+  }
+  const section = stepsAt !== -1 && strengthAt > stepsAt ? text.slice(stepsAt, strengthAt) : '';
   const rows = [...section.matchAll(/^\|(?!\s*-)(.+)\|\s*$/gm)];
   if (rows.length) {
     const header = rows[0][1].split('|').map((c) => c.trim().toLowerCase());
@@ -648,8 +683,17 @@ if (hooks?.SessionStart && !hookPrompt.includes(NOT_KICKED_OFF)) {
   err('hooks/hooks.json', `the SessionStart hook must test for ${NOT_KICKED_OFF}, or a fresh ` +
     'fork of the template never reaches kickoff');
 }
-const kickoffState = kickoffText.slice(kickoffText.indexOf('`docs/STATE.md` starts as'));
-if (kickoffState && kickoffState.includes(NOT_KICKED_OFF)) {
+// Anchored on an exact phrase, so the phrase has to be there. slice(indexOf(...)) with no
+// guard returns the LAST CHARACTER when the search misses, and the check then passes on a
+// one-character string - so rewording this heading alone silently switched the check off,
+// marker planted and all. A check that stops checking is the failure this file exists for,
+// and it does not get an exemption for being in this file.
+const STATE_ANCHOR = '`docs/STATE.md` starts as';
+const stateAt = kickoffText.indexOf(STATE_ANCHOR);
+if (kickoffText && stateAt === -1) {
+  err('skills/kickoff/SKILL.md', `must introduce its state template with the exact phrase ` +
+    `"${STATE_ANCHOR}" - it is the anchor CI uses to find that template and check it`);
+} else if (stateAt !== -1 && kickoffText.slice(stateAt).includes(NOT_KICKED_OFF)) {
   err('skills/kickoff/SKILL.md', `its docs/STATE.md template carries ${NOT_KICKED_OFF} - every ` +
     'project it sets up would then report itself as never set up, on every session');
 }
@@ -660,6 +704,25 @@ if (kickoffState && kickoffState.includes(NOT_KICKED_OFF)) {
 // live - a gate that gets killed returns no verdict, blocks nothing, and says nothing
 // about why. Two copies of one number is the drift this file exists to catch.
 const stopHook = (hooks?.Stop ?? []).flatMap((e) => e.hooks ?? []).find((h) => h.type === 'command');
+
+// --- 12a. the Stop hook must actually run the gate ---------------------------
+// Everything else here checks the hook's edges: that its timeout matches, that the script
+// it names exists, that a prompt hook cannot loop. Nothing checked the one thing the whole
+// plugin rests on - that the command runs the gate at all. Replacing it with `echo hello`
+// left the framework with no enforcement whatsoever and a validator printing OK.
+//
+// Deleting the hook outright was caught, but only by accident: other documents then
+// mentioned a Stop hook that no longer existed. Rewriting the command was caught by
+// nothing, which is the quieter and therefore likelier mistake.
+if (hooks && !stopHook) {
+  err('hooks/hooks.json', 'no Stop command hook. The verify gate is what this plugin is for, ' +
+    'and this entry is the only thing that runs it.');
+} else if (stopHook && !/verify\.mjs["']?\s+--hook\b/.test(stopHook.command ?? '')) {
+  err('hooks/hooks.json', `the Stop hook runs ${JSON.stringify(stopHook.command)}, which does ` +
+    'not invoke scripts/verify.mjs --hook. Every other check here would still pass, and no ' +
+    'turn in any project would ever be verified.');
+}
+
 const budgetInScript = (readOrErr('scripts/verify.mjs',
   'missing - it is the gate') ?? '').match(/const HOOK_TIMEOUT_MS = ([\d_]+);/);
 if (stopHook && budgetInScript) {

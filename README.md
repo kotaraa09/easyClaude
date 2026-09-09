@@ -201,7 +201,7 @@ Where it's weak: raster models are fine for placeholders, backgrounds, textures 
 
 A provider has to do something Claude can't already do. That rule rules out Ollama, DeepSeek, Kimi and OpenRouter, which are text-only. Midjourney is out because it has no official API. The reasons are written into `providers.mjs` so the rule outlives the next contributor.
 
-Adapters are marked `tested` or `UNTESTED` in `--list`, and so far only Replicate has produced a real file.
+`--list` says which kinds of asset each adapter has actually produced, not just whether the provider works. So far that is Replicate, for images only — its video, audio and 3D paths are written but unproven.
 
 Keys are read inside the script and never reach Claude's context. That's also why this is a plain script and not an MCP server: no tool schemas loaded on every turn, and it runs in CI.
 

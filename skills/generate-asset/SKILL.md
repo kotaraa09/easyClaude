@@ -28,10 +28,12 @@ knowing before you promise anything:
 - **`--provider local` costs nothing**, but needs Automatic1111 or ComfyUI already running.
   Suggest it when the user is watching spend.
 
-`--list` marks every adapter `tested` or `UNTESTED`. UNTESTED means it follows the
-provider's documented API but nobody has produced a file with it yet. On an untested
-provider run `--check` first, and say plainly that it might not work — don't discover that
-mid-task.
+`--list` says which **kinds of asset** each adapter has actually produced — `tested: image`,
+not a single mark for the whole provider. A kind that is not listed follows the provider's
+documented API but has never made a file. Replicate reads `tested: image`, so its video,
+audio and 3D paths are unproven even though the provider is otherwise known to work. For an
+untested kind run `--check` first, and say plainly that it might not work — don't discover
+that mid-task.
 
 **A subscription is not an API key.** ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM
 do not include API access. If the user says they already pay for one of those, tell them it
