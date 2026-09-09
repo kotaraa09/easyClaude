@@ -6,10 +6,10 @@
 // is why the REJECTED list below is as long as this one, and it is written down so the next
 // person adds a provider on purpose rather than by enthusiasm.
 //
-// `tested` is honest and load-bearing:
-//   true  - a real generation was run against this provider and produced a usable file
-//   false - the adapter follows the provider's documented API, but nobody has made a file
-//           with it yet. It may be wrong. Run `--check` to at least prove your key works.
+// `tested` is honest and load-bearing. It lists the modalities a real generation was run for and produced a
+// usable file. It was a single boolean per provider, which meant replicate's one verified
+// image run also vouched for its video, audio and 3D adapters - three claims nobody had
+// earned. A modality absent from this list may be wrong; `--check` still proves the key.
 //
 // Every base URL here was verified reachable before shipping (401/403/422 from an
 // unauthenticated request proves the host is real; 200 where the endpoint is public).
@@ -23,7 +23,7 @@ export const PROVIDERS = [
     key: 'REPLICATE_API_TOKEN',
     where: 'https://replicate.com/account/api-tokens',
     modalities: ['image', 'video', 'audio', '3d'],
-    tested: true,
+    tested: ['image'],
     note: 'aggregator - one key covers every modality',
     check: (k) => ['https://api.replicate.com/v1/account', { headers: { Authorization: `Bearer ${k}` } }],
     // Replicate is async: create a prediction, then poll until terminal. `Prefer: wait`
@@ -78,13 +78,18 @@ export const PROVIDERS = [
     key: 'ELEVENLABS_API_KEY',
     where: 'https://elevenlabs.io/app/settings/api-keys',
     modalities: ['audio'],
-    tested: false,
+    tested: [],
     note: 'speech and sound effects - the gap Replicate\'s musicgen cannot fill',
     check: (k) => ['https://api.elevenlabs.io/v1/user', { headers: { 'xi-api-key': k } }],
     // Two different endpoints: --sfx makes a sound effect, otherwise it speaks the prompt.
     // Both return raw audio bytes rather than a URL, so there is nothing to download.
-    async generate({ prompt, flag, key }) {
-      const sfx = flag('sfx') !== undefined;
+    //
+    // --sfx is a switch, so it reads through has(), not flag(). It used to read through
+    // flag(), which requires a value - so the sound-effects endpoint could not be reached
+    // at all: bare --sfx died on "needs a value", and --sfx --duration 5 died on the next
+    // argument. Switches use has(); anything carrying a value uses flag().
+    async generate({ prompt, flag, has, key }) {
+      const sfx = has('sfx');
       const url = sfx
         ? 'https://api.elevenlabs.io/v1/sound-generation'
         : `https://api.elevenlabs.io/v1/text-to-speech/${String(flag('voice', 'EXAVITQu4vr4xnSDxMaL'))}`;
@@ -103,7 +108,7 @@ export const PROVIDERS = [
     key: 'OPENAI_API_KEY',
     where: 'https://platform.openai.com/api-keys',
     modalities: ['image', 'audio'],
-    tested: false,
+    tested: [],
     note: 'a ChatGPT Plus subscription does NOT include this - it is billed separately',
     check: (k) => ['https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${k}` } }],
     async generate({ kind, prompt, flag, key }) {
@@ -133,7 +138,7 @@ export const PROVIDERS = [
     key: 'VENICE_API_KEY',
     where: 'https://venice.ai/settings/api',
     modalities: ['image'],
-    tested: false,
+    tested: [],
     note: 'privacy-focused aggregator; 39 image models including flux and gpt-image',
     check: (k) => ['https://api.venice.ai/api/v1/models', { headers: { Authorization: `Bearer ${k}` } }],
     async generate({ prompt, model, flag, key, ext }) {
@@ -159,7 +164,7 @@ export const PROVIDERS = [
     key: 'GEMINI_API_KEY',
     where: 'https://aistudio.google.com/apikey',
     modalities: ['image'],
-    tested: false,
+    tested: [],
     note: 'a Gemini Advanced subscription does NOT include this - the API key is separate',
     check: (k) => [`https://generativelanguage.googleapis.com/v1beta/models?key=${k}`, {}],
     async generate({ prompt, model, key }) {
@@ -180,7 +185,7 @@ export const PROVIDERS = [
     key: null, // A URL, not a secret - the whole point is that it costs nothing.
     where: 'run Automatic1111 or ComfyUI yourself; set LOCAL_SD_URL if not on the default port',
     modalities: ['image'],
-    tested: false,
+    tested: [],
     note: 'free per image, works offline - the only zero-cost option here',
     check: () => [`${localUrl()}/sdapi/v1/sd-models`, {}],
     async generate({ prompt, flag }) {

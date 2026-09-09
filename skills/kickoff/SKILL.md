@@ -30,7 +30,9 @@ Do not ask about architecture, testing philosophy, or deployment. Decide those a
 
 Look for markers before asking anything:
 
-`package.json` · `next.config.*` · `pyproject.toml` · `requirements.txt` · `go.mod` · `Cargo.toml` · `build.gradle*` · `pom.xml` · `*.csproj` · `Package.swift` · `pubspec.yaml` · `Gemfile` · `composer.json` · `CMakeLists.txt` · `*.sln` · `ProjectSettings/` *(Unity)*
+`package.json` · `next.config.*` · `vite.config.*` · `index.html` *(with no `package.json` — a plain static site)* · `pyproject.toml` · `requirements.txt` · `go.mod` · `Cargo.toml` · `build.gradle*` · `pom.xml` · `*.csproj` · `Package.swift` · `pubspec.yaml` · `Gemfile` · `composer.json` · `CMakeLists.txt` · `*.sln` · `ProjectSettings/` *(Unity)*
+
+Every marker a shipped recipe detects on is in that list, and CI checks that it stays that way. `index.html` and `vite.config.*` were missing, so a plain website and a Vite project both fell through to "write a new recipe" past a finished one sitting in the folder.
 
 Then read the matching recipe from `${CLAUDE_PLUGIN_ROOT}/recipes/`. If none matches, use `${CLAUDE_PLUGIN_ROOT}/recipes/README.md` to write a new one and tell the user it can be contributed back.
 
@@ -65,6 +67,21 @@ the honest argument for `/easyclaude:write-tests`, which widens the contract —
 gate already keeps. Mention it once and don't push it.
 
 Add the guardrails from `${CLAUDE_PLUGIN_ROOT}/rules/permissions.json` into `permissions.deny`.
+
+`permissions.deny` stops *you* reading `.env`; it does nothing about git. So make sure
+`.gitignore` covers these three, adding them if the file is missing or short:
+
+```
+.env
+.env.*
+!.env.example
+.claude/autoship.json
+.claude/cheap-session
+```
+
+The last two are per-person authorisation — one lets a session push on that person's behalf,
+the other lowers the standard of every turn. Committing either hands one person's choice to
+everyone who clones the repo.
 
 ## 6. Write the files
 

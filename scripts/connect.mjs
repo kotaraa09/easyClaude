@@ -20,15 +20,17 @@
 // so rather than pretending otherwise.
 //
 //   node scripts/connect.mjs --list
+//   node scripts/connect.mjs --form              print the .env block to fill in
 //   node scripts/connect.mjs --status
 //   node scripts/connect.mjs --apply [--dry-run]
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { join } from 'node:path';
 import { PROVIDERS as GEN } from './gen/providers.mjs';
+import { readEnv } from './env.mjs';
 
 // Every entry below was verified to exist before it shipped: npm packages via
 // `npm view <pkg> time.modified`, remote endpoints by an unauthenticated request
@@ -120,7 +122,23 @@ function writeSecret(output, token, secret) {
   // Escaped as a JSON string body, so a quote or backslash in a key cannot break the
   // file. Replacing the token in the raw text rather than reparsing leaves the rest of
   // the user's config byte-for-byte alone.
-  writeFileSync(file, text.split(token).join(JSON.stringify(secret).slice(1, -1)));
+  const updated = text.split(token).join(JSON.stringify(secret).slice(1, -1));
+
+  // Written to a temporary file and renamed over the original, because this file is not
+  // ours and it is not small: ~/.claude.json holds every project the user has opened,
+  // their account record, and every server they have configured. A plain writeFileSync
+  // truncates first and fills in after, so an interruption anywhere in between - a crash,
+  // a full disk, a killed terminal - leaves them with a half-written global config and no
+  // backup. rename() within the same directory is atomic: either the old file or the new
+  // one, never part of both.
+  const temp = `${file}.easyclaude-${randomBytes(6).toString('hex')}.tmp`;
+  try {
+    writeFileSync(temp, updated);
+    renameSync(temp, file);
+  } catch (e) {
+    try { unlinkSync(temp); } catch { /* nothing to clean up */ }
+    return { ok: false, why: `could not write ${file} - ${e.message}` };
+  }
   // A placeholder left behind is a connector that fails later with a confusing error,
   // which is worse than failing here, so prove the swap happened.
   if (readFileSync(file, 'utf8').includes(token)) {
@@ -154,18 +172,11 @@ function runClaude(argv) {
 
 // Values are read but never returned to a caller that prints. Only `present` is safe to
 // show. Values go to writeSecret() and nowhere else - never to argv, never to a log.
-function readForm() {
-  const path = resolve(process.cwd(), '.env');
-  const values = new Map();
-  if (!existsSync(path)) return { values, exists: false };
-  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
-    if (!m) continue;
-    const v = m[2].trim().replace(/^["']|["']$/g, '');
-    if (v && !/^<.*>$/.test(v)) values.set(m[1], v);
-  }
-  return { values, exists: true };
-}
+//
+// The parsing itself lives in env.mjs, shared with generate.mjs. It used to live here as
+// well as there, in two versions that disagreed about an indented key and about what to
+// do with a trailing comment. One reader cannot drift from itself.
+const readForm = () => readEnv(process.cwd());
 
 if (has('list') || args.length === 0) {
   console.log('\nConnectors (fill the key into .env, then run --apply):\n');
@@ -183,7 +194,10 @@ if (has('form')) {
   // Printed rather than hand-maintained, so the form and the catalog cannot drift apart.
   console.log('\n# --- easyClaude connectors -------------------------------------------');
   console.log('# Fill in only what you have. Anything left blank stays switched off.');
-  console.log('# Then run: node scripts/connect.mjs --apply');
+  // This block gets appended to a project's .env.example, and that project has no scripts/
+  // directory - the script lives inside the plugin. Naming a path that isn't there sent
+  // people looking for a file they don't have, so name the command instead.
+  console.log('# Then run /easyclaude:connect in Claude Code to apply them.');
   for (const c of [...CONNECTORS.filter((x) => x.key), ...PROVIDERS]) {
     console.log(`\n# ${c.what}`);
     console.log(`# get one: ${c.where}`);
@@ -210,7 +224,7 @@ if (has('status')) {
   process.exit(0);
 }
 
-if (!has('apply')) die('use --list, --status, or --apply');
+if (!has('apply')) die('use --list, --form, --status, or --apply');
 
 const dry = has('dry-run');
 const todo = CONNECTORS.filter((c) => c.key === null || values.has(c.key));

@@ -3,11 +3,11 @@
 **Detect:** `go.mod`.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| vet | `go vet ./...` |
-| build | `go build ./...` |
-| test | `go test ./...` |
+| name | cmd | tier |
+|---|---|---|
+| vet | `go vet ./...` | fast |
+| build | `go build ./...` | fast |
+| test | `go test ./...` | fast |
 
 **Verification strength:** strong. The toolchain is built in — nothing to install, and it's fast enough to run on every task.
 

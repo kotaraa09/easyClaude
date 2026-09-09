@@ -3,11 +3,11 @@
 **Detect:** `Cargo.toml`.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| format | `cargo fmt --check` |
-| lint | `cargo clippy -- -D warnings` |
-| test | `cargo test` |
+| name | cmd | tier |
+|---|---|---|
+| format | `cargo fmt --check` | fast |
+| lint | `cargo clippy -- -D warnings` | fast |
+| test | `cargo test` | fast |
 
 **Verification strength:** strong. The toolchain ships with the language, clippy catches real bugs rather than style nits, and the compiler rejects most of what tests would otherwise have to find.
 

@@ -23,7 +23,8 @@ knowing before you promise anything:
 
 - **Speech and sound effects need `--provider elevenlabs`.** The Replicate default is
   `meta/musicgen`, which makes *music only* — asking it for a voice line gets you nothing
-  usable.
+  usable. On elevenlabs the prompt is spoken by default; add the bare switch `--sfx` for a
+  sound effect instead, with `--duration <seconds>`. `--voice <id>` picks a different voice.
 - **`--provider local` costs nothing**, but needs Automatic1111 or ComfyUI already running.
   Suggest it when the user is watching spend.
 

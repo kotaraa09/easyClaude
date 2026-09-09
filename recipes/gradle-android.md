@@ -3,11 +3,11 @@
 **Detect:** `build.gradle` or `build.gradle.kts` alongside `app/` and `AndroidManifest.xml`.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| lint | `./gradlew lint` |
-| unit test | `./gradlew testDebugUnitTest` |
-| compile | `./gradlew assembleDebug` |
+| name | cmd | tier |
+|---|---|---|
+| lint | `./gradlew lint` | fast |
+| unit test | `./gradlew testDebugUnitTest` | fast |
+| compile | `./gradlew assembleDebug` | full |
 
 **Verification strength:** **partial.** JVM unit tests run headlessly and are genuinely useful, so business logic *can* be verified. But instrumented tests (`connectedAndroidTest`) need a running emulator or a physical device, and UI behaviour is unverified without one. Say this out loud to the user rather than implying the gate proves the app works.
 

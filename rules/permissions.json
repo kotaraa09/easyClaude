@@ -1,5 +1,6 @@
 {
   "_comment": "Merged into the project's .claude/settings.json permissions.deny by the kickoff skill. Guardrails that need no runtime.",
+  "_env_example_comment": "Read(./.env.*) also matches .env.example, and that is kept on purpose. Deny beats allow in Claude Code and the patterns have no negation, so the only way to exempt .env.example would be to name each secret file instead - and then a .env.dev nobody listed is readable. A blank form is worth less than that coverage. The cost is that the model cannot Read .env.example either, which the connect command used to assume it could: it now tests for the connector block with grep through Bash instead. If you change this rule, change commands/connect.md in the same commit.",
   "deny": [
     "Bash(rm -rf /*)",
     "Bash(rm -rf ~*)",

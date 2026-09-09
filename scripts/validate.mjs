@@ -2,13 +2,31 @@
 // Validates the easyclaude plugin without needing a live Claude Code session.
 // Every check here exists because something actually broke while building P0.
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { join, basename, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = process.cwd();
+// The plugin root, derived from where this file sits rather than from the caller's cwd.
+// This validates *this plugin*, whose layout is fixed relative to the script - so reading
+// cwd only made it possible to run the validator somewhere it could not work, which it
+// then did by throwing an ENOENT stack trace over the top of whatever it had found.
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
 const warnings = [];
 const err = (f, m) => errors.push(`${f}: ${m}`);
 const warn = (f, m) => warnings.push(`${f}: ${m}`);
+
+// A file that should be there and is not is a finding, not a crash. Every check below the
+// first one is still worth running when an earlier one found something missing, and an
+// unguarded read replaces the whole report with a stack trace about the first casualty.
+function readOrErr(relPath, why) {
+  try {
+    return readFileSync(join(root, relPath), 'utf8');
+  } catch {
+    err(relPath, why);
+    return null;
+  }
+}
 
 // Keys accepted in command/skill frontmatter, read out of the Claude Code binary.
 // `disallowed-tools` is deliberately absent: it is a CLI flag, not a frontmatter key.
@@ -117,6 +135,22 @@ for (const f of walk(root).filter((p) => p.endsWith('.json'))) {
     json[r] = JSON.parse(readFileSync(f, 'utf8'));
   } catch (e) {
     err(r, `invalid JSON - ${e.message}`);
+  }
+}
+
+// --- 3b. every script parses -------------------------------------------------
+// The other half of "every JSON file parses", and it was missing for longer. Only .json
+// and .md were ever read for syntax, so a stray brace in connect.mjs or providers.mjs
+// passed the validator, passed the gate, passed CI, and shipped - two of the four
+// scripts had no automated check of any kind. `node --check` is cheap and catches it.
+//
+// Syntax only. It does not run the file, so a bad import path or a missing export still
+// gets through; the CI smoke tests cover that by actually invoking each entry point.
+for (const f of walk(join(root, 'scripts')).filter((p) => p.endsWith('.mjs'))) {
+  const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
+  if (r.status !== 0) {
+    const first = String(r.stderr ?? '').split(/\r?\n/).find((l) => /Error|error:/.test(l));
+    err(rel(f), `is not valid JavaScript - ${first?.trim() ?? `node --check exited ${r.status}`}`);
   }
 }
 
@@ -259,6 +293,39 @@ for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
   });
 }
 
+// --- 6c. paths named in prose must exist -------------------------------------
+// Check 5 does this for hooks.json, because a hook pointing at a renamed script fails
+// open. Five skills and commands name a script the same way in prose - "run
+// ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs" - and nothing read those at all. The same
+// rename would leave the instructions pointing at nothing, silently, which is the exact
+// failure the hooks check exists for.
+//
+// A trailing "/" means a directory. A "*" is matched loosely: the directory must exist
+// and hold at least one entry that fits, which is enough to catch a rename or a move.
+const globToRe = (g) => new RegExp(`^${g.split('*').map((s) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+
+function pluginPathExists(p) {
+  const clean = p.replace(/\/+$/, '');
+  if (!clean) return true;
+  if (!clean.includes('*')) return existsSync(join(root, clean));
+  const dir = join(root, dirname(clean));
+  if (!existsSync(dir)) return false;
+  const re = globToRe(basename(clean));
+  return readdirSync(dir).some((e) => re.test(e));
+}
+
+for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
+  const r = rel(f);
+  readFileSync(f, 'utf8').split(/\r?\n/).forEach((line, i) => {
+    if (line.includes('validate-ignore')) return;
+    for (const m of line.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([A-Za-z0-9_./*-]+)/g)) {
+      if (!pluginPathExists(m[1])) {
+        err(`${r}:${i + 1}`, `names "${m[1]}", which does not exist in this plugin`);
+      }
+    }
+  });
+}
+
 // --- 7. line endings ---------------------------------------------------------
 for (const f of walk(root).filter((p) => /\.(md|json|ya?ml|mjs)$/.test(p))) {
   if (readFileSync(f, 'utf8').includes('\r\n')) {
@@ -277,6 +344,69 @@ for (const f of walk(join(root, 'recipes')).filter((p) => p.endsWith('.md') && !
   const m = text.match(/\*\*Verification strength:\*\*\s*\**\s*(strong|partial|compile-only|none)\b/i);
   if (!m) {
     err(rel(f), 'Verification strength must be one of: strong, partial, compile-only, none');
+  }
+  // Recipes are the data kickoff writes .claude/verify.json from, so a recipe with no tier
+  // column makes every step fast by omission. That is the safe default, and it was also how
+  // the tier feature shipped unused: recipes/README.md documented the field and not one of
+  // the ten recipes carried it. A recipe with no table at all (static-site) is exempt.
+  //
+  // Scoped to the Verify steps section, so a recipe that grows a second table later is not
+  // scanned as if it were the contract.
+  const section = text.slice(text.indexOf('Verify steps'), text.indexOf('Verification strength'));
+  const rows = [...section.matchAll(/^\|(?!\s*-)(.+)\|\s*$/gm)];
+  if (rows.length) {
+    const header = rows[0][1].split('|').map((c) => c.trim().toLowerCase());
+    if (header[header.length - 1] !== 'tier') {
+      err(rel(f), 'Verify steps table needs a final "tier" column - fast or full per step, ' +
+        'decided rather than defaulted. See recipes/README.md.');
+    } else {
+      for (const row of rows.slice(1)) {
+        const cells = row[1].split('|').map((c) => c.trim());
+        const tier = cells[cells.length - 1];
+        if (!['fast', 'full'].includes(tier)) {
+          err(rel(f), `step "${cells[0]}" has tier "${tier}" - must be fast or full`);
+        }
+      }
+    }
+  }
+}
+
+// --- 8b. kickoff must be able to find every recipe that ships ----------------
+// A recipe kickoff cannot detect is a recipe nobody reaches. kickoff's marker list had no
+// "index.html" and no "vite.config.*", so a plain website and a Vite project both fell
+// through to its "no recipe matches, write a new one" branch - past a finished recipe
+// sitting in the same folder. A plain website is the likeliest first project for exactly
+// the beginner this skill is written for.
+//
+// The FIRST marker on each recipe's "Detect:" line is the one kickoff must be able to see.
+// Checking "any marker is covered" is not enough, and missed the bug it was written for:
+// static-site detects on "`index.html` at the root with no `package.json`", where the
+// second name is a marker that must be ABSENT. package.json is in kickoff's list, so the
+// recipe looked reachable while the marker that identifies it was missing.
+//
+// The convention this rests on - primary marker first - is written down in
+// recipes/README.md and holds for all ten shipped recipes.
+const kickoffText = readOrErr('skills/kickoff/SKILL.md',
+  'missing - it is where the stack markers live') ?? '';
+const markerLine = kickoffText.split(/\r?\n/).find((l) => l.includes('`package.json`') && l.includes('·'));
+if (kickoffText && !markerLine) {
+  err('skills/kickoff/SKILL.md', 'the stack marker list is missing or reworded - it must be ' +
+    'one line of `backticked` markers separated by "·", so CI can check the recipes against it');
+} else if (markerLine) {
+  const markers = [...markerLine.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+  const covered = (token) => markers.some((mk) =>
+    mk === token ||
+    (mk.endsWith('/') && token.startsWith(mk)) ||
+    (mk.includes('*') && globToRe(mk).test(token)));
+  for (const f of walk(join(root, 'recipes')).filter((p) => p.endsWith('.md') && !p.endsWith('README.md'))) {
+    const line = readFileSync(f, 'utf8').split(/\r?\n/).find((l) => l.includes('**Detect:**'));
+    if (!line) continue; // check 8 already reports a recipe with no Detect field.
+    const primary = line.match(/`([^`]+)`/)?.[1];
+    if (primary && !covered(primary)) {
+      err(rel(f), `detects on "${primary}", which is not in kickoff's marker list - kickoff ` +
+        'would never open this recipe. Add the marker to skills/kickoff/SKILL.md, or put the ' +
+        'marker kickoff does look for first on the Detect line.');
+    }
   }
 }
 
@@ -374,14 +504,20 @@ if (budget && alwaysOn > budget) {
 // sentence is mandatory and exact; the registry's rounded aside is checked only
 // if it is still phrased that way.
 const skillsTok = alwaysOn - rulesTok;
-const readme = readFileSync(join(root, 'README.md'), 'utf8');
+const readme = readOrErr('README.md', 'missing - the per-turn cost claim is checked against it') ?? '';
 const claim = readme.match(
   /\*\*~([\d,]+) tokens per turn\*\*: ~([\d,]+) of rules, ~([\d,]+) of skill descriptions/
 );
+// Guarded on `claim`, not on `readme`. A missing README leaves both falsy, and the old
+// `readme && !claim` sent that case into the else branch to read claim[1] off null - so
+// the one file every other check reports around took the whole report down with a stack
+// trace. readOrErr has already recorded the absence; there is nothing left to compare.
 if (!claim) {
-  err('README.md', 'the per-turn cost sentence is missing or reworded. It must read ' +
-    '"**~N tokens per turn**: ~N of rules, ~N of skill descriptions" so CI can check it ' +
-    `against the measured figure (currently ${alwaysOn}, ${rulesTok}, ${skillsTok}).`);
+  if (readme) {
+    err('README.md', 'the per-turn cost sentence is missing or reworded. It must read ' +
+      '"**~N tokens per turn**: ~N of rules, ~N of skill descriptions" so CI can check it ' +
+      `against the measured figure (currently ${alwaysOn}, ${rulesTok}, ${skillsTok}).`);
+  }
 } else {
   const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok]];
   parts.forEach(([label, measured], i) => {
@@ -392,7 +528,31 @@ if (!claim) {
   });
 }
 
-const rounded = readFileSync(join(skillsDir, 'registry.json'), 'utf8')
+// --- 10c. every README's cost figures, translations included -----------------
+// The sentence check above reads README.md and nothing else, so the same three numbers in
+// README.th.md were never checked - in a file whose own history is the reason check 12
+// exists, because it shipped three wrong rows in translation. A Thai sentence cannot be
+// matched with an English regex, so the figures travel as a marker instead, the way the
+// always-on count already does. It survives translation and any rewrite of the prose.
+for (const f of walk(root)) {
+  const r = rel(f);
+  if (!/^README(\.[a-z]{2})?\.md$/.test(r) || !isOurs(f)) continue;
+  const m = readFileSync(f, 'utf8').match(/<!--\s*cost:(\d+),(\d+),(\d+)\s*-->/);
+  if (!m) {
+    err(r, `the cost section must carry <!--cost:${alwaysOn},${rulesTok},${skillsTok}--> beside ` +
+      'its figures (total, rules, skill descriptions), so a number written in prose - in any ' +
+      'language - cannot drift from the measured one');
+    continue;
+  }
+  const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok]];
+  parts.forEach(([label, measured], i) => {
+    if (Number(m[i + 1]) !== measured) {
+      err(r, `its cost marker claims ${m[i + 1]} tokens/turn of ${label}, measured ${measured}`);
+    }
+  });
+}
+
+const rounded = (readOrErr('skills/registry.json', 'missing - the curated-skill rules live there') ?? '')
   .match(/framework measured at ~([\d.]+)k tokens\/turn/);
 if (rounded && rounded[1] !== (alwaysOn / 1000).toFixed(1)) {
   err('skills/registry.json', `says the framework costs ~${rounded[1]}k tokens/turn, ` +
@@ -410,7 +570,8 @@ for (const f of [
   'template/docs/STATE.md', 'skills/kickoff/SKILL.md',
   'skills/build-task/SKILL.md', 'skills/ship/SKILL.md',
 ]) {
-  const text = readFileSync(join(root, f), 'utf8');
+  const text = readOrErr(f, 'missing - it is one of the four places the "## Done" cap is stated');
+  if (text === null) continue;
   if (!/ten most recent/.test(text)) {
     err(f, 'must state the "## Done" cap as "ten most recent" - changing the cap means changing it in all four places at once');
   }
@@ -462,6 +623,27 @@ for (const f of walk(root)) {
   }
 }
 
+// --- 12b. the hook's time limit and the gate's own budget must agree ---------
+// Claude Code kills the Stop hook at the timeout in hooks.json. verify.mjs holds the same
+// number so it can warn when a fast tier could take longer than the hook is allowed to
+// live - a gate that gets killed returns no verdict, blocks nothing, and says nothing
+// about why. Two copies of one number is the drift this file exists to catch.
+const stopHook = (hooks?.Stop ?? []).flatMap((e) => e.hooks ?? []).find((h) => h.type === 'command');
+const budgetInScript = (readOrErr('scripts/verify.mjs',
+  'missing - it is the gate') ?? '').match(/const HOOK_TIMEOUT_MS = ([\d_]+);/);
+if (stopHook && budgetInScript) {
+  const declared = Number(budgetInScript[1].replace(/_/g, ''));
+  const actual = Number(stopHook.timeout) * 1000;
+  if (declared !== actual) {
+    err('scripts/verify.mjs', `HOOK_TIMEOUT_MS is ${declared}ms, but the Stop hook in ` +
+      `hooks/hooks.json is killed after ${stopHook.timeout}s (${actual}ms). The gate would ` +
+      'warn at the wrong point, or not at all.');
+  }
+} else if (stopHook && !budgetInScript) {
+  err('scripts/verify.mjs', 'no "const HOOK_TIMEOUT_MS = <n>;" line - it is what lets the gate ' +
+    'warn before a fast tier outlives the Stop hook that runs it');
+}
+
 // --- 13. one security policy, two copies, no drift ---------------------------
 // rules/permissions.json is what kickoff merges into a project. template/.claude/
 // settings.json is what anyone forking the template gets. They are the same policy
@@ -485,6 +667,47 @@ if (!Array.isArray(denyRules)) {
     if (!inRules.has(rule)) {
       err('rules/permissions.json', `does not deny ${JSON.stringify(rule)}, which the template does - a project set up by kickoff runs without that guardrail`);
     }
+  }
+}
+
+// --- 14. the template must protect what its own docs say it protects ---------
+// template/.env.example tells the user to copy it to .env and paste real API keys in, and
+// says ".env is gitignored" while it says so. The template shipped no .gitignore at all, so
+// that sentence was false for everyone who forked it - the only drift this file has ever
+// checked for that leaks credentials rather than confusing somebody. The other two are
+// per-person authorisation: committing them hands one person's choice to every clone.
+const tmplIgnore = readOrErr('template/.gitignore',
+  'missing - template/.env.example tells the user to put real API keys in .env, so the template must ignore it');
+if (tmplIgnore !== null) {
+  const ignored = new Set(tmplIgnore.split(/\r?\n/).map((l) => l.trim()));
+  const mustIgnore = [
+    ['.env', 'real API keys, and .env.example tells the user to put them there'],
+    ['.claude/autoship.json', 'standing authorisation to commit and push on one person\'s behalf'],
+    ['.claude/cheap-session', 'one person\'s cheap stretch, not a property of the repo'],
+  ];
+  for (const [pattern, why] of mustIgnore) {
+    if (!ignored.has(pattern)) err('template/.gitignore', `does not ignore "${pattern}" - ${why}`);
+  }
+}
+
+// --- 15. the cost section must count the skills that are actually always-on --
+// Both READMEs said five skills trigger constantly, and named the five. There are six: the
+// vendored design-taste sets no disable-model-invocation, so it rides along on every turn -
+// and at 156 tokens it is the largest single line in the always-on budget it went
+// unmentioned in. Check 12 could not catch this, because it deliberately excludes vendored
+// skills from the phrase table. So the count travels as a marker rather than a word: it
+// survives translation, which is exactly where the same claim was also wrong.
+const alwaysOnSkills = costs.filter(([, t]) => t > 0);
+for (const f of walk(root)) {
+  const r = rel(f);
+  if (!/^README(\.[a-z]{2})?\.md$/.test(r) || !isOurs(f)) continue;
+  const m = readFileSync(f, 'utf8').match(/<!--\s*always-on:(\d+)\s*-->/);
+  if (!m) {
+    err(r, `the cost section must carry <!--always-on:${alwaysOnSkills.length}--> beside its count ` +
+      'of always-on skills, so a number written in prose cannot drift from the measured set');
+  } else if (Number(m[1]) !== alwaysOnSkills.length) {
+    err(r, `claims ${m[1]} always-on skills, measured ${alwaysOnSkills.length} ` +
+      `(${alwaysOnSkills.map(([n]) => n).sort().join(', ')})`);
   }
 }
 

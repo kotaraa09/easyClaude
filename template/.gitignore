@@ -1,0 +1,25 @@
+# Secrets. .env.example tells you to copy this file and fill in real API keys,
+# so this line is what makes that safe. Do not remove it.
+.env
+.env.*
+!.env.example
+
+# Per-person authorisation, not project config. Committing either of these would
+# hand your choice to everyone who clones the repo, without them ever agreeing to it:
+# autoship.json lets a session commit and push on your behalf, and cheap-session
+# quietly lowers the standard of every turn.
+.claude/autoship.json
+.claude/cheap-session
+.claude/settings.local.json
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.next/
+__pycache__/
+.venv/
+target/
+
+*.log
+.DS_Store

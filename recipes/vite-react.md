@@ -3,12 +3,12 @@
 **Detect:** `vite.config.{js,ts}` with `react` in dependencies.
 
 **Verify steps:**
-| name | cmd |
-|---|---|
-| typecheck | `npx tsc --noEmit` |
-| lint | `npm run lint` |
-| test | `npx vitest run` |
-| build | `npm run build` *(before shipping — it catches what dev tolerates)* |
+| name | cmd | tier |
+|---|---|---|
+| typecheck | `npx tsc --noEmit` | fast |
+| lint | `npm run lint` | fast |
+| test | `npx vitest run` | fast |
+| build | `npm run build` | full |
 
 **Verification strength:** strong.
 
