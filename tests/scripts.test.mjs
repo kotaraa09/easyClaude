@@ -100,7 +100,19 @@ const tryOut = (cwd, out) => run(script('gen/generate.mjs'), {
   args: ['--kind', 'image', '--prompt', 'p', '--out', out, '--dry-run'],
 });
 
-for (const out of ['../../escaped.png', '.git/hooks/pre-commit']) {
+// The case variants are not padding. Windows and macOS mount case-insensitive
+// filesystems, so ".GIT/hooks/pre-commit" reached the real .git while the guard compared
+// the exact string ".git". A nested ".git" is a submodule's, and is refused for the same
+// reason as the one at the root.
+for (const out of [
+  '../../escaped.png',
+  'sub/../../escaped.png',
+  '.git/hooks/pre-commit',
+  '.GIT/hooks/pre-commit',
+  '.Git/hooks/pre-commit',
+  'public/../.git/x.png',
+  'vendor/lib/.git/config',
+]) {
   test(`generate: --out ${out} is refused`, async () => {
     const r = await tryOut(projectDir(), out);
     assertMatch(r.out, /^error:/m,

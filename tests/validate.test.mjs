@@ -73,10 +73,19 @@ breaks('a command with no description', '1',
   (d) => editText(d, 'commands/full.md', (t) => t.replace(/^description:.*$/m, '')),
   /commands\/full\.md.*description/i);
 
+breaks('a command using disallowed-tools, which is a CLI flag and not a key', '1',
+  (d) => editText(d, 'commands/full.md',
+    (t) => t.replace(/^description:/m, 'disallowed-tools: Bash\ndescription:')),
+  /"disallowed-tools" is not a frontmatter key/);
+
 // --- 2. skills ---------------------------------------------------------------
 breaks('a skill whose name does not match its directory', '2',
   (d) => editText(d, 'skills/kickoff/SKILL.md', (t) => t.replace(/^name:.*$/m, 'name: kickof')),
   /does not match directory/);
+
+breaks('a skill directory with no SKILL.md', '2',
+  (d) => removeFile(d, 'skills/debug/SKILL.md'),
+  /skills\/debug.*missing SKILL\.md/);
 
 // --- 3. every JSON file parses ----------------------------------------------
 breaks('a JSON file that does not parse', '3',
@@ -99,6 +108,14 @@ breaks('a hook pointing at a script that is not there', '5',
     j.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/renamed.mjs" --hook';
   }),
   /scripts\/renamed\.mjs.*does not exist/);
+
+// A Stop prompt hook that ignores stop_hook_active re-blocks until the block cap
+// overrides it, which wedges the session rather than failing it.
+breaks('a Stop prompt hook with no loop guard', '5',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => {
+    j.Stop[0].hooks[0] = { type: 'prompt', timeout: 600, prompt: 'Check the work before stopping.' };
+  }),
+  /must check "stop_hook_active"/);
 
 // --- 5b. curated skill registry ----------------------------------------------
 breaks('a vendored skill pinned to a branch instead of a commit', '5b',
@@ -239,10 +256,22 @@ breaks("the hook's timeout drifting from the gate's budget", '12b',
   (d) => editJson(d, 'hooks/hooks.json', (j) => { j.Stop[0].hooks[0].timeout = 45; }),
   /HOOK_TIMEOUT_MS is \d+ms, but the Stop hook/);
 
+// --- 12b. the hook's time limit and the gate's own budget must agree ---------
+breaks("the gate losing the line that states its own budget", '12b',
+  (d) => editText(d, 'scripts/verify.mjs',
+    (t) => t.replace('const HOOK_TIMEOUT_MS =', 'const HOOK_BUDGET_MS =')),
+  /no "const HOOK_TIMEOUT_MS = <n>;" line/);
+
 // --- 13. one security policy, two copies, no drift ---------------------------
-breaks('a guardrail in one copy of the policy and not the other', '13',
+// Both directions, because the policy is written twice and either copy can be the one
+// that falls behind.
+breaks('a guardrail the template does not carry', '13',
   (d) => editJson(d, 'template/.claude/settings.json', (j) => { j.permissions.deny.pop(); }),
   /anyone forking the template runs without that guardrail/);
+
+breaks('a guardrail the merged rules do not carry', '13',
+  (d) => editJson(d, 'rules/permissions.json', (j) => { j.deny.pop(); }),
+  /a project set up by kickoff runs without that guardrail/);
 
 // --- 14. the template must protect what its own docs say it protects ---------
 breaks('a template that does not ignore the file it tells you to put keys in', '14',
@@ -284,6 +313,18 @@ test('coverage: every check in validate.mjs has a mutation test', () => {
   assert(ids.length > 0,
     'no check headings found in validate.mjs. They must read "// --- <id>. <title> ---", ' +
     'because that is what this test counts. If the format changed, change it here too.');
+
+  // Two checks sharing a number would let one hide behind the other's test, which is a
+  // check that stops checking by the quietest route this file has.
+  const seen = new Map();
+  const duplicated = [];
+  for (const [id, title] of ids) {
+    if (seen.has(id)) duplicated.push(`${id}. ${seen.get(id)} / ${title}`);
+    seen.set(id, title);
+  }
+  assert(duplicated.length === 0,
+    `two checks in validate.mjs share a number, so one test would cover both by accident:\n` +
+    duplicated.map((d) => `  ${d}`).join('\n'));
 
   const have = covered();
   const missing = ids.filter(([id]) => !have.has(id));
