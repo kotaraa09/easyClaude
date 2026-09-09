@@ -16,6 +16,7 @@ const SUITES = [
   ['validate', () => import('../tests/validate.test.mjs')],
   ['verify', () => import('../tests/verify.test.mjs')],
   ['scripts', () => import('../tests/scripts.test.mjs')],
+  ['connect', () => import('../tests/connect.test.mjs')],
 ];
 
 const filter = process.argv.slice(2).filter((a) => !a.startsWith('-'));

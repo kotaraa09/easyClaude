@@ -390,7 +390,8 @@ rules/            คัดลอกเข้าโปรเจกต์ขอ�
 recipes/          สัญญาการตรวจและจุดพลาดของแต่ละสแตก
 template/         ตัวตั้งต้นบาง ๆ ไว้ fork
 scripts/          verify.mjs (ตัวประตูตรวจ), validate.mjs (ตรวจใน CI),
-                  test.mjs (ทดสอบสองตัวแรก), connect.mjs (MCP และคีย์),
+                  test.mjs (ทดสอบสองตัวแรก),
+                  connect.mjs + connect-core.mjs (MCP และคีย์),
                   gen/ (สร้างไฟล์งาน)
 tests/            ชุดทดสอบกลไกตรวจสอบ ด้วยการทำให้พังทีละจุด
 evals/            บันทึกว่าทำไมยังไม่มีชุดทดสอบพฤติกรรม

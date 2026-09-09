@@ -405,8 +405,8 @@ rules/            copied into your project, ~30 lines, always loaded
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
 scripts/          verify.mjs (the gate), validate.mjs (CI checks),
-                  test.mjs (tests both), connect.mjs (MCP + keys),
-                  gen/ (asset generation)
+                  test.mjs (tests both), connect.mjs + connect-core.mjs
+                  (MCP + keys), gen/ (asset generation)
 tests/            mutation tests for the checking machinery
 evals/            why there is no behavioural test suite yet
 docs/assets/      README artwork
