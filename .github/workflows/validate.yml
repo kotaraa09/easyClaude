@@ -327,18 +327,26 @@ jobs:
           root="$(pwd)"
           tmp=$(mktemp -d)
           cd "$tmp"
+          # Captured into a variable rather than piped into grep. This shell runs with
+          # pipefail, and a refusal exits non-zero on purpose - so `node ... | grep` reports
+          # the pipeline as failed even when grep matched, and every refusal read as an
+          # acceptance. `|| true` keeps the expected non-zero exit from ending the step.
+          try() { out=$(node "$root/scripts/gen/generate.mjs" --kind image --prompt p --out "$1" --dry-run 2>&1) || true; }
           refuses() {
-            if node "$root/scripts/gen/generate.mjs" --kind image --prompt p --out "$1" --dry-run 2>&1 | grep -q '^error'; then
-              return 0
-            fi
-            echo "::error::--out '$1' was accepted; it must be refused"
+            try "$1"
+            case "$out" in
+              error:*) return 0 ;;
+            esac
+            echo "::error::--out '$1' was accepted; it must be refused. Output: $out"
             exit 1
           }
           accepts() {
-            if node "$root/scripts/gen/generate.mjs" --kind image --prompt p --out "$1" --dry-run 2>&1 | grep -q '^error'; then
-              echo "::error::--out '$1' was refused; an ordinary path inside the project must work"
-              exit 1
-            fi
+            try "$1"
+            case "$out" in
+              error:*)
+                echo "::error::--out '$1' was refused; an ordinary path inside the project must work. Output: $out"
+                exit 1 ;;
+            esac
           }
           refuses '../../escaped.png'
           refuses '.git/hooks/pre-commit'
