@@ -211,7 +211,15 @@ jobs:
           blocks '1 failing\n  AssertionError: not found\n    at Object.<anonymous>'
           blocks 'AssertionError: not found'
           blocks 'Error: user not found'
-          echo "five real failures all blocked the turn"
+          # The second wave. Tying the phrase to the program name was right, but comparing
+          # it as a plain substring was not: "node" sits inside node_modules and nodemon,
+          # so an ordinary stack trace still passed the gate. "go" would be worse - it is
+          # inside cargo, logging, and every .go filename in a trace. The name has to stand
+          # alone, and these three are what proves it does.
+          blocks 'FAIL src/a.test.js\n  at node_modules/lib/x.js: not found'
+          blocks 'Error in nodemon config: not found'
+          blocks '1 failing\n  module node_modules/foo: not found'
+          echo "eight real failures all blocked the turn"
 
           tolerates() {
             printf '{ "steps": [ { "name": "step", "cmd": "%s" } ] }' "$1" > "$tmp/.claude/verify.json"
@@ -308,6 +316,43 @@ jobs:
             *"scripts/connect.mjs"*) echo "broken script reported as a finding" ;;
             *) echo "::error::the validator failed but never named the broken script: $out"; exit 1 ;;
           esac
+
+      # The asset generator resolved --out against cwd and used it unchecked, so it wrote
+      # outside the project and into .git - past the Edit(./.git/**) rule this repo ships.
+      # A guardrail routed around by one of its own scripts is worse than none.
+      - name: The generator cannot write outside the project
+        run: |
+          # pwd before the cd, not GITHUB_WORKSPACE: that is a backslash path on Windows and
+          # bash cannot use it. Git Bash converts a /c/... argument on the way into node.
+          root="$(pwd)"
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          # Captured into a variable rather than piped into grep. This shell runs with
+          # pipefail, and a refusal exits non-zero on purpose - so `node ... | grep` reports
+          # the pipeline as failed even when grep matched, and every refusal read as an
+          # acceptance. `|| true` keeps the expected non-zero exit from ending the step.
+          try() { out=$(node "$root/scripts/gen/generate.mjs" --kind image --prompt p --out "$1" --dry-run 2>&1) || true; }
+          refuses() {
+            try "$1"
+            case "$out" in
+              error:*) return 0 ;;
+            esac
+            echo "::error::--out '$1' was accepted; it must be refused. Output: $out"
+            exit 1
+          }
+          accepts() {
+            try "$1"
+            case "$out" in
+              error:*)
+                echo "::error::--out '$1' was refused; an ordinary path inside the project must work. Output: $out"
+                exit 1 ;;
+            esac
+          }
+          refuses '../../escaped.png'
+          refuses '.git/hooks/pre-commit'
+          accepts 'public/hero.png'
+          accepts 'assets/deep/nested/img.webp'
+          echo "--out stays inside the project"
 
       # The repo is checked out with LF via .gitattributes. If a diff appears here,
       # something was committed with line endings that bypassed it - and this now runs on

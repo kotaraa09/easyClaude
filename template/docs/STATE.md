@@ -1,3 +1,11 @@
+<!-- easyclaude:not-kicked-off -->
+<!-- The line above is what tells the SessionStart hook that this project is still the
+     untouched template, so kickoff runs on its own the first time - which is what
+     template/README.md promises. Without it the hook only sees that docs/STATE.md exists,
+     takes that as "already set up", and reads this empty file back to someone who was
+     told setup would happen by itself. kickoff rewrites this file without the marker,
+     which is what clears it. Do not delete it by hand. -->
+
 # State
 
 The handover file between sessions. Claude reads this first and updates it as work lands.

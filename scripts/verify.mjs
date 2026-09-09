@@ -192,15 +192,27 @@ function programNames(cmd) {
   return [...names];
 }
 
+// The name has to stand alone, not merely appear somewhere in the text. A plain substring
+// test looks right and is not: "node" sits inside node_modules and nodemon, so an ordinary
+// stack trace ending "at node_modules/lib/x.js: not found" was read as a missing toolchain
+// and the failing test was let through. "go" is worse - it is inside cargo, logging, and
+// every .go filename in the trace.
+//
+// The characters excluded on each side are the ones a path or an identifier is built from,
+// so "node" is rejected inside "node_modules" but accepted in "node: command not found"
+// and in cmd.exe's "'node' is not recognized".
+function namedIn(output, name) {
+  const escaped = name.replace(/[.*+^${}()|[\]\\?]/g, '\\$&');
+  return new RegExp(`(^|[^\\w.\\-/\\\\])${escaped}([^\\w.\\-/\\\\]|$)`).test(output);
+}
+
 function looksUnrunnable(status, output, cmd) {
   // The one unambiguous signal. No shell returns these for a command that ran.
   if (status === 127 || status === 9009) return true;
   if (status === 0) return false;
   if (!NOT_FOUND.test(output)) return false;
   if (output.split(/\r?\n/).filter((l) => l.trim()).length > 3) return false;
-  // Compared with includes() rather than a regex: a program name carries dots, slashes
-  // and backslashes, and escaping those correctly is its own bug.
-  return programNames(cmd).some((n) => output.includes(n));
+  return programNames(cmd).some((n) => namedIn(output, n));
 }
 
 function runStep(step) {
