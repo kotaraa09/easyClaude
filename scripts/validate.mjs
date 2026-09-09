@@ -319,8 +319,12 @@ for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
   readFileSync(f, 'utf8').split(/\r?\n/).forEach((line, i) => {
     if (line.includes('validate-ignore')) return;
     for (const m of line.matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([A-Za-z0-9_./*-]+)/g)) {
-      if (!pluginPathExists(m[1])) {
-        err(`${r}:${i + 1}`, `names "${m[1]}", which does not exist in this plugin`);
+      // A path written without backticks at the end of a sentence swallows the full stop,
+      // and the check then reports a file that is really there. No path here ends in
+      // punctuation, so trimming it cannot hide a genuine miss.
+      const p = m[1].replace(/[.,;:)]+$/, '');
+      if (p && !pluginPathExists(p)) {
+        err(`${r}:${i + 1}`, `names "${p}", which does not exist in this plugin`);
       }
     }
   });
@@ -621,6 +625,33 @@ for (const f of walk(root)) {
       err(r, `skill "${d}" fires on plain English but no row is marked <!--skill:${d}--> - a trigger nobody documented is one nobody can check`);
     }
   }
+}
+
+// --- 11b. the template must actually reach kickoff -------------------------
+// template/README.md promises "Kickoff runs on its own the first time". It did not. The
+// hook decides on whether docs/STATE.md exists, and the template ships that file - so the
+// hook read the empty stub back to the user and never invoked kickoff. The first thing
+// every new user hit, and nothing could see it, because each half was correct alone.
+//
+// Three parts, each useless without the others: the template carries the marker, the hook
+// knows the marker, and kickoff's own template does NOT carry it - otherwise every project
+// kickoff sets up would claim forever that it had never been set up.
+const NOT_KICKED_OFF = '<!-- easyclaude:not-kicked-off -->';
+const stateStub = readOrErr('template/docs/STATE.md',
+  'missing - it is what a fork of the template starts from') ?? '';
+if (stateStub && !stateStub.includes(NOT_KICKED_OFF)) {
+  err('template/docs/STATE.md', `must carry ${NOT_KICKED_OFF}, or the SessionStart hook reads ` +
+    'the empty stub as a set-up project and never runs kickoff - which template/README.md promises');
+}
+const hookPrompt = JSON.stringify(hooks?.SessionStart ?? '');
+if (hooks?.SessionStart && !hookPrompt.includes(NOT_KICKED_OFF)) {
+  err('hooks/hooks.json', `the SessionStart hook must test for ${NOT_KICKED_OFF}, or a fresh ` +
+    'fork of the template never reaches kickoff');
+}
+const kickoffState = kickoffText.slice(kickoffText.indexOf('`docs/STATE.md` starts as'));
+if (kickoffState && kickoffState.includes(NOT_KICKED_OFF)) {
+  err('skills/kickoff/SKILL.md', `its docs/STATE.md template carries ${NOT_KICKED_OFF} - every ` +
+    'project it sets up would then report itself as never set up, on every session');
 }
 
 // --- 12b. the hook's time limit and the gate's own budget must agree ---------

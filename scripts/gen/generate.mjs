@@ -14,7 +14,7 @@
 //   node generate.mjs --kind video --prompt "..." --out clip.mp4 --dry-run
 
 import { writeFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
-import { dirname, resolve, extname } from 'node:path';
+import { dirname, resolve, relative, isAbsolute, extname } from 'node:path';
 import { PROVIDERS, REJECTED, localUrl } from './providers.mjs';
 import { readEnv } from '../env.mjs';
 
@@ -125,7 +125,19 @@ if (!MODELS[kind]) die(`--kind must be one of: ${Object.keys(MODELS).join(', ')}
 if (!prompt) die('--prompt is required');
 if (!out) die('--out is required');
 
-const outPath = resolve(process.cwd(), String(out));
+// --out was resolved against cwd and then used, with nothing checked. So "../../x.png"
+// wrote outside the project entirely, and ".git/hooks/pre-commit" wrote straight past the
+// Edit(./.git/**) rule this framework ships in permissions.deny - a guardrail routed around
+// by one of its own scripts, which is worse than not having written it down.
+const projectRoot = resolve(process.cwd());
+const outPath = resolve(projectRoot, String(out));
+const outRel = relative(projectRoot, outPath);
+if (!outRel || outRel.startsWith('..') || isAbsolute(outRel)) {
+  die(`--out must stay inside the project. "${out}" resolves to ${outPath}.`);
+}
+if (outRel.split(/[\\/]/)[0] === '.git') {
+  die('--out must not write into .git. Edits there are denied for the same reason.');
+}
 if (existsSync(outPath) && !has('force')) die(`${out} already exists - pass --force to overwrite`);
 
 // Provider selection: explicit wins, otherwise the first one that supports this modality
