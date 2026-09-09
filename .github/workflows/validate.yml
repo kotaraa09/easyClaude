@@ -354,6 +354,39 @@ jobs:
           accepts 'assets/deep/nested/img.webp'
           echo "--out stays inside the project"
 
+      # The Stop hook IS the enforcement. Every other check covered its edges - timeout,
+      # script path, loop guard - and none covered whether the command runs the gate at all.
+      # Swapping it for `echo hello` left the plugin with no gate and a validator printing
+      # OK. Deleting the hook was caught only by accident, because other docs then mentioned
+      # a hook that no longer existed; rewriting the command was caught by nothing.
+      - name: A Stop hook that does not run the gate is rejected
+        run: |
+          root="$(pwd)"
+          tmp=$(mktemp -d)
+          break_hook() {
+            rm -rf "$tmp/plug"
+            mkdir -p "$tmp/plug"
+            cp -a . "$tmp/plug"
+            rm -rf "$tmp/plug/.git"
+            node -e '
+              const fs = require("fs");
+              const p = process.argv[1] + "/hooks/hooks.json";
+              const j = JSON.parse(fs.readFileSync(p, "utf8"));
+              const how = process.argv[2];
+              if (how === "delete") delete j.Stop;
+              else j.Stop[0].hooks[0].command = how;
+              fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+            ' "$tmp/plug" "$1"
+            if node "$tmp/plug/scripts/validate.mjs" >/dev/null 2>&1; then
+              echo "::error::the validator passed with a Stop hook of: $1"
+              exit 1
+            fi
+          }
+          break_hook 'echo hello'
+          break_hook 'delete'
+          break_hook 'node "${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs"'
+          echo "a disconnected gate is rejected three ways"
+
       # The repo is checked out with LF via .gitattributes. If a diff appears here,
       # something was committed with line endings that bypassed it - and this now runs on
       # Windows too, where a mangled checkout is most likely to happen.
