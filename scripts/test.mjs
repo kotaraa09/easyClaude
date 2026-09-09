@@ -10,6 +10,9 @@
 import { runAll, cleanup } from '../tests/harness.mjs';
 
 const SUITES = [
+  // The harness first: if it reports a hung script as a clean exit, every other suite
+  // here goes green while nothing runs.
+  ['harness', () => import('../tests/harness.test.mjs')],
   ['validate', () => import('../tests/validate.test.mjs')],
   ['verify', () => import('../tests/verify.test.mjs')],
   ['scripts', () => import('../tests/scripts.test.mjs')],

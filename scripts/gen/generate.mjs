@@ -135,8 +135,14 @@ const outRel = relative(projectRoot, outPath);
 if (!outRel || outRel.startsWith('..') || isAbsolute(outRel)) {
   die(`--out must stay inside the project. "${out}" resolves to ${outPath}.`);
 }
-if (outRel.split(/[\\/]/)[0] === '.git') {
-  die('--out must not write into .git. Edits there are denied for the same reason.');
+// Compared without case, and against every segment rather than only the first. Windows and
+// macOS both mount case-insensitive filesystems, so "--out .GIT/hooks/pre-commit" wrote
+// into the real .git while this line compared the exact string ".git" and waved it
+// through - the same guardrail routed around again, this time by holding down shift.
+// A ".git" deeper in the path is a submodule's, and writing into that one is the same
+// mistake one directory down.
+if (outRel.split(/[\\/]/).some((seg) => seg.toLowerCase() === '.git')) {
+  die('--out must not write into a .git directory. Edits there are denied for the same reason.');
 }
 if (existsSync(outPath) && !has('force')) die(`${out} already exists - pass --force to overwrite`);
 

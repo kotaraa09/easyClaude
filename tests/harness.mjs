@@ -98,6 +98,22 @@ export function replaceOnce(dir, rel, find, replaceWith) {
 }
 
 // --- running -----------------------------------------------------------------
+// A killed child reports error.code as null, not as a number: Node puts the reason in
+// error.signal instead. `error.code ?? 0` therefore read a script that hung and was killed
+// as a script that exited 0, and sixteen of the twenty assertions in this suite are
+// "must exit 0" - so a hang would have turned the whole suite green while nothing ran.
+//
+// That is the same failure as a check that stops checking, one level up, so it is spelled
+// out rather than left to a default. A signal or a non-numeric spawn error is never a pass:
+// 124 is the conventional code for "killed on a timeout", and the reason is appended to the
+// output so a failing test says why instead of showing an empty report.
+function exitCodeOf(error) {
+  if (!error) return 0;
+  if (typeof error.code === 'number') return error.code;
+  if (error.killed || error.signal) return 124;
+  return 1;
+}
+
 export function run(script, { cwd, args = [], env = {}, input = '', timeoutMs = 120_000 } = {}) {
   return new Promise((done) => {
     const child = execFile(process.execPath, [script, ...args], {
@@ -107,12 +123,17 @@ export function run(script, { cwd, args = [], env = {}, input = '', timeoutMs = 
       timeout: timeoutMs,
       maxBuffer: 32 * 1024 * 1024,
     }, (error, stdout, stderr) => {
+      const code = exitCodeOf(error);
+      const note = error && typeof error.code !== 'number'
+        ? `\n[harness] the process did not exit on its own: ${error.signal ?? error.code ?? error.message}`
+        : '';
       done({
-        code: error?.code ?? 0,
-        killed: Boolean(error?.killed),
+        code,
+        killed: Boolean(error?.killed || error?.signal),
+        signal: error?.signal ?? null,
         stdout: stdout ?? '',
-        stderr: stderr ?? '',
-        out: (stdout ?? '') + (stderr ?? ''),
+        stderr: (stderr ?? '') + note,
+        out: (stdout ?? '') + (stderr ?? '') + note,
       });
     });
     child.stdin?.end(input);

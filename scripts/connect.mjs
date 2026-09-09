@@ -24,7 +24,7 @@
 //   node scripts/connect.mjs --status
 //   node scripts/connect.mjs --apply [--dry-run]
 
-import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync, statSync, chmodSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
@@ -131,9 +131,19 @@ function writeSecret(output, token, secret) {
   // a full disk, a killed terminal - leaves them with a half-written global config and no
   // backup. rename() within the same directory is atomic: either the old file or the new
   // one, never part of both.
+  //
+  // rename() carries the TEMP file's permissions onto the destination, not the original's.
+  // A plain writeFileSync creates at 0666 minus the umask - 0644 on a normal machine - so
+  // replacing a config that was private to the user published it to every account on the
+  // box, in the one operation that had just written an API key into it. The file is written
+  // private first, so the secret is never on disk at a wider mode even briefly, and the
+  // original's own mode is then restored. chmod is a no-op on Windows, where permissions
+  // come from the parent directory, and a failure to read the old mode must not stop the
+  // write: the private default is the safe end to fail at.
   const temp = `${file}.easyclaude-${randomBytes(6).toString('hex')}.tmp`;
   try {
-    writeFileSync(temp, updated);
+    writeFileSync(temp, updated, { mode: 0o600 });
+    try { chmodSync(temp, statSync(file).mode & 0o777); } catch { /* keep the private default */ }
     renameSync(temp, file);
   } catch (e) {
     try { unlinkSync(temp); } catch { /* nothing to clean up */ }
