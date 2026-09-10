@@ -98,8 +98,12 @@ test('replicate: polling that starts failing is reported', async () => {
 
 test('replicate: a job that never finishes stops at the deadline', async () => {
   const f = fakeFetch(pending('processing'));
-  // A deadline already in the past, so the loop gives up on its first turn.
-  await assertRejects(() => generate(f, { flag: (name, fallback) => (name === 'timeout' ? 0 : fallback) }),
+  // A negative timeout, not zero. Zero puts the deadline at Date.now(), and the loop's
+  // check is a strict ">", so on a fast machine the two readings can land in the same
+  // millisecond - and then this case polls a job that never finishes, in a loop with the
+  // sleep stubbed out, until the runner dies. Passing today is not the same as being
+  // deterministic, and a test that hangs one run in a thousand is worse than no test.
+  await assertRejects(() => generate(f, { flag: (name, fallback) => (name === 'timeout' ? -1 : fallback) }),
     /timed out/, 'a job that never finishes must not poll for ever.');
 });
 

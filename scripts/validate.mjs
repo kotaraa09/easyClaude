@@ -820,6 +820,43 @@ const CASE_EXEC = new Set(['model', 'max_turns', 'timeout_seconds', 'allowed_too
   'artifact_publish', 'growthbook_overrides', 'append_system_prompt', 'env']);
 const GRADER_TYPES = new Set(['regex', 'tool_order', 'tool_used', 'file_exists', 'llm', 'baseline']);
 
+// The runner reads this frontmatter as YAML, so `allowed_tools: [Skill, Read]` and a block
+// list of "- Skill" lines mean the same thing to it. parseFrontmatter above is line-based -
+// it mirrors how Claude Code reads a SKILL.md - and it rejects the block form outright:
+// four "not key: value" errors, plus a false "Skill is not in allowed_tools" on top of
+// them. That fails a suite the runner would have accepted, which is the same mistake as
+// failing a notes file in graders/, made in the second of the two places it could be made.
+const unquoteYaml = (v) => v.trim().replace(/^(["'])([\s\S]*)\1$/, '$2');
+function parseEvalFrontmatter(raw, file) {
+  const m = raw.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(\r?\n|$)/);
+  if (!m) {
+    err(file, 'no parseable frontmatter - file must open with a bare --- line');
+    return null;
+  }
+  const fm = {};
+  let listKey = null;
+  for (const line of m[1].split(/\r?\n/)) {
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
+    const item = line.match(/^\s+-\s+(.*)$/);
+    if (item && listKey) { fm[listKey].push(unquoteYaml(item[1])); continue; }
+    const kv = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!kv) {
+      err(file, `frontmatter line is not "key: value" -> ${line.trim()}`);
+      listKey = null;
+      continue;
+    }
+    const value = kv[2].trim();
+    // A key with nothing after the colon opens a block list. If no "- item" lines follow,
+    // it stays an empty list, which is what an empty YAML value means here anyway.
+    if (value === '') { fm[kv[1]] = []; listKey = kv[1]; } else { fm[kv[1]] = unquoteYaml(value); listKey = null; }
+  }
+  return fm;
+}
+// Reads either form back as a list, so nothing downstream has to care which was written.
+const asList = (v) => (Array.isArray(v) ? v
+  : typeof v === 'string' ? v.replace(/^\[|\]$/g, '').split(',').map(unquoteYaml).filter(Boolean)
+    : []);
+
 // The CLI globs `<eval dir>/**`, so a case may sit at any depth. Reading only the top
 // level covered part of the suite while reporting on all of it - a case one folder deeper
 // carried an unknown key AND an invalid grader type and this printed OK. A check that
@@ -861,7 +898,7 @@ for (const dir of caseDirs) {
     continue;
   }
   const raw = readFileSync(join(dir, 'prompt.md'), 'utf8');
-  const fm = parseFrontmatter(raw, `${where}/prompt.md`);
+  const fm = parseEvalFrontmatter(raw, `${where}/prompt.md`);
   if (!fm) continue;
 
   // The body IS the prompt under test. An empty one runs the model against nothing and
@@ -886,24 +923,36 @@ for (const dir of caseDirs) {
   const runs = Number(fm.runs ?? 3);
   if (!(runs >= 3)) err(`${where}/prompt.md`, `runs: ${fm.runs} - three is the minimum, or a single lucky turn decides the result`);
 
-  const tags = (fm.tags ?? '').toLowerCase();
-  if (tags.includes('negative')) negativeCases++;
+  if (asList(fm.tags).some((t) => t.toLowerCase() === 'negative')) negativeCases++;
 
   const gradersDir = join(dir, 'graders');
-  const graders = existsSync(gradersDir)
+  const graderFiles = existsSync(gradersDir)
     ? walk(gradersDir).filter((p) => p.endsWith('.md'))
     : [];
-  if (!graders.length) {
+  if (!graderFiles.length) {
     err(where, 'no graders/*.md - a case with nothing to grade scores nothing');
     continue;
   }
 
-  const allowed = new Set((fm.allowed_tools ?? '').replace(/[[\]]/g, '').split(',').map((s) => s.trim()).filter(Boolean));
+  const allowed = new Set(asList(fm.allowed_tools));
   let outcomeGraders = 0;
-  for (const g of graders) {
+  let realGraders = 0;
+  for (const g of graderFiles) {
     const gWhere = `${where}/graders/${basename(g)}`;
-    const gfm = parseFrontmatter(readFileSync(g, 'utf8'), gWhere);
+    const text = readFileSync(g, 'utf8');
+    // The runner skips a file here that has no frontmatter, so notes may live beside the
+    // graders. Treating that as an error made this stricter than the tool it checks for -
+    // it failed a suite the runner would have accepted, which teaches people to work
+    // around the checker. It is still worth saying out loud, because a grader that was
+    // meant to count and lost its frontmatter is inert and looks fine in a diff.
+    if (!/^---[ \t]*\r?\n/.test(text)) {
+      warn(gWhere, 'has no frontmatter, so the runner ignores it. That is correct for a ' +
+        'notes file, and silent breakage for anything meant to grade.');
+      continue;
+    }
+    const gfm = parseEvalFrontmatter(text, gWhere);
     if (!gfm) continue;
+    realGraders++;
     if (!GRADER_TYPES.has(gfm.type)) {
       err(gWhere, `type "${gfm.type ?? '(missing)'}" is not one of: ${[...GRADER_TYPES].join(' | ')}`);
       continue;
@@ -929,7 +978,12 @@ for (const dir of caseDirs) {
       }
     }
   }
-  if (!outcomeGraders) {
+  // Every file in graders/ being a note is a case that grades nothing at all, which the
+  // file count above cannot see - it counted notes as graders.
+  if (!realGraders) {
+    err(where, 'nothing in graders/ carries frontmatter, so the runner sees no graders here ' +
+      'and the case scores nothing.');
+  } else if (!outcomeGraders) {
     err(where, 'every grader here is tool_used. At least one must grade the outcome, or the ' +
       'case only proves a skill fired and never that it helped.');
   }
