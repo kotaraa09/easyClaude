@@ -16,7 +16,7 @@ import {
   test, assert, assertMatch, workspace, runValidate, covered, repoRoot,
   readText, writeText, editText, editJson, removeFile, replaceOnce,
 } from './harness.mjs';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 // --- the two shapes of a mutation case ---------------------------------------
@@ -327,6 +327,32 @@ breaks('a grader matching a skill that does not exist', '16',
   (d) => editText(d, `${CASE}/graders/fired.md`,
     (t) => t.replace('input_match: plan-feature', 'input_match: plan-features')),
   /is not a skill in this plugin/);
+
+// Three ways a case could hide from the check entirely. Each one passed while the check
+// reported OK on the whole suite, which is worse than a case that fails: it is a check
+// covering a subset while reporting on all of it.
+const writeAt = (d, relPath, text) => {
+  mkdirSync(join(d, relPath, '..'), { recursive: true });
+  writeFileSync(join(d, relPath), text);
+};
+
+breaks('a case with graders but no prompt, which can never run', '16',
+  (d) => writeAt(d, 'evals/no-prompt-case/graders/outcome.md', '---\ntype: llm\n---\n\nSomething.\n'),
+  /has graders\/ but no prompt\.md/);
+
+// The CLI globs <eval dir>/**, so one folder deeper is still a case it would run.
+breaks('a case nested below the top level', '16',
+  (d) => {
+    writeAt(d, 'evals/group/nested-case/prompt.md', '---\nnot_a_real_key: x\n---\n\nhello\n');
+    writeAt(d, 'evals/group/nested-case/graders/outcome.md', '---\ntype: llm\n---\n\nSomething.\n');
+  },
+  /evals[\\/]group[\\/]nested-case/);
+
+// The other supported form. This check cannot read it, so it must refuse it rather than
+// let an unreadable case sit in the suite looking covered.
+breaks('a case written in the form this check cannot read', '16',
+  (d) => writeAt(d, 'evals/orphan/case.yaml', 'name: orphan\n'),
+  /cannot read case\.yaml/);
 
 breaks('a suite with no should-not-fire case', '16',
   (d) => {

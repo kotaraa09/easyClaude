@@ -820,16 +820,46 @@ const CASE_EXEC = new Set(['model', 'max_turns', 'timeout_seconds', 'allowed_too
   'artifact_publish', 'growthbook_overrides', 'append_system_prompt', 'env']);
 const GRADER_TYPES = new Set(['regex', 'tool_order', 'tool_used', 'file_exists', 'llm', 'baseline']);
 
+// The CLI globs `<eval dir>/**`, so a case may sit at any depth. Reading only the top
+// level covered part of the suite while reporting on all of it - a case one folder deeper
+// carried an unknown key AND an invalid grader type and this printed OK. A check that
+// silently covers a subset is the failure this file exists for.
+//
+// A directory holding prompt.md OR graders/ is a case. One holding graders/ and no
+// prompt.md is a case that can never run, and it must be found rather than skipped: the
+// old filter required prompt.md to be there, so exactly that case was invisible.
 const evalsDir = join(root, 'evals');
-const caseDirs = existsSync(evalsDir)
-  ? readdirSync(evalsDir)
-    .map((d) => join(evalsDir, d))
-    .filter((d) => statSync(d).isDirectory() && existsSync(join(d, 'prompt.md')))
-  : [];
+function findCaseDirs(dir, out = []) {
+  for (const entry of readdirSync(dir)) {
+    // results/ is where the runner writes its own output. It is not a case.
+    if (entry === 'graders' || entry === 'results') continue;
+    const p = join(dir, entry);
+    if (!statSync(p).isDirectory()) continue;
+    if (existsSync(join(p, 'prompt.md')) || existsSync(join(p, 'graders'))) out.push(p);
+    else findCaseDirs(p, out);
+  }
+  return out;
+}
+const caseDirs = existsSync(evalsDir) ? findCaseDirs(evalsDir) : [];
+
+// The other supported form. Nothing here can read it - that needs a YAML parser, and this
+// script has no dependencies - so a case written that way would sit unchecked, which is
+// the one thing this check exists to prevent.
+for (const f of existsSync(evalsDir) ? walk(evalsDir) : []) {
+  if (basename(f) === 'case.yaml') {
+    err(rel(f), 'check 16 reads the prompt.md + graders/ form and cannot read case.yaml, so ' +
+      'this case would go unchecked. Convert it, or teach validate.mjs to read case.yaml.');
+  }
+}
 
 let negativeCases = 0;
 for (const dir of caseDirs) {
-  const where = `evals/${basename(dir)}`;
+  const where = rel(dir);
+  if (!existsSync(join(dir, 'prompt.md'))) {
+    err(where, 'has graders/ but no prompt.md. The runner needs a prompt and would reject ' +
+      'the case outright, so this one can never run.');
+    continue;
+  }
   const raw = readFileSync(join(dir, 'prompt.md'), 'utf8');
   const fm = parseFrontmatter(raw, `${where}/prompt.md`);
   if (!fm) continue;

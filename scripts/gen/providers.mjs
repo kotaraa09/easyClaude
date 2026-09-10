@@ -28,7 +28,9 @@ export const PROVIDERS = [
     check: (k) => ['https://api.replicate.com/v1/account', { headers: { Authorization: `Bearer ${k}` } }],
     // Replicate is async: create a prediction, then poll until terminal. `Prefer: wait`
     // usually returns it finished, but long video jobs still come back queued.
-    async generate({ kind, prompt, model, flag, key, ext }) {
+    // fetchImpl is defaulted and exists for tests. The polling loop below is the only
+    // place in this repo that spends money and waits, and it had no test of any kind.
+    async generate({ kind, prompt, model, flag, key, ext, fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
       const input = { prompt };
       if (kind === 'image') {
         input.aspect_ratio = String(flag('aspect', '1:1'));
@@ -41,7 +43,7 @@ export const PROVIDERS = [
         input.images = [String(img)];
       }
       const headers = { Authorization: `Bearer ${key}`, ...j, Prefer: 'wait' };
-      const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
+      const res = await fetchImpl(`https://api.replicate.com/v1/models/${model}/predictions`, {
         method: 'POST', headers, body: JSON.stringify({ input }),
       });
       if (res.status === 401) throw new Error('Replicate rejected the token (401).');
@@ -51,10 +53,21 @@ export const PROVIDERS = [
 
       let pred = await res.json();
       const deadline = Date.now() + Number(flag('timeout', 600)) * 1000;
-      while (['starting', 'processing'].includes(pred.status)) {
+      // Wait on anything that is not finished, rather than on a list of the ways a job can
+      // be unfinished. The list said ['starting', 'processing'] while the comment above it
+      // said long video jobs come back "queued" - so exactly the job that needed polling
+      // skipped the loop and fell into the check below as `generation queued`, failing
+      // instantly on a prediction that was running fine and already paid for. Naming the
+      // three terminal states cannot drift that way, and covers any status added later.
+      const TERMINAL = new Set(['succeeded', 'failed', 'canceled']);
+      while (!TERMINAL.has(pred.status)) {
         if (Date.now() > deadline) throw new Error(`timed out; check https://replicate.com/predictions/${pred.id}`);
-        await new Promise((r) => setTimeout(r, 2000));
-        const poll = await fetch(pred.urls.get, { headers: { Authorization: `Bearer ${key}` } });
+        // Without this the loop dereferences undefined and dies with a TypeError, over the
+        // top of a prediction id the user needs to go and look at.
+        const next = pred.urls?.get;
+        if (!next) throw new Error(`no polling URL in the response for prediction ${pred.id ?? '(unknown)'}`);
+        await sleep(2000);
+        const poll = await fetchImpl(next, { headers: { Authorization: `Bearer ${key}` } });
         if (!poll.ok) throw new Error(`polling failed with ${poll.status}`);
         pred = await poll.json();
       }
@@ -67,7 +80,7 @@ export const PROVIDERS = [
         : o && typeof o === 'object' ? (o.url ?? Object.values(o).find((v) => typeof v === 'string'))
         : null;
       if (!url) throw new Error(`no output URL in response: ${JSON.stringify(o).slice(0, 200)}`);
-      const file = await fetch(url);
+      const file = await fetchImpl(url);
       if (!file.ok) throw new Error(`downloading the result failed with ${file.status}`);
       return { buffer: Buffer.from(await file.arrayBuffer()), took: pred.metrics?.predict_time };
     },
