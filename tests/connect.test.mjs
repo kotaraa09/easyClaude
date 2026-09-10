@@ -9,7 +9,7 @@
 // account on the machine, in the operation that had just written a key into it. Nothing
 // would have caught that coming back. That is what this file is for.
 import { test, assert, assertMatch, projectDir } from './harness.mjs';
-import { placeholder, configPathFrom, writeSecret, shellHostile } from '../scripts/connect-core.mjs';
+import { placeholder, configPathFrom, writeSecret, shellHostile, runClaude } from '../scripts/connect-core.mjs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -155,6 +155,98 @@ test('connect: values cmd.exe would corrupt are refused', () => {
   assert(shellHostile(['-H', 'Authorization: Bearer a"b']), 'a quote in a value must be refused.');
   assert(!shellHostile(['-s', 'local', 'context7', '--', 'npx', '-y', '@upstash/context7-mcp']),
     'an ordinary argument list must not be refused.');
+});
+
+// --- launching the CLI ----------------------------------------------------------------
+// The real calls, against a real process. `node` stands in for the CLI because it exists
+// on every machine that can run this suite and because -e gives exact control of the exit
+// code and both streams - where a fake `claude` on PATH would have to be installed, and
+// would race the other cases running beside it.
+const realNode = (script) => runClaude(['-e', script], { bin: process.execPath });
+
+test('connect: a successful call returns both streams', () => {
+  // Both, because the "File modified:" line that names the config file arrives on one of
+  // them and the CLI does not promise which.
+  const r = realNode('process.stdout.write("on-stdout"); process.stderr.write("on-stderr")');
+  assert(r.ok, `a clean exit must be reported as success: ${r.error?.message}`);
+  assertMatch(r.out, /on-stdout/, 'stdout must reach the caller.');
+  assertMatch(r.out, /on-stderr/, 'stderr must reach the caller.');
+});
+
+test('connect: a failing call carries the reason back', () => {
+  const r = realNode('process.stderr.write("mcp add failed: bad scope\\nsecond line"); process.exit(3)');
+  assert(!r.ok, 'a non-zero exit must not be reported as success.');
+  assertMatch(r.error.message, /mcp add failed: bad scope/,
+    'the CLI\'s own words are what tells the user what to fix.');
+});
+
+test('connect: a failing call with nothing to say still names the exit code', () => {
+  const r = realNode('process.exit(7)');
+  assert(!r.ok, 'a non-zero exit must not be reported as success.');
+  assertMatch(r.error.message, /exited 7/, 'a silent failure must still be legible.');
+});
+
+// The Windows fallback. It fires only when the executable itself cannot be launched, and
+// only on Windows, so on the machine writing these cases it is unreachable code. A fake
+// spawn is what makes it reachable - and this is the branch where a secret would reach
+// cmd.exe if the guard were ever dropped.
+function fakeSpawn(...results) {
+  const calls = [];
+  const fn = (bin, argv, opts) => {
+    calls.push({ bin, argv, opts });
+    return results[Math.min(calls.length - 1, results.length - 1)];
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+const launchFailure = (code) => ({ error: Object.assign(new Error(`spawn ${code}`), { code }) });
+const SAFE = ['mcp', 'add', '-s', 'local', 'context7'];
+
+test('connect: on Windows an unlaunchable executable is retried through the shell', () => {
+  // An npm install puts claude.cmd on PATH, and Node refuses .cmd without a shell.
+  const spawn = fakeSpawn(launchFailure('EINVAL'), { status: 0, stdout: 'done', stderr: '' });
+  const r = runClaude(SAFE, { platform: 'win32', spawn });
+  assert(r.ok, 'the retry through the shell must be what the caller gets back.');
+  assert(spawn.calls.length === 2, `expected one retry, got ${spawn.calls.length} call(s).`);
+  assert(spawn.calls[0].opts.shell !== true, 'the first attempt must not use a shell.');
+  assert(spawn.calls[1].opts.shell === true, 'the retry is only useful through a shell.');
+});
+
+test('connect: ENOENT gets the same retry as EINVAL', () => {
+  // The bare name gets ENOENT because CreateProcess only ever appends .exe.
+  const spawn = fakeSpawn(launchFailure('ENOENT'), { status: 0, stdout: '', stderr: '' });
+  assert(runClaude(SAFE, { platform: 'win32', spawn }).ok, 'ENOENT must be retried too.');
+  assert(spawn.calls.length === 2, 'ENOENT must reach the shell fallback.');
+});
+
+test('connect: off Windows there is no shell fallback at all', () => {
+  const spawn = fakeSpawn(launchFailure('ENOENT'));
+  const r = runClaude(SAFE, { platform: 'linux', spawn });
+  assert(!r.ok && r.notFound === true,
+    'elsewhere an unlaunchable CLI is simply missing, and must be reported as missing.');
+  assert(spawn.calls.length === 1, 'no shell may be involved on a platform that does not need one.');
+});
+
+test('connect: a value cmd.exe would corrupt is never handed to cmd.exe', () => {
+  // The one that matters. cmd.exe expands %VAR% inside the quotes Node adds, and a bare "
+  // ends the quoting - so this argument list must be refused rather than retried.
+  const spawn = fakeSpawn(launchFailure('EINVAL'));
+  const r = runClaude(['mcp', 'add', '-e', 'KEY=%PATH%'], { platform: 'win32', spawn });
+  assert(!r.ok && r.unsafeForShell === true, 'it must say why it stopped.');
+  assert(spawn.calls.length === 1,
+    'a hostile argument list reached the shell. Storing a mangled value is worse than ' +
+    'storing none, and this is the path a secret would travel.');
+});
+
+test('connect: a genuine failure is never retried through the shell', () => {
+  // The fallback exists for an executable that could not start. `claude mcp add` failing
+  // on its own terms is a different fact, and running it twice would double any effect.
+  const spawn = fakeSpawn({ status: 1, stdout: '', stderr: 'no such scope' });
+  const r = runClaude(SAFE, { platform: 'win32', spawn });
+  assert(!r.ok, 'exit 1 is a failure.');
+  assert(spawn.calls.length === 1, `a real failure was run ${spawn.calls.length} times.`);
+  assert(!r.notFound, 'a command that ran and failed is not a missing command.');
 });
 
 // --- the placeholder itself ----------------------------------------------------------

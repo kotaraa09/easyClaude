@@ -101,14 +101,21 @@ export function writeSecret(output, token, secret) {
 // written in corrupted. Silently storing a mangled value is worse than not storing one.
 export const shellHostile = (argv) => argv.some((a) => /[%"]/.test(a));
 
-export function runClaude(argv) {
+// The three seams exist for tests and for nothing else, which is why they are defaulted
+// rather than required: connect.mjs calls runClaude(argv) exactly as it always did.
+//
+// They are not decoration. The branch that matters here is Windows-only and fires only
+// when the executable cannot be launched at all, so on any other machine - and on a
+// Windows machine with a native install - it is unreachable code. Deciding the platform
+// from an argument is what lets the case be written down on the machine doing the writing.
+export function runClaude(argv, { bin = 'claude', platform = process.platform, spawn = spawnSync } = {}) {
   // No shell on this path, so nothing here is ever parsed by cmd.exe.
-  let r = spawnSync('claude', argv, { stdio: 'pipe', encoding: 'utf8' });
+  let r = spawn(bin, argv, { stdio: 'pipe', encoding: 'utf8' });
   if (r.error && NEEDS_SHELL.has(r.error.code)) {
-    if (process.platform !== 'win32') return { ok: false, error: r.error, notFound: true };
+    if (platform !== 'win32') return { ok: false, error: r.error, notFound: true };
     if (shellHostile(argv)) return { ok: false, error: r.error, unsafeForShell: true };
     // shell: true routes through cmd.exe, which is the only way to run the .cmd shim.
-    r = spawnSync('claude', argv, { stdio: 'pipe', encoding: 'utf8', shell: true });
+    r = spawn(bin, argv, { stdio: 'pipe', encoding: 'utf8', shell: true });
   }
   if (r.error) return { ok: false, error: r.error, notFound: NEEDS_SHELL.has(r.error.code) };
   if (r.status !== 0) {
