@@ -12,3 +12,6 @@ __pycache__/
 .claude/settings.local.json
 .claude/cheap-session
 .claude/autoship.json
+
+# The eval runner writes its results here. Run output is not source.
+evals/results/
