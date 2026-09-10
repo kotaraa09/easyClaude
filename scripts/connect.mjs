@@ -43,6 +43,22 @@ const CONNECTORS = [
     add: () => ['-s', 'project', 'playwright', '--', 'npx', '-y', '@playwright/mcp@latest'],
   },
   {
+    name: 'graft', key: null,
+    what: 'a map of your own codebase - find code and trace callers without reading files',
+    // Wired as an MCP server and nothing else. `graft init`, which its own README leads
+    // with, also installs a statusline, a PostToolUse hook and a .claude/skills/graft/
+    // SKILL.md into the project. All three collide with what easyClaude already owns: the
+    // hook set in hooks/hooks.json, and a token budget that CI fails on. The MCP server is
+    // the part that carries the benefit, and it costs nothing until a tool is called.
+    note: [
+      'graft needs a graph before its tools return anything. In the project, run:',
+      '  npx -y @nanonets/graft@0.16.0 build',
+      'Add graft/ to .gitignore, and run build again after a large change.',
+      'It sends one anonymous usage ping. Set DO_NOT_TRACK=1 to switch that off.',
+    ],
+    add: () => ['-s', 'project', 'graft', '--', 'npx', '-y', '@nanonets/graft@0.16.0', 'mcp'],
+  },
+  {
     name: 'context7', key: 'CONTEXT7_API_KEY',
     what: 'current library docs, so it stops guessing at APIs that changed',
     where: 'https://context7.com/dashboard',
@@ -91,6 +107,9 @@ if (has('list') || args.length === 0) {
   console.log('\nConnectors (fill the key into .env, then run --apply):\n');
   for (const c of CONNECTORS) {
     console.log(`  ${c.name.padEnd(12)} ${(c.key ?? 'no key needed').padEnd(20)} ${c.what}`);
+    // A connector that needs a one-time local step says so where it is chosen, not after
+    // it is already wired. Adding the server is not the same as it working.
+    if (c.note) for (const line of c.note) console.log(`  ${''.padEnd(12)}   ${line}`);
   }
   console.log('\nAlso read from .env:\n');
   for (const p of PROVIDERS) console.log(`  ${''.padEnd(12)} ${p.key.padEnd(20)} ${p.what}`);
@@ -155,16 +174,24 @@ for (const c of todo) {
   const argv = c.add(token);
   const scope = argv[1];
   const where = scope === 'project' ? '.mcp.json (needs your approval on next start)' : '~/.claude.json (private to you)';
-  if (dry) { console.log(`  would add ${c.name.padEnd(12)} -> ${where}`); continue; }
+  const announce = () => {
+    console.log(`  added ${c.name.padEnd(12)} -> ${where}`);
+    if (c.note) for (const line of c.note) console.log(`  ${''.padEnd(12)}   ${line}`);
+  };
+  if (dry) {
+    console.log(`  would add ${c.name.padEnd(12)} -> ${where}`);
+    if (c.note) for (const line of c.note) console.log(`  ${''.padEnd(12)}   ${line}`);
+    continue;
+  }
   const r = runClaude(['mcp', 'add', ...argv]);
   if (r.ok) {
     if (!secret) {
-      console.log(`  added ${c.name.padEnd(12)} -> ${where}`);
+      announce();
       continue;
     }
     const sub = writeSecret(r.out, token, secret);
     if (sub.ok) {
-      console.log(`  added ${c.name.padEnd(12)} -> ${where}`);
+      announce();
       continue;
     }
     // Leaving a half-written server behind would fail later and look like the

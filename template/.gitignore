@@ -10,6 +10,7 @@
 # quietly lowers the standard of every turn.
 .claude/autoship.json
 .claude/cheap-session
+.claude/cheap-contract.md
 .claude/settings.local.json
 
 # Dependencies and build output

@@ -522,9 +522,24 @@ for (const d of skillNames) {
 }
 // rules/*.md are copied into every project and loaded on every turn too - policing
 // only skill descriptions would police the smaller half.
+//
+// EXCEPT a rule that declares `paths:`. Claude Code loads those only when it touches a
+// matching file, so they are not always-on and counting them says a project pays for
+// standards on a turn that opens no source file. Counting them anyway is not a safe
+// over-estimate: it makes the budget punish the very move that lowers the real cost,
+// so the honest way to get under the cap would be to delete a rule rather than scope
+// one. The scoped files are still measured and reported, just not against the cap.
 let rulesTok = 0;
+let scopedTok = 0;
 for (const f of walk(join(root, 'rules')).filter((p) => p.endsWith('.md'))) {
-  rulesTok += Math.round(readFileSync(f, 'utf8').length / 4);
+  const text = readFileSync(f, 'utf8');
+  const tok = Math.round(text.length / 4);
+  // Not parseFrontmatter(): that one is for skills and commands, where every line is
+  // "key: value" and a missing block is an error. A rule legitimately has no block, and
+  // `paths:` takes a YAML list. Only the question "does this file scope itself?" matters.
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (fm && /^paths\s*:/m.test(fm[1])) { scopedTok += tok; continue; }
+  rulesTok += tok;
 }
 alwaysOn += rulesTok;
 
@@ -778,6 +793,7 @@ if (tmplIgnore !== null) {
     ['.env', 'real API keys, and .env.example tells the user to put them there'],
     ['.claude/autoship.json', 'standing authorisation to commit and push on one person\'s behalf'],
     ['.claude/cheap-session', 'one person\'s cheap stretch, not a property of the repo'],
+    ['.claude/cheap-contract.md', 'the contract that stretch runs under - planted per person, not per repo'],
   ];
   for (const [pattern, why] of mustIgnore) {
     if (!ignored.has(pattern)) err('template/.gitignore', `does not ignore "${pattern}" - ${why}`);
