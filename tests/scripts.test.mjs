@@ -91,6 +91,24 @@ test('connect: the generated form still matches template/.env.example', async ()
     'template/.env.example is stale. Regenerate it with: node scripts/connect.mjs --form');
 });
 
+// --- a connector's one-time local step is actually shown ----------------------
+// graft is wired as an MCP server, but its tools return nothing until `graft build` has
+// run once in the project. That step lives in the catalog as `note`. A note nobody prints
+// is the same as no note: the server gets added, every tool answers empty, and it looks
+// like the connector is broken. So pin that both the place a connector is chosen and the
+// place it is wired say the step out loud.
+for (const args of [['--list'], ['--apply', '--dry-run']]) {
+  test(`connect: ${args.join(' ')} prints the one-time step a connector needs`, async () => {
+    const r = await run(script('connect.mjs'), { cwd: repoRoot, args });
+    assert(r.code === 0, `connect.mjs ${args.join(' ')} exited ${r.code}:
+${r.out}`);
+    assertMatch(r.stdout, /graft@[\d.]+ build/,
+      'the graft entry carries a note naming the one-time build, and this output drops it.');
+    assertMatch(r.stdout, /DO_NOT_TRACK/,
+      'graft sends a usage ping. The catalog says so, and this output must not hide it.');
+  });
+}
+
 // --- the generator cannot write outside the project ---------------------------
 // It resolved --out against cwd and used it unchecked, so it wrote outside the project and
 // into .git - past the Edit(./.git/**) rule this repo ships. A guardrail routed around by

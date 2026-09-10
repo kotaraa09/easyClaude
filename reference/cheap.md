@@ -1,5 +1,12 @@
 # Cheap session (only while `.claude/cheap-session` exists)
 
+<!-- This file does NOT live in rules/, and that is the point. Everything in rules/ is
+     copied to .claude/rules/ and loaded on EVERY turn of EVERY session. This contract
+     applies to a minority of turns in a minority of projects, so 191 tokens per turn
+     bought nothing on the rest - a file about saving tokens, spending them constantly.
+     /easyclaude:cheap-session copies it to .claude/cheap-contract.md when a user opts
+     in, and the SessionStart hook reads it from there. It costs nothing until armed. -->
+
 The user is low on credits. Optimise for fewest turns, not shortest prose.
 
 - Narrowest thing that works. Happy path only. No abstractions.

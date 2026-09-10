@@ -143,6 +143,7 @@ There are no commands to learn for the common things. Say what you want in norma
 | *"keep going"* | It builds the next task, then checks it <!--skill:build-task--> |
 | *"it's throwing an error"* | Reproduced, fixed, and a test left behind so it can't come back <!--skill:debug--> |
 | *"ship it"* | Checks, branches, reviews, commits, opens a pull request <!--skill:ship--> |
+| *"where does login happen?"* | It searches before it reads, and says what it found <!--skill:explore-code--> |
 
 Small stuff skips all of that. A one-line bug fix is just a one-line bug fix.
 
@@ -236,6 +237,30 @@ They don't reach the command line either. `claude mcp add` can only take a key t
 Some connectors can't be automated at all. Figma, Notion, Linear, Slack and Sentry sign in through the browser and have no key to paste, so they need the interactive `/mcp` flow. The script lists them by name so you know to do those by hand.
 
 `enableAllProjectMcpServers` is left out of every settings file here on purpose. It auto-approves every server in a committed `.mcp.json`, which would mean cloning a repo silently runs whatever a stranger put in it. That approval gate is what makes shipping a committed `.mcp.json` safe in the first place.
+
+</details>
+
+<details>
+<summary><b>Graft, and why only half of it is wired</b></summary>
+
+<br>
+
+[Graft](https://github.com/trailhq/Graft) builds a map of your own codebase - what calls what, what lives where - so Claude can look a thing up instead of reading its way to it. It is MIT, actively maintained, and needs no key, so `/easyclaude:connect` offers it like any other keyless connector.
+
+Only the MCP server is wired, and it is off until you ask for it. That is a cost decision, not a doubt about the tool.
+
+Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures 982. Switching Graft on by default would roughly double the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
+
+Worse, the budget check would not notice. It counts `rules/*.md` and skill descriptions, and MCP tool schemas are neither. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
+
+`graft init` is a second, separate step, and it is not run for you. It writes hooks on `SessionStart` and `Stop` - the only two events easyClaude uses. Its SessionStart emits a repo orientation block into the same first turn that `hooks/hooks.json` reserves for the four-line opener, and the opener's own instruction is "and nothing else". It also installs a statusline and a `.claude/skills/graft/SKILL.md`. Run it yourself if you want that - knowingly, not by default.
+
+Two things to know before you switch it on:
+
+- Its tools return nothing until a graph exists. Run `npx -y @nanonets/graft@0.16.0 build` once in the project, add `graft/` to `.gitignore`, and build again after a large change. The connector prints this when you add it.
+- It sends one anonymous usage ping. Set `DO_NOT_TRACK=1` to switch that off. The base `build` is local tree-sitter and calls no model; only `build --deep` calls an LLM, and that one costs money.
+
+The version is pinned. A connector that tracks `latest` is unreviewed code arriving on your machine, which is the same reason `skills/registry.json` pins every vendored skill to a commit.
 
 </details>
 
@@ -333,7 +358,7 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Every skill's name and description gets sent on every turn of every session, whether you use it or not:
 
-<!--cost:1172,697,475-->**~1,172 tokens per turn**: ~697 of rules, ~475 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
+<!--cost:982,447,535-->**~982 tokens per turn**: ~447 of rules, ~535 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
 
 Call it a page of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
@@ -342,11 +367,13 @@ Call it a page of text per turn. If that's more than you want to spend, use `/ea
 
 <br>
 
-Skills are split by how often they fire. <!--always-on:6-->Six stay always-on so plain English keeps working: the five that trigger constantly (kickoff, plan-feature, build-task, debug, ship), plus the vendored design-taste — which is the single most expensive line in this budget at ~156 tokens, more than kickoff and plan-feature together. It stays because its description is what makes "make this look less generic" reach it at all, and because editing vendored frontmatter would break the pinned-SHA guarantee that makes vendoring safe. Worth knowing you're paying for it on every turn, UI project or not.
+Skills are split by how often they fire. <!--always-on:7-->Seven stay always-on so plain English keeps working: the six that trigger constantly (kickoff, plan-feature, build-task, debug, ship, explore-code), plus the vendored design-taste — which is the single most expensive line in this budget at ~156 tokens, more than kickoff and plan-feature together. It stays because its description is what makes "make this look less generic" reach it at all, and because editing vendored frontmatter would break the pinned-SHA guarantee that makes vendoring safe. Worth knowing you're paying for it on every turn, UI project or not.
 
 The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable for about 60 tokens, against roughly 424 if they were loaded in full.
 
-CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. Adding another always-on skill therefore means dropping one.
+CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. About 418 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
+
+The ceiling has a blind spot, and it is worth knowing about. It counts `rules/*.md` and skill descriptions. It does not count MCP tool schemas, which are larger than both - Graft's six measure ~1,095 on their own. That is why `.mcp.json` ships empty rather than merely small: on that ground the default does the work the gate cannot.
 
 Hooks count too, and one of them was the worst offender. A hook can be a prompt, which means a model call. The gate that checks your build used to be one, firing on every turn that touched a file, asking Claude whether Claude's own tests had passed. It is now a script that reads exit codes: no tokens, no model call, and a verdict it cannot argue with.
 
@@ -397,7 +424,8 @@ Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-
 .mcp.json         starts empty, /easyclaude:connect fills it
 hooks/            session orientation, verify gate (runs verify.mjs)
 commands/         cheap, cheap-session, full, autoship, connect
-skills/           always-on: kickoff, plan-feature, build-task, debug, ship
+skills/           always-on: kickoff, plan-feature, build-task, debug, ship,
+                  explore-code
                   opt-in:    write-tests, rescue, security-check, deploy,
                              generate-asset, pick-library
                   vendored:  design-taste

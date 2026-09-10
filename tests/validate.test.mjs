@@ -189,6 +189,37 @@ breaks('an always-on cost over budget', '10',
   (d) => editJson(d, 'skills/registry.json', (j) => { j.max_always_on_tokens = 10; }),
   /exceeds budget 10/);
 
+// --- 10. a scoped rule must not be billed as always-on -----------------------
+// Claude Code loads a rule with `paths:` frontmatter only when it touches a matching
+// file. The validator used to count every rules/*.md the same way, which made scoping a
+// rule LOOK more expensive than leaving it always-on - so the only way under the cap was
+// to delete a standard rather than scope it. The budget has to reward the cheaper shape,
+// or it argues for the wrong one. No number is hard-coded here: the case reads the
+// measured figure back both ways and only requires that unscoping raises it.
+test('10: a rule with paths: frontmatter is not counted against the budget', async () => {
+  const dir = workspace();
+  const measured = (out) => {
+    // The figure appears with a thousands separator in one message and without it in
+    // another. Matching only the bare form captured a leading "1" out of "1,250".
+    const m = out.match(/([\d,]+) tok\/turn always-on/) ?? out.match(/measured ([\d,]+)/);
+    assert(m, `no measured always-on figure in the output:\n${out}`);
+    return Number(m[1].replace(/,/g, ''));
+  };
+
+  const before = measured((await runValidate(dir)).out);
+
+  const rel = 'rules/code-standards.md';
+  const text = readText(dir, rel);
+  assertMatch(text, /^---\r?\n[\s\S]*?^paths\s*:/m,
+    `${rel} is the scoped rule this case is about, and it no longer declares paths:`);
+  writeText(dir, rel, text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ''));
+
+  const after = measured((await runValidate(dir)).out);
+  assert(after > before,
+    `unscoping ${rel} left the always-on figure at ${after}. The validator is still ` +
+    'counting scoped rules, so the budget cannot tell the two shapes apart.');
+}, { covers: '10' });
+
 // --- 10b. stated costs must match the measured figure ------------------------
 breaks("the README's cost sentence drifting from the measurement", '10b',
   (d) => bumpNumber(d, 'README.md', /tokens per turn\*\*: ~([\d,]+) of rules/),
