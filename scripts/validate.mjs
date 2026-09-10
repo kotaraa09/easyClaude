@@ -805,6 +805,113 @@ for (const f of walk(root)) {
   }
 }
 
+// --- 16. eval cases must stay loadable, though nothing can run them yet ------
+// `claude plugin eval` is still in early access, so these cases cannot be executed here.
+// Files nobody can run are files nobody notices going stale, which is the argument the
+// evals README made for writing none at all. This check is the answer to that: the shape
+// of every case is verified on each push, so the suite is wrong loudly rather than quietly.
+//
+// The rules below are not invented. The field names come from the CLI's own schema, and
+// the three floor invariants - a negative case, an outcome grader per case, runs >= 3 -
+// come from its authoring guidance. What cannot be checked here is whether a case PASSES.
+// Only the real runner does that.
+const CASE_TOP = new Set(['schema_version', 'name', 'description', 'tags', 'plugins', 'runs', 'expected_outcome']);
+const CASE_EXEC = new Set(['model', 'max_turns', 'timeout_seconds', 'allowed_tools',
+  'artifact_publish', 'growthbook_overrides', 'append_system_prompt', 'env']);
+const GRADER_TYPES = new Set(['regex', 'tool_order', 'tool_used', 'file_exists', 'llm', 'baseline']);
+
+const evalsDir = join(root, 'evals');
+const caseDirs = existsSync(evalsDir)
+  ? readdirSync(evalsDir)
+    .map((d) => join(evalsDir, d))
+    .filter((d) => statSync(d).isDirectory() && existsSync(join(d, 'prompt.md')))
+  : [];
+
+let negativeCases = 0;
+for (const dir of caseDirs) {
+  const where = `evals/${basename(dir)}`;
+  const raw = readFileSync(join(dir, 'prompt.md'), 'utf8');
+  const fm = parseFrontmatter(raw, `${where}/prompt.md`);
+  if (!fm) continue;
+
+  // The body IS the prompt under test. An empty one runs the model against nothing and
+  // scores whatever comes back, which reads as a passing case.
+  const body = raw.replace(/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(\r?\n|$)/, '').trim();
+  if (!body) err(`${where}/prompt.md`, 'has no body - the body is the prompt the case tests');
+
+  for (const k of Object.keys(fm)) {
+    if (!CASE_TOP.has(k) && !CASE_EXEC.has(k)) {
+      err(`${where}/prompt.md`, `unknown frontmatter key "${k}" - the runner rejects the whole ` +
+        `case for this. Expected one of: ${[...CASE_TOP, ...CASE_EXEC].join(', ')}`);
+    }
+  }
+  for (const k of ['schema_version', 'name']) {
+    if (!fm[k]) err(`${where}/prompt.md`, `missing required "${k}"`);
+  }
+  if (fm.name && fm.name !== basename(dir)) {
+    err(`${where}/prompt.md`, `"name: ${fm.name}" does not match the directory - --case filters ` +
+      'on the name, so a mismatch runs something other than what the folder says');
+  }
+  // Three runs is the floor the CLI's own guidance sets. One run of a model is an anecdote.
+  const runs = Number(fm.runs ?? 3);
+  if (!(runs >= 3)) err(`${where}/prompt.md`, `runs: ${fm.runs} - three is the minimum, or a single lucky turn decides the result`);
+
+  const tags = (fm.tags ?? '').toLowerCase();
+  if (tags.includes('negative')) negativeCases++;
+
+  const gradersDir = join(dir, 'graders');
+  const graders = existsSync(gradersDir)
+    ? walk(gradersDir).filter((p) => p.endsWith('.md'))
+    : [];
+  if (!graders.length) {
+    err(where, 'no graders/*.md - a case with nothing to grade scores nothing');
+    continue;
+  }
+
+  const allowed = new Set((fm.allowed_tools ?? '').replace(/[[\]]/g, '').split(',').map((s) => s.trim()).filter(Boolean));
+  let outcomeGraders = 0;
+  for (const g of graders) {
+    const gWhere = `${where}/graders/${basename(g)}`;
+    const gfm = parseFrontmatter(readFileSync(g, 'utf8'), gWhere);
+    if (!gfm) continue;
+    if (!GRADER_TYPES.has(gfm.type)) {
+      err(gWhere, `type "${gfm.type ?? '(missing)'}" is not one of: ${[...GRADER_TYPES].join(' | ')}`);
+      continue;
+    }
+    // "Grade outcomes, not trajectories." A case whose only grader is tool_used proves the
+    // skill fired and nothing about whether it did the job - and under ablation that grader
+    // is an indicator, excluded from the score, so such a case scores on nothing at all.
+    if (gfm.type !== 'tool_used') outcomeGraders++;
+    if (gfm.type === 'tool_used') {
+      if (!gfm.tool) err(gWhere, 'a tool_used grader needs "tool"');
+      // A tool the case never allows can never be used, so the assertion passes on a
+      // technicality. It matters most in the negative direction: a max:0 case with Skill
+      // withheld proves nothing, because nothing could have fired anyway.
+      else if (!allowed.has(gfm.tool)) {
+        err(gWhere, `asserts on the "${gfm.tool}" tool, which is not in allowed_tools ` +
+          `(${[...allowed].join(', ') || 'empty'}). The tool cannot be used, so the case ` +
+          'passes without testing anything.');
+      }
+      // The whole point of these cases is which skill answers. A renamed skill must break
+      // them loudly rather than leave them asserting on a name nothing can match.
+      if (gfm.input_match && gfm.tool === 'Skill' && !skillNames.includes(gfm.input_match)) {
+        err(gWhere, `matches skill "${gfm.input_match}", which is not a skill in this plugin`);
+      }
+    }
+  }
+  if (!outcomeGraders) {
+    err(where, 'every grader here is tool_used. At least one must grade the outcome, or the ' +
+      'case only proves a skill fired and never that it helped.');
+  }
+}
+
+// A suite of nothing but should-fire cases cannot catch a framework that fires on
+// everything, which is the worse of the two failures.
+if (caseDirs.length && !negativeCases) {
+  err('evals/', 'no case is tagged "negative". At least one must assert that nothing fires, ' +
+    'or the suite cannot tell a framework that triggers correctly from one that triggers always.');
+}
+
 // --- report ------------------------------------------------------------------
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
 for (const w of warnings) console.log(`  warn   ${w}`);

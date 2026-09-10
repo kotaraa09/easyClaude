@@ -283,6 +283,59 @@ breaks('an always-on count drifting from the measured set', '15',
   (d) => bumpNumber(d, 'README.th.md', /<!--\s*always-on:(\d+)\s*-->/),
   /claims \d+ always-on skills, measured/);
 
+// --- 16. eval cases must stay loadable, though nothing can run them yet ------
+// Nothing can execute these cases yet, so this check is the only thing standing between
+// the suite and quiet rot. Each mutation below is a way a case could be wrong while
+// looking fine in a diff.
+const CASE = 'evals/plan-feature-on-a-feature-request';
+const NEGATIVE = 'evals/quiet-on-a-typo-fix';
+
+breaks('an eval case with a frontmatter key the runner rejects', '16',
+  (d) => editText(d, `${CASE}/prompt.md`, (t) => t.replace(/^tags:/m, 'skill: plan-feature\ntags:')),
+  /unknown frontmatter key "skill"/);
+
+breaks('an eval case whose name does not match its directory', '16',
+  (d) => editText(d, `${CASE}/prompt.md`, (t) => t.replace(/^name:.*$/m, 'name: something-else')),
+  /does not match the directory/);
+
+breaks('an eval case run fewer than three times', '16',
+  (d) => editText(d, `${CASE}/prompt.md`, (t) => t.replace(/^runs:.*$/m, 'runs: 1')),
+  /three is the minimum/);
+
+// The frontmatter has to survive, or this tests the frontmatter parser instead.
+breaks('an eval case with an empty prompt', '16',
+  (d) => editText(d, `${CASE}/prompt.md`, (t) => t.slice(0, t.indexOf('\n---\n', 4) + 5)),
+  /has no body/);
+
+breaks('a grader with a type the runner does not know', '16',
+  (d) => editText(d, `${CASE}/graders/outcome.md`, (t) => t.replace('type: llm', 'type: vibes')),
+  /is not one of/);
+
+breaks('a case that only proves a skill fired', '16',
+  (d) => removeFile(d, `${CASE}/graders/outcome.md`),
+  /every grader here is tool_used/);
+
+// The quietest way one of these cases could stop testing anything: assert on a tool the
+// case never allows. It matters most for the negative cases, where nothing could have
+// fired anyway and the assertion passes on a technicality.
+breaks('a grader asserting on a tool the case never allows', '16',
+  (d) => editText(d, `${NEGATIVE}/prompt.md`,
+    (t) => t.replace(/^allowed_tools:.*$/m, 'allowed_tools: [Read, Glob, Grep]')),
+  /passes without testing anything/);
+
+breaks('a grader matching a skill that does not exist', '16',
+  (d) => editText(d, `${CASE}/graders/fired.md`,
+    (t) => t.replace('input_match: plan-feature', 'input_match: plan-features')),
+  /is not a skill in this plugin/);
+
+breaks('a suite with no should-not-fire case', '16',
+  (d) => {
+    for (const c of ['quiet-on-a-typo-fix', 'quiet-on-a-security-question']) {
+      editText(d, `evals/${c}/prompt.md`, (t) => t.replace('negative]', 'positive]'));
+    }
+  },
+  /no case is tagged "negative"/);
+
 // --- the validator must report, never crash and never go silent --------------
 // Both of these once replaced the whole report: a missing README.md sent the cost check
 // into a null read, and a broken script was not read for syntax at all.
