@@ -354,6 +354,44 @@ breaks('a case written in the form this check cannot read', '16',
   (d) => writeAt(d, 'evals/orphan/case.yaml', 'name: orphan\n'),
   /cannot read case\.yaml/);
 
+// The runner skips a graders/ file with no frontmatter, so notes may sit beside the
+// graders. Failing on one made this stricter than the tool it checks for.
+warns('a notes file beside the graders', '16',
+  (d) => writeAt(d, `${CASE}/graders/NOTES.md`, 'Where these criteria came from.\n'),
+  /has no frontmatter, so the runner ignores it/);
+
+breaks('a graders folder holding nothing but notes', '16',
+  (d) => {
+    for (const g of ['fired.md', 'outcome.md']) removeFile(d, `${CASE}/graders/${g}`);
+    writeAt(d, `${CASE}/graders/NOTES.md`, 'Only a note.\n');
+  },
+  /the runner sees no graders here/);
+
+// The runner reads this frontmatter as YAML, so both list forms are the same to it. The
+// line-based reader used for skills rejected the block form, which failed a suite the
+// runner would have accepted.
+const toBlockList = (t) => t
+  .replace('tags: [triggering, positive]', 'tags:\n  - triggering\n  - positive')
+  .replace('allowed_tools: [Skill, Read, Glob, Grep]', 'allowed_tools:\n  - Skill\n  - Read\n  - Glob\n  - Grep');
+
+test('16: a case written with YAML block lists is accepted', async () => {
+  const dir = workspace();
+  editText(dir, `${CASE}/prompt.md`, toBlockList);
+  const r = await runValidate(dir);
+  assert(r.code === 0,
+    `both list forms are valid YAML and the runner accepts both. Output:\n${r.out}`);
+}, { covers: '16' });
+
+test('16: a fault in a block-list case is still caught', async () => {
+  // Otherwise the fix above would have bought acceptance by checking nothing.
+  const dir = workspace();
+  editText(dir, `${CASE}/prompt.md`, (t) => toBlockList(t).replace('  - Skill\n', ''));
+  const r = await runValidate(dir);
+  assert(r.code !== 0, 'a case that withholds the tool it asserts on must still fail.');
+  assertMatch(r.out, /not in allowed_tools \(Read, Glob, Grep\)/,
+    'the block form must be read as a list, not as one string.');
+}, { covers: '16' });
+
 breaks('a suite with no should-not-fire case', '16',
   (d) => {
     for (const c of ['quiet-on-a-typo-fix', 'quiet-on-a-security-question']) {
