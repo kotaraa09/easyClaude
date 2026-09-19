@@ -87,6 +87,33 @@ breaks('a skill directory with no SKILL.md', '2',
   (d) => removeFile(d, 'skills/debug/SKILL.md'),
   /skills\/debug.*missing SKILL\.md/);
 
+// --- 2b. agents --------------------------------------------------------------
+// The tool grant is the case that matters. A subagent runs with whatever tools its
+// frontmatter lists, so a reviewer holding Edit can rewrite the diff it was dispatched to
+// judge - after the verify gate in ship step 1 has already run. Nothing else in the tree
+// would notice, which is exactly the shape of failure this suite exists for.
+const AGENT = 'agents/easyclaude-diff-reviewer.md';
+
+breaks('a shipped agent that can write', '2b',
+  (d) => replaceOnce(d, AGENT, 'tools: Read, Glob, Grep', 'tools: Read, Glob, Grep, Edit'),
+  /grants Edit, which can change the tree or run commands/);
+
+breaks('a shipped agent that can run commands', '2b',
+  (d) => replaceOnce(d, AGENT, 'tools: Read, Glob, Grep', 'tools: Read, Glob, Grep, Bash'),
+  /grants Bash, which can change the tree or run commands/);
+
+breaks('an agent with no tools line at all', '2b',
+  (d) => editText(d, AGENT, (t) => t.replace(/^tools:.*\r?\n/m, '')),
+  /missing required "tools"/);
+
+breaks('an agent that does not pin a model', '2b',
+  (d) => editText(d, AGENT, (t) => t.replace(/^model:.*\r?\n/m, '')),
+  /missing required "model"/);
+
+breaks('an agent whose name does not match its file', '2b',
+  (d) => replaceOnce(d, AGENT, 'name: easyclaude-diff-reviewer', 'name: diff-reviewer'),
+  /does not match the file name/);
+
 // --- 3. every JSON file parses ----------------------------------------------
 breaks('a JSON file that does not parse', '3',
   (d) => appendLine(d, '.claude/verify.json', '}}} not json'),
@@ -228,6 +255,29 @@ test('10: a rule with paths: frontmatter is not counted against the budget', asy
     'counting scoped rules, so the budget cannot tell the two shapes apart.');
 }, { covers: '10' });
 
+// --- 10. an agent's description must be billed like a skill's ----------------
+// An agent's name and description ride in the Agent tool's description on every turn, the
+// same way a skill's ride in the Skill tool's. Counting skills and not agents would let the
+// standing cost grow through a door the budget does not watch - which is how a vendored
+// skill once sat in the always-on set unmentioned. No figure is hard-coded: the case reads
+// the measured total back with the agent and without it.
+test('10: a shipped agent is counted against the budget', async () => {
+  const dir = workspace();
+  const measured = (out) => {
+    const m = out.match(/([\d,]+) tok\/turn always-on/) ?? out.match(/measured ([\d,]+)/);
+    assert(m, `no measured always-on figure in the output:\n${out}`);
+    return Number(m[1].replace(/,/g, ''));
+  };
+
+  const before = measured((await runValidate(dir)).out);
+  removeFile(dir, 'agents/easyclaude-diff-reviewer.md');
+  const after = measured((await runValidate(dir)).out);
+
+  assert(after < before,
+    `removing the only shipped agent left the always-on figure at ${after}, from ${before}. ` +
+    'The budget is not counting agent descriptions, so the next one ships for free.');
+}, { covers: '10' });
+
 // --- 10b. stated costs must match the measured figure ------------------------
 breaks("the README's cost sentence drifting from the measurement", '10b',
   (d) => bumpNumber(d, 'README.md', /tokens per turn\*\*: ~([\d,]+) of rules/),
@@ -241,7 +291,7 @@ breaks("the README's cost sentence being reworded away", '10b',
 // Mutated in the translation, because the English sentence has its own check above and
 // this one exists for the file that had none.
 breaks("a translation's cost marker drifting", '10c',
-  (d) => bumpNumber(d, 'README.th.md', /<!--cost:(\d+),\d+,\d+-->/),
+  (d) => bumpNumber(d, 'README.th.md', /<!--cost:(\d+),\d+,\d+,\d+-->/),
   /cost marker claims \d+ tokens\/turn of total/);
 
 // --- 11. the STATE.md compaction rule must not drift -------------------------
