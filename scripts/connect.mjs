@@ -43,6 +43,26 @@ const CONNECTORS = [
     add: () => ['-s', 'project', 'playwright', '--', 'npx', '-y', '@playwright/mcp@latest'],
   },
   {
+    name: 'inspo', key: null,
+    what: 'real sites worth copying from - search 800+ of them for design references',
+    // Pinned, for the reason graft is pinned: a connector tracking "latest" is unreviewed
+    // third-party code arriving on the user's machine between one session and the next.
+    //
+    // The profile is the interesting choice. Inspo's full tool set is 15 schemas, which
+    // would be the largest standing context cost this catalog can add - bigger than graft's
+    // six, which measure ~1,095 tokens on their own, in a framework that ships .mcp.json
+    // empty precisely to avoid that. 'lite' is 9 tools covering search, one screen, its
+    // design system, reference components and the filter list: the whole read-a-reference
+    // path. The note says how to get the other six back, so this is a default, not a cap.
+    note: [
+      'inspo needs no key and no account. It reads only; nothing is sent about your code.',
+      'It is wired to its 9-tool profile, because 15 tool schemas would be the largest',
+      'always-on cost in this catalog. For the full set, remove the server and re-add it',
+      'with INSPO_PROFILE=full. Add INSPO_IMAGES=none to drop screenshots from results.',
+    ],
+    add: () => ['-s', 'project', 'inspo', '-e', 'INSPO_PROFILE=lite', '--', 'npx', '-y', 'inspo-mcp@0.1.16'],
+  },
+  {
     name: 'graft', key: null,
     what: 'a map of your own codebase - find code and trace callers without reading files',
     // Wired as an MCP server and nothing else. `graft init`, which its own README leads

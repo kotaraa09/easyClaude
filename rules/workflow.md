@@ -9,4 +9,4 @@
 - **Verify before claiming done.** `verify.mjs` runs both tiers; the Stop hook runs only the fast ones each turn.
 - **Skipped work goes under `## Debt`** in STATE.md, specific enough to act on later.
 
-**Run on request:** `/easyclaude:` + `write-tests` (no suite yet) · `rescue` (undo something) · `security-check` (before going public) · `deploy` (put it online) · `generate-asset` (images, audio, 3D) · `pick-library` (before hand-rolling).
+**Run on request:** `/easyclaude:` + `write-tests` (no suite yet) · `rescue` (undo something) · `security-check` (before going public) · `deploy` (put it online) · `generate-asset` (images, audio, 3D) · `pick-library` (before hand-rolling) · `skills` (add a design, security, testing or marketing skill).

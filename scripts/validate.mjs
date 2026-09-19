@@ -801,12 +801,17 @@ if (tmplIgnore !== null) {
 }
 
 // --- 15. the cost section must count the skills that are actually always-on --
-// Both READMEs said five skills trigger constantly, and named the five. There are six: the
-// vendored design-taste sets no disable-model-invocation, so it rides along on every turn -
-// and at 156 tokens it is the largest single line in the always-on budget it went
+// Both READMEs said five skills trigger constantly, and named the five. There were six: the
+// vendored design-taste set no disable-model-invocation, so it rode along on every turn -
+// and at 156 tokens it was the largest single line in the always-on budget it went
 // unmentioned in. Check 12 could not catch this, because it deliberately excludes vendored
 // skills from the phrase table. So the count travels as a marker rather than a word: it
 // survives translation, which is exactly where the same claim was also wrong.
+//
+// design-taste is gone and nothing is vendored today, so the marker currently agrees with
+// the plain reading of the prose. That is not a reason to drop the check. The next vendored
+// skill will arrive with a description nobody thinks of as a cost, which is how the first
+// one got in.
 const alwaysOnSkills = costs.filter(([, t]) => t > 0);
 for (const f of walk(root)) {
   const r = rel(f);
