@@ -127,6 +127,68 @@ if (existsSync(skillsDir)) {
 }
 if (skillNames.length === 0) err('skills/', 'no skills found');
 
+// --- 2b. agents --------------------------------------------------------------
+// agents/*.md ship one named subagent each. Two things make them different from skills
+// and are enforced here rather than trusted to prose.
+//
+// A subagent runs with its own tool grant, so a reviewer that can write is a reviewer
+// that can edit the code it was asked to judge - and an edit made after the gate in
+// ship step 1 goes out unverified. The list below is an ALLOW-list on purpose. A
+// deny-list stays quiet when a new write-capable tool is added to the binary, which is
+// the failure that matters; an allow-list fails loudly on a new read-only tool, which
+// someone then adds here in one line.
+//
+// The other difference is cost: an agent's name and description ride on every turn, the
+// way a skill's do, and check 10 counts them. Frontmatter with no description is free and
+// useless, so it is an error here rather than a silent zero there.
+const READ_ONLY_TOOLS = new Set([
+  'Read', 'Glob', 'Grep', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite',
+]);
+const AGENT_KEYS = new Set(['name', 'description', 'tools', 'model', 'color']);
+const agentDefs = [];
+const agentsDir = join(root, 'agents');
+if (existsSync(agentsDir)) {
+  for (const f of walk(agentsDir).filter((p) => p.endsWith('.md'))) {
+    const r = rel(f);
+    const stem = basename(f, '.md');
+    const fm = parseFrontmatter(readFileSync(f, 'utf8'), r);
+    if (!fm) continue;
+    if (!fm.name) {
+      err(r, 'missing required "name"');
+    } else if (fm.name !== stem) {
+      // The dispatch name comes from the frontmatter; a mismatch leaves a file that looks
+      // like the agent the skill names and an agent nobody can find by that name.
+      err(r, `"name: ${fm.name}" does not match the file name "${stem}.md"`);
+    }
+    if (!fm.description) {
+      err(r, 'missing required "description" - it is how a turn decides to dispatch this agent');
+    } else if (fm.description.length > 400) {
+      warn(r, `description is ${fm.description.length} chars and rides on every turn - ` +
+        'say when to dispatch it and stop');
+    }
+    if (!fm.tools) {
+      err(r, 'missing required "tools" - an agent with no tools line inherits every tool ' +
+        'the session has, including Write, Edit and Bash');
+    } else {
+      const granted = fm.tools.split(',').map((t) => t.trim()).filter(Boolean);
+      const writes = granted.filter((t) => !READ_ONLY_TOOLS.has(t));
+      if (writes.length) {
+        err(r, `grants ${writes.join(', ')}, which can change the tree or run commands. ` +
+          'A shipped agent must be read-only, or the review it performs can edit what it ' +
+          `reviews. Read-only tools: ${[...READ_ONLY_TOOLS].join(', ')}.`);
+      }
+    }
+    if (!fm.model) {
+      err(r, 'missing required "model" - an unpinned agent inherits the session model, so ' +
+        'a review that suits a cheap model gets billed at the price of the main one');
+    }
+    for (const k of Object.keys(fm)) {
+      if (!AGENT_KEYS.has(k)) warn(r, `unrecognised agent frontmatter key "${k}"`);
+    }
+    if (fm.name && fm.description) agentDefs.push([fm.name, fm.description, fm.tools ?? '']);
+  }
+}
+
 // --- 3. every JSON file parses ----------------------------------------------
 const json = {};
 for (const f of walk(root).filter((p) => p.endsWith('.json'))) {
@@ -464,6 +526,10 @@ for (const d of skillNames) {
   const fm = parseFrontmatter(readFileSync(join(skillsDir, d, 'SKILL.md'), 'utf8'), `skills/${d}`);
   if (fm?.description) descs.push([d, bag(fm.description)]);
 }
+// Agents are compared in the same pool. Two agents auto-select against each other exactly
+// the way two skills do, and an agent that reads like a skill invites a turn to dispatch a
+// whole subagent where a skill should have run - the same wrong-pick failure, one layer up.
+for (const [name, description] of agentDefs) descs.push([`agents/${name}`, bag(description)]);
 for (let i = 0; i < descs.length; i++) {
   for (let j = i + 1; j < descs.length; j++) {
     const [an, a] = descs[i];
@@ -543,12 +609,30 @@ for (const f of walk(join(root, 'rules')).filter((p) => p.endsWith('.md'))) {
 }
 alwaysOn += rulesTok;
 
+// agents/*.md cost on every turn too: each shipped agent's name, description and tool list
+// are rendered into the Agent tool's description, which is sent whether a turn dispatches
+// anything or not. Leaving them out would let the budget's blind spot grow the moment this
+// plugin shipped its first agent - the same hole design-taste sat in.
+//
+// Unlike the skill figure above, this formula is NOT copied out of the binary. It measures
+// the rendered line - "- name: description (Tools: …)" - at the chars/4 rule this file uses
+// everywhere else. It is an estimate, and it reads slightly high rather than low, which is
+// the safe direction for a cap.
+let agentsTok = 0;
+for (const [name, description, tools] of agentDefs) {
+  agentsTok += Math.round(`- ${name}: ${description} (Tools: ${tools})\n`.length / 4);
+}
+alwaysOn += agentsTok;
+
 const budget = registry?.max_always_on_tokens;
 if (budget && alwaysOn > budget) {
   costs.sort((a, b) => b[1] - a[1]);
   err('skills/', `always-on cost ${alwaysOn} tok/turn exceeds budget ${budget}. ` +
     `Largest: ${costs.slice(0, 3).map(([n, t]) => `${n} ${t}`).join(', ')}. ` +
-    `Set disable-model-invocation on occasional skills, or raise max_always_on_tokens deliberately.`);
+    `Split: rules ${rulesTok}, skill descriptions ${alwaysOn - rulesTok - agentsTok}, ` +
+    `agent descriptions ${agentsTok}. ` +
+    'Set disable-model-invocation on occasional skills, drop an agent, or raise ' +
+    'max_always_on_tokens deliberately.');
 }
 
 // --- 10b. stated costs must match the measured figure ------------------------
@@ -557,10 +641,10 @@ if (budget && alwaysOn > budget) {
 // for itself on cost precision, so a stale figure undercuts the pitch. The README
 // sentence is mandatory and exact; the registry's rounded aside is checked only
 // if it is still phrased that way.
-const skillsTok = alwaysOn - rulesTok;
+const skillsTok = alwaysOn - rulesTok - agentsTok;
 const readme = readOrErr('README.md', 'missing - the per-turn cost claim is checked against it') ?? '';
 const claim = readme.match(
-  /\*\*~([\d,]+) tokens per turn\*\*: ~([\d,]+) of rules, ~([\d,]+) of skill descriptions/
+  /\*\*~([\d,]+) tokens per turn\*\*: ~([\d,]+) of rules, ~([\d,]+) of skill descriptions, ~([\d,]+) of agent descriptions/
 );
 // Guarded on `claim`, not on `readme`. A missing README leaves both falsy, and the old
 // `readme && !claim` sent that case into the else branch to read claim[1] off null - so
@@ -569,11 +653,13 @@ const claim = readme.match(
 if (!claim) {
   if (readme) {
     err('README.md', 'the per-turn cost sentence is missing or reworded. It must read ' +
-      '"**~N tokens per turn**: ~N of rules, ~N of skill descriptions" so CI can check it ' +
-      `against the measured figure (currently ${alwaysOn}, ${rulesTok}, ${skillsTok}).`);
+      '"**~N tokens per turn**: ~N of rules, ~N of skill descriptions, ~N of agent ' +
+      'descriptions" so CI can check it against the measured figure ' +
+      `(currently ${alwaysOn}, ${rulesTok}, ${skillsTok}, ${agentsTok}).`);
   }
 } else {
-  const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok]];
+  const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok],
+    ['agent descriptions', agentsTok]];
   parts.forEach(([label, measured], i) => {
     if (Number(claim[i + 1].replace(/,/g, '')) !== measured) {
       err('README.md', `claims ~${claim[i + 1]} tokens/turn of ${label}, measured ` +
@@ -591,14 +677,16 @@ if (!claim) {
 for (const f of walk(root)) {
   const r = rel(f);
   if (!/^README(\.[a-z]{2})?\.md$/.test(r) || !isOurs(f)) continue;
-  const m = readFileSync(f, 'utf8').match(/<!--\s*cost:(\d+),(\d+),(\d+)\s*-->/);
+  const m = readFileSync(f, 'utf8').match(/<!--\s*cost:(\d+),(\d+),(\d+),(\d+)\s*-->/);
   if (!m) {
-    err(r, `the cost section must carry <!--cost:${alwaysOn},${rulesTok},${skillsTok}--> beside ` +
-      'its figures (total, rules, skill descriptions), so a number written in prose - in any ' +
-      'language - cannot drift from the measured one');
+    err(r, 'the cost section must carry ' +
+      `<!--cost:${alwaysOn},${rulesTok},${skillsTok},${agentsTok}--> beside its figures ` +
+      '(total, rules, skill descriptions, agent descriptions), so a number written in prose ' +
+      '- in any language - cannot drift from the measured one');
     continue;
   }
-  const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok]];
+  const parts = [['total', alwaysOn], ['rules', rulesTok], ['skill descriptions', skillsTok],
+    ['agent descriptions', agentsTok]];
   parts.forEach(([label, measured], i) => {
     if (Number(m[i + 1]) !== measured) {
       err(r, `its cost marker claims ${m[i + 1]} tokens/turn of ${label}, measured ${measured}`);
@@ -1024,6 +1112,6 @@ for (const e of errors) console.log(`  ERROR  ${e}`);
 console.log(
   errors.length
     ? `\nFAIL - ${plural(errors.length, 'error')}, ${plural(warnings.length, 'warning')}`
-    : `\nOK - ${commandNames.length} commands, ${skillNames.length} skills (${alwaysOn} tok/turn always-on, budget ${budget ?? "unset"}), ${Object.keys(json).length} JSON files, ${plural(warnings.length, 'warning')}`
+    : `\nOK - ${commandNames.length} commands, ${skillNames.length} skills, ${plural(agentDefs.length, 'agent')} (${alwaysOn} tok/turn always-on, budget ${budget ?? "unset"}), ${Object.keys(json).length} JSON files, ${plural(warnings.length, 'warning')}`
 );
 process.exit(errors.length ? 1 : 0);

@@ -20,7 +20,7 @@
   <a href="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml"><img src="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml/badge.svg" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1F1E1D" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/works%20with-any%20stack-D97757" alt="Works with any stack">
-  <img src="https://img.shields.io/badge/costs-~0.9k%20tokens%2Fturn-8C8781" alt="Around 0.9k tokens per turn">
+  <img src="https://img.shields.io/badge/costs-~1.0k%20tokens%2Fturn-8C8781" alt="Around 1.0k tokens per turn">
 </p>
 
 ---
@@ -251,9 +251,9 @@ Some connectors can't be automated at all. Figma, Notion, Linear, Slack and Sent
 
 Only the MCP server is wired, and it is off until you ask for it. That is a cost decision, not a doubt about the tool.
 
-Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures 982. Switching Graft on by default would roughly double the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
+Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures 958. Switching Graft on by default would roughly double the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
 
-Worse, the budget check would not notice. It counts `rules/*.md` and skill descriptions, and MCP tool schemas are neither. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
+Worse, the budget check would not notice. It counts `rules/*.md`, skill descriptions and agent descriptions, and MCP tool schemas are none of those. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
 
 `graft init` is a second, separate step, and it is not run for you. It writes hooks on `SessionStart` and `Stop` - the only two events easyClaude uses. Its SessionStart emits a repo orientation block into the same first turn that `hooks/hooks.json` reserves for the four-line opener, and the opener's own instruction is "and nothing else". It also installs a statusline and a `.claude/skills/graft/SKILL.md`. Run it yourself if you want that - knowingly, not by default.
 
@@ -360,7 +360,7 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Every skill's name and description gets sent on every turn of every session, whether you use it or not:
 
-<!--cost:901,463,438-->**~901 tokens per turn**: ~463 of rules, ~438 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
+<!--cost:958,463,438,57-->**~958 tokens per turn**: ~463 of rules, ~438 of skill descriptions, ~57 of agent descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
 
 Call it a page of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
@@ -373,9 +373,11 @@ Skills are split by how often they fire. <!--always-on:7-->Seven stay loaded, so
 
 The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable, plus `/easyclaude:skills`, for about 76 tokens. Loading the six in full would cost roughly 424.
 
-CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. About 499 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
+One agent ships, and it costs ~57 tokens a turn for the same reason a skill does: its name and description sit in the tool list whether you dispatch it or not. `easyclaude-diff-reviewer` is the fresh pair of eyes in step 3 of `ship` — it reads a diff it did not write and reports only what breaks. It holds `Read`, `Glob` and `Grep`, and nothing that can write or run a command, because a reviewer that fixes what it finds puts unreviewed code past the gate. The review ran before this, on whichever general helper was to hand; naming it is what buys the read-only grant and a cheaper model.
 
-The ceiling has a blind spot, and it is worth knowing about. It counts `rules/*.md` and skill descriptions. It does not count MCP tool schemas, which are larger than both - Graft's six measure ~1,095 on their own. That is why `.mcp.json` ships empty rather than merely small: on that ground the default does the work the gate cannot.
+CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. About 442 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
+
+The ceiling has a blind spot, and it is worth knowing about. It counts `rules/*.md`, skill descriptions and agent descriptions. It does not count MCP tool schemas, which are larger than both - Graft's six measure ~1,095 on their own. That is why `.mcp.json` ships empty rather than merely small: on that ground the default does the work the gate cannot.
 
 Hooks count too, and one of them was the worst offender. A hook can be a prompt, which means a model call. The gate that checks your build used to be one, firing on every turn that touched a file, asking Claude whether Claude's own tests had passed. It is now a script that reads exit codes: no tokens, no model call, and a verdict it cannot argue with.
 
@@ -415,7 +417,7 @@ For design that means [hallmark](https://github.com/Nutlope/hallmark), prose onl
 
 The catalogue says the uncomfortable part out loud, because this is the one document that has to. Nothing is bundled, so none of it costs you anything until you install it — and after you install it, it costs you on every turn, used or not. A 50-skill marketplace lands somewhere near 1,200 to 3,000 tokens per turn, which is more than this entire framework, forever, including on the projects that never open a landing page. So the rule the command repeats is: add the marketplace, install the plugins, leave the other forty-six out.
 
-Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) is good and worth installing alongside, as long as you know what you're taking on. It wants to be invoked before the first tool call of every session and before any plan, which collides with easyClaude's own session setup. Its SKILL.md is 44KB against a framework measured at ~0.9k tokens per turn, and it needs a persistent workspace plus Python scripts. It's a peer framework, not a component.
+Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) is good and worth installing alongside, as long as you know what you're taking on. It wants to be invoked before the first tool call of every session and before any plan, which collides with easyClaude's own session setup. Its SKILL.md is 44KB against a framework measured at ~1.0k tokens per turn, and it needs a persistent workspace plus Python scripts. It's a peer framework, not a component.
 
 </details>
 
@@ -443,6 +445,7 @@ skills/           always-on: kickoff, plan-feature, build-task, debug, ship,
                   opt-in:    write-tests, rescue, security-check, deploy,
                              generate-asset, pick-library
                   vendored:  slopmonster (prose linter, always on)
+agents/           easyclaude-diff-reviewer: read-only fresh eyes for ship step 3
 rules/            copied into your project, ~30 lines, always loaded
 reference/        loaded on demand only: cheap contract, skill catalogue
 recipes/          per-stack verify contracts and pitfalls
@@ -467,7 +470,7 @@ node scripts/test.mjs       # check the checkers
 
 Both run in CI on every push and pull request. Neither has dependencies, only `node:` builtins.
 
-The validator checks that frontmatter parses and uses real keys, that skill names match their directories, that hook shapes are valid, that the manifests agree with each other, that recipes carry a verification-strength field, that docs use the namespaced command form, that a hook shelling out points at a script that actually exists, that the table above only promises phrases for skills that can actually hear them, and that the per-turn cost quoted above matches what the validator measures.
+The validator checks that frontmatter parses and uses real keys, that skill names match their directories, that hook shapes are valid, that the manifests agree with each other, that recipes carry a verification-strength field, that docs use the namespaced command form, that a hook shelling out points at a script that actually exists, that the table above only promises phrases for skills that can actually hear them, that a shipped agent is read-only and pins a model, and that the per-turn cost quoted above matches what the validator measures.
 
 Each of those checks is there because that exact thing broke at least once.
 
