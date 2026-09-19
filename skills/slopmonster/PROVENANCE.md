@@ -75,15 +75,23 @@ You can disagree with a rule and look it up. That is the same reason `design-tas
 carried before it was removed, and the reason the catalogue prefers checkable rules to
 advice.
 
-## One known friction, stated rather than hidden
+## What it said about our own README, and what happened next
 
-Run it on this repository's own README and it scores **2 out of 5**. It objects to em-dash
-pile-ups, to rule-of-three lists, and to the word "curated" in a section heading.
+On the day it was vendored it scored this repository's README at **2 out of 5**. It
+objected to em-dash pile-ups, to rule-of-three lists, and to the word "curated" in a
+section heading.
 
-That is not a bug in the skill and it is not a defence of our prose. The linter is aimed
-at copy written into a product, and our README is documentation. But anyone who ships a
-mandatory slop gate and then writes like this should know the gate disagrees with them,
-rather than find out from a stranger.
+The README was then rewritten and it now scores **5 out of 5**. That is the argument for a
+falsifiable rule rather than advice: every objection named a specific string, so every
+objection could be met or rejected on its merits. None of them needed a debate about taste.
+
+## The limit that fixing it exposed
+
+`README.th.md` scores **5 out of 5** and always did, because the catalogue is English only.
+The scorer cannot read Thai, so it reports a clean page on one it never read.
+
+Treat a 5/5 on non-English copy as no result rather than a pass. Nothing in the skill claims
+otherwise, and nothing in it detects the case either, so the only guard is knowing.
 
 ## Updating
 

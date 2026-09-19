@@ -30,7 +30,9 @@ punctuation cadence, rule-of-three rhythm, invented proof - and exits red below 
 - The cleanse step sends your draft to a rival model CLI and that call is billed. The
   linter itself makes no network call at all. Both scripts were read in full before they
   were vendored; the notes are in `skills/slopmonster/PROVENANCE.md`.
-- It scores this framework's own README at 2 out of 5. That is recorded rather than fixed.
+- It scored this framework's own README at 2 out of 5 until that README was rewritten to
+  pass. Note the limit that exposed: the catalogue is English only, so README.th.md scores
+  5 out of 5 without the scorer reading a word of it.
 
 ### SkillSpector - the install gate
 

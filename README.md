@@ -187,7 +187,7 @@ node scripts/gen/generate.mjs --check     # prove your key works without generat
 
 Or ask for `/easyclaude:generate-asset` and let it drive.
 
-Whichever key you already have is the one it uses. Replicate covers every kind of asset with a single key. ElevenLabs does speech and sound effects. OpenAI, Gemini and Venice do images. And `--provider local` drives Automatic1111 or ComfyUI on your own machine, which costs nothing per image.
+Whichever key you already have is the one it uses. Replicate covers every kind of asset with a single key. ElevenLabs does speech and sound effects. OpenAI does images. So do Gemini and Venice. And `--provider local` drives Automatic1111 or ComfyUI on your own machine, which costs nothing per image.
 
 One thing to watch: a subscription is not an API key. ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM don't include API access. That's a separate account and a separate bill.
 
@@ -299,7 +299,7 @@ No. Everything in the table above triggers on plain English, and you'll be told 
 
 It can't trap you. Claude Code counts how many times in a row a turn has been blocked and overrides the gate after a few, so a check that can never pass gives up before it can lock up your session. Set `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` higher if you want it stricter.
 
-A check that can't run at all — no compiler on this machine — warns instead of blocking, because wedging every session on a missing toolchain isn't a safety feature.
+A check that can't run at all, because there's no compiler on this machine, warns instead of blocking. Wedging every session on a missing toolchain isn't a safety feature.
 
 </details>
 
@@ -369,9 +369,9 @@ Call it a page of text per turn. If that's more than you want to spend, use `/ea
 
 <br>
 
-Skills are split by how often they fire. <!--always-on:7-->Seven stay always-on so plain English keeps working: the six that trigger constantly (kickoff, plan-feature, build-task, debug, ship, explore-code), plus the vendored slopmonster at ~59 tokens, which is what makes "does this sound like AI" reach it at all. A vendored design skill held that slot until September 2026 and cost ~156 tokens. It went because it picked an aesthetic for every project that installed it, and `/easyclaude:skills` asks instead. Worth knowing you now pay 59 tokens a turn for the slop linter, prose project or not.
+Skills are split by how often they fire. <!--always-on:7-->Seven stay loaded, so plain English keeps working. Six of them fire constantly: kickoff, plan-feature, build-task, debug, ship, explore-code. The seventh is the vendored slopmonster, at ~59 tokens, and its description is what makes "does this sound like AI" reach it at all. A vendored design skill held that slot until September 2026 and cost ~156 tokens. It went because it picked an aesthetic for every project that installed it, and `/easyclaude:skills` asks instead. Worth knowing you now pay 59 tokens a turn for the slop linter, prose project or not.
 
-The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable — and `/easyclaude:skills` with them — for about 76 tokens, against roughly 424 if the six were loaded in full.
+The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable, plus `/easyclaude:skills`, for about 76 tokens. Loading the six in full would cost roughly 424.
 
 CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. About 499 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
 
@@ -390,12 +390,12 @@ No MCP servers ship enabled. Their tool schemas are the largest avoidable contex
 
 <br>
 
-Setup spots your stack from marker files and loads a [recipe](recipes/) covering how to check it and what usually goes wrong. Ten ship today: Go, Rust, Python/uv, Node + TypeScript, Next.js, Vite + React, Flutter, Android, Unity, and plain static sites. For anything else it writes a recipe by asking you, and you can contribute that back.
+Setup spots your stack from marker files and loads a [recipe](recipes/) covering how to check it and what usually goes wrong. Ten ship today: Go, Rust, Python/uv, Node + TypeScript, Next.js, Vite + React, Flutter, Android, Unity, plus plain static sites. For anything else it writes a recipe by asking you, and you can contribute that back.
 
 </details>
 
 <details>
-<summary><b>Curated skills, and why there aren't more</b></summary>
+<summary><b>Which third-party skills ship, and why so few</b></summary>
 
 <br>
 
@@ -403,13 +403,13 @@ Third-party skills are vendored sparingly. Every skill's name and description si
 
 Vendored: [slopmonster](skills/slopmonster/), and it is the exception that shows where the bar sits. It is not prose-only, it needs Python, and one of its two scripts pipes your draft to a second model provider and bills you for the call. The bar would normally refuse on any of the three. It is here by request, so the reasons live in [`skills/registry.json`](skills/registry.json) and [its provenance file](skills/slopmonster/PROVENANCE.md) rather than getting smoothed over — going around a rule should leave a record. Both of its scripts were read in full first, which is what the bar asks for and the only part of it that was not waived.
 
-What it buys is the one mechanical check here pointed at prose instead of code. Five rule groups, one point each, exits red below 5/5, and every rule can be looked up and argued with. Run it on this README and we score 2 out of 5.
+What it buys is the one mechanical check here pointed at prose instead of code. Five rule groups, one point each, exits red below 5/5, and every rule can be looked up and argued with. Run it on this README and it passes, 5 out of 5. It scored 2 before, and the em-dash pile-ups had to go first. A rule you can meet is the argument for a falsifiable rule.
 
 `design-taste` held that slot until September 2026 and went for the opposite reason: it picked an aesthetic for every project that installed it, and charged every session for a pick nobody was asked about.
 
-`/easyclaude:skills` asks instead. It reads [`reference/skills-catalogue.md`](reference/skills-catalogue.md), a checked list of third-party skills by category — design, security, testing, marketing, and document work. Every entry carries its licence, its skill count, its install command, and the reason it is or is not recommended. Each one was verified against the GitHub API the day it was written, because a catalogue that 404s on first use is worse than no catalogue at all.
+`/easyclaude:skills` asks instead. It reads [`reference/skills-catalogue.md`](reference/skills-catalogue.md), a checked list of third-party skills by category: design, security, testing, marketing, documents. Every entry carries its licence, its skill count, its install command, and the reason it is or is not recommended. Each one was verified against the GitHub API the day it was written, because a catalogue that 404s on first use is worse than no catalogue at all.
 
-Every install the catalogue offers goes through [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) first, and that part is not optional. `scripts/skillscan.mjs` scans the target and refuses above a risk score of 50. NVIDIA’s own survey of this ecosystem found roughly a quarter of skills carry vulnerabilities and a twentieth look deliberately hostile, so a catalogue with no scanner in front of it is a list of things to trust because we said so. It fails closed: no scanner means no install, unless you type `--allow-unscanned` and accept that it says so out loud. It runs in static mode, so the files it reads stay on your machine and no API key is needed. SkillSpector itself is not vendored — it is 5MB of Python with a Docker image, against a plugin that ships Node built-ins — so it is called where it lives, the way Graft is.
+Every install the catalogue offers goes through [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) first, and that part is not optional. `scripts/skillscan.mjs` scans the target and refuses above a risk score of 50. NVIDIA’s own survey of this ecosystem found roughly a quarter of skills carry vulnerabilities and a twentieth look deliberately hostile, so a catalogue with no scanner in front of it is a list of things to trust because we said so. It fails closed: no scanner means no install, unless you type `--allow-unscanned` and accept that it says so out loud. It runs in static mode, so the files it reads stay on your machine and no API key is needed. SkillSpector itself is not vendored. It is 5MB of Python with a Docker image, against a plugin that ships Node built-ins, so it is called where it lives, the way Graft is.
 
 For design that means [hallmark](https://github.com/Nutlope/hallmark), prose only and MIT, against [impeccable](https://github.com/pbakaus/impeccable), which drives a real browser and critiques its own screenshots but installs hooks and runs a binary it downloads on first use. For security it means [trailofbits/skills](https://github.com/trailofbits/skills), split into 44 plugins so you take the three you need. For testing, [mattpocock/skills](https://github.com/mattpocock/skills). For marketing, [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills). There is a UX/UI maximum stack too, for people who want all of it and can read a bill.
 
