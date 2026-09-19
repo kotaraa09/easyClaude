@@ -20,7 +20,7 @@
   <a href="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml"><img src="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml/badge.svg" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1F1E1D" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/works%20with-any%20stack-D97757" alt="Works with any stack">
-  <img src="https://img.shields.io/badge/costs-~1.2k%20tokens%2Fturn-8C8781" alt="Around 1.2k tokens per turn">
+  <img src="https://img.shields.io/badge/costs-~0.9k%20tokens%2Fturn-8C8781" alt="Around 0.9k tokens per turn">
 </p>
 
 ---
@@ -187,7 +187,7 @@ node scripts/gen/generate.mjs --check     # prove your key works without generat
 
 Or ask for `/easyclaude:generate-asset` and let it drive.
 
-Whichever key you already have is the one it uses. Replicate covers every kind of asset with a single key. ElevenLabs does speech and sound effects. OpenAI, Gemini and Venice do images. And `--provider local` drives Automatic1111 or ComfyUI on your own machine, which costs nothing per image.
+Whichever key you already have is the one it uses. Replicate covers every kind of asset with a single key. ElevenLabs does speech and sound effects. OpenAI does images. So do Gemini and Venice. And `--provider local` drives Automatic1111 or ComfyUI on your own machine, which costs nothing per image.
 
 One thing to watch: a subscription is not an API key. ChatGPT Plus, Gemini Advanced, Copilot and NotebookLM don't include API access. That's a separate account and a separate bill.
 
@@ -213,6 +213,8 @@ Keys are read inside the script and never reach Claude's context. That's also wh
 Optional, and not needed to build anything. It exists because wiring up MCP servers by hand is fiddly and the failure modes aren't obvious.
 
 `/easyclaude:connect` turns it into filling in a form. `.env.example` lists every connector with a one-line description and where to get the key. Fill in the ones you have; blanks stay switched off and there's nothing to uninstall later.
+
+Three need no key at all, and those are the ones worth knowing about. **playwright** drives a real browser, so Claude can click through what it built instead of assuming it works. **inspo** searches 800+ real production sites for design references — useful next to whichever design skill `/easyclaude:skills` installed, since neither of those ships examples. **graft** maps your own codebase.
 
 ```bash
 node scripts/connect.mjs --list      # what's available
@@ -297,7 +299,7 @@ No. Everything in the table above triggers on plain English, and you'll be told 
 
 It can't trap you. Claude Code counts how many times in a row a turn has been blocked and overrides the gate after a few, so a check that can never pass gives up before it can lock up your session. Set `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` higher if you want it stricter.
 
-A check that can't run at all — no compiler on this machine — warns instead of blocking, because wedging every session on a missing toolchain isn't a safety feature.
+A check that can't run at all, because there's no compiler on this machine, warns instead of blocking. Wedging every session on a missing toolchain isn't a safety feature.
 
 </details>
 
@@ -358,7 +360,7 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Every skill's name and description gets sent on every turn of every session, whether you use it or not:
 
-<!--cost:982,447,535-->**~982 tokens per turn**: ~447 of rules, ~535 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
+<!--cost:901,463,438-->**~901 tokens per turn**: ~463 of rules, ~438 of skill descriptions. Skill bodies and stack recipes are another ~3.4k on top, but those only load when something actually uses them.
 
 Call it a page of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
@@ -367,11 +369,11 @@ Call it a page of text per turn. If that's more than you want to spend, use `/ea
 
 <br>
 
-Skills are split by how often they fire. <!--always-on:7-->Seven stay always-on so plain English keeps working: the six that trigger constantly (kickoff, plan-feature, build-task, debug, ship, explore-code), plus the vendored design-taste — which is the single most expensive line in this budget at ~156 tokens, more than kickoff and plan-feature together. It stays because its description is what makes "make this look less generic" reach it at all, and because editing vendored frontmatter would break the pinned-SHA guarantee that makes vendoring safe. Worth knowing you're paying for it on every turn, UI project or not.
+Skills are split by how often they fire. <!--always-on:7-->Seven stay loaded, so plain English keeps working. Six of them fire constantly: kickoff, plan-feature, build-task, debug, ship, explore-code. The seventh is the vendored slopmonster, at ~59 tokens, and its description is what makes "does this sound like AI" reach it at all. A vendored design skill held that slot until September 2026 and cost ~156 tokens. It went because it picked an aesthetic for every project that installed it, and `/easyclaude:skills` asks instead. Worth knowing you now pay 59 tokens a turn for the slop linter, prose project or not.
 
-The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable for about 60 tokens, against roughly 424 if they were loaded in full.
+The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable, plus `/easyclaude:skills`, for about 76 tokens. Loading the six in full would cost roughly 424.
 
-CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. About 418 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
+CI enforces the ceiling. `skills/registry.json` sets it, the validator measures the real figure using the same formula the binary uses, and the build fails if it drifts over. About 499 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
 
 The ceiling has a blind spot, and it is worth knowing about. It counts `rules/*.md` and skill descriptions. It does not count MCP tool schemas, which are larger than both - Graft's six measure ~1,095 on their own. That is why `.mcp.json` ships empty rather than merely small: on that ground the default does the work the gate cannot.
 
@@ -388,20 +390,32 @@ No MCP servers ship enabled. Their tool schemas are the largest avoidable contex
 
 <br>
 
-Setup spots your stack from marker files and loads a [recipe](recipes/) covering how to check it and what usually goes wrong. Ten ship today: Go, Rust, Python/uv, Node + TypeScript, Next.js, Vite + React, Flutter, Android, Unity, and plain static sites. For anything else it writes a recipe by asking you, and you can contribute that back.
+Setup spots your stack from marker files and loads a [recipe](recipes/) covering how to check it and what usually goes wrong. Ten ship today: Go, Rust, Python/uv, Node + TypeScript, Next.js, Vite + React, Flutter, Android, Unity, plus plain static sites. For anything else it writes a recipe by asking you, and you can contribute that back.
 
 </details>
 
 <details>
-<summary><b>Curated skills, and why there aren't more</b></summary>
+<summary><b>Which third-party skills ship, and why so few</b></summary>
 
 <br>
 
 Third-party skills are vendored sparingly. Every skill's name and description sits in context every session, and overlapping descriptions make the wrong skill grab a turn, so ten good ones beat fifty. [`skills/registry.json`](skills/registry.json) records the bar and CI enforces it: pinned 40-character SHAs, never a branch, a stated reason, attribution files present, and a prose-only claim checked against what's actually on disk.
 
-Vendored: [design-taste](skills/design-taste/). `design/tokens.md` enforces consistency but says nothing about whether the result is any good. This one carries specific, falsifiable rules: contrast ratios, easing curves, the eight interaction states, named anti-patterns. MIT, with upstream Apache-2.0 attribution preserved.
+Vendored: [slopmonster](skills/slopmonster/), and it is the exception that shows where the bar sits. It is not prose-only, it needs Python, and one of its two scripts pipes your draft to a second model provider and bills you for the call. The bar would normally refuse on any of the three. It is here by request, so the reasons live in [`skills/registry.json`](skills/registry.json) and [its provenance file](skills/slopmonster/PROVENANCE.md) rather than getting smoothed over — going around a rule should leave a record. Both of its scripts were read in full first, which is what the bar asks for and the only part of it that was not waived.
 
-Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) is good and worth installing alongside, as long as you know what you're taking on. It wants to be invoked before the first tool call of every session and before any plan, which collides with easyClaude's own session setup. Its SKILL.md is 44KB against a framework measured at ~1.2k tokens per turn, and it needs a persistent workspace plus Python scripts. It's a peer framework, not a component.
+What it buys is the one mechanical check here pointed at prose instead of code. Five rule groups, one point each, exits red below 5/5, and every rule can be looked up and argued with. Run it on this README and it passes, 5 out of 5. It scored 2 before, and the em-dash pile-ups had to go first. A rule you can meet is the argument for a falsifiable rule.
+
+`design-taste` held that slot until September 2026 and went for the opposite reason: it picked an aesthetic for every project that installed it, and charged every session for a pick nobody was asked about.
+
+`/easyclaude:skills` asks instead. It reads [`reference/skills-catalogue.md`](reference/skills-catalogue.md), a checked list of third-party skills by category: design, security, testing, marketing, documents. Every entry carries its licence, its skill count, its install command, and the reason it is or is not recommended. Each one was verified against the GitHub API the day it was written, because a catalogue that 404s on first use is worse than no catalogue at all.
+
+Every install the catalogue offers goes through [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) first, and that part is not optional. `scripts/skillscan.mjs` scans the target and refuses above a risk score of 50. NVIDIA’s own survey of this ecosystem found roughly a quarter of skills carry vulnerabilities and a twentieth look deliberately hostile, so a catalogue with no scanner in front of it is a list of things to trust because we said so. It fails closed: no scanner means no install, unless you type `--allow-unscanned` and accept that it says so out loud. It runs in static mode, so the files it reads stay on your machine and no API key is needed. SkillSpector itself is not vendored. It is 5MB of Python with a Docker image, against a plugin that ships Node built-ins, so it is called where it lives, the way Graft is.
+
+For design that means [hallmark](https://github.com/Nutlope/hallmark), prose only and MIT, against [impeccable](https://github.com/pbakaus/impeccable), which drives a real browser and critiques its own screenshots but installs hooks and runs a binary it downloads on first use. For security it means [trailofbits/skills](https://github.com/trailofbits/skills), split into 44 plugins so you take the three you need. For testing, [mattpocock/skills](https://github.com/mattpocock/skills). For marketing, [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills). There is a UX/UI maximum stack too, for people who want all of it and can read a bill.
+
+The catalogue says the uncomfortable part out loud, because this is the one document that has to. Nothing is bundled, so none of it costs you anything until you install it — and after you install it, it costs you on every turn, used or not. A 50-skill marketplace lands somewhere near 1,200 to 3,000 tokens per turn, which is more than this entire framework, forever, including on the projects that never open a landing page. So the rule the command repeats is: add the marketplace, install the plugins, leave the other forty-six out.
+
+Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) is good and worth installing alongside, as long as you know what you're taking on. It wants to be invoked before the first tool call of every session and before any plan, which collides with easyClaude's own session setup. Its SKILL.md is 44KB against a framework measured at ~0.9k tokens per turn, and it needs a persistent workspace plus Python scripts. It's a peer framework, not a component.
 
 </details>
 
@@ -423,18 +437,20 @@ Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-
 .claude-plugin/   plugin + marketplace manifests
 .mcp.json         starts empty, /easyclaude:connect fills it
 hooks/            session orientation, verify gate (runs verify.mjs)
-commands/         cheap, cheap-session, full, autoship, connect
+commands/         cheap, cheap-session, full, autoship, connect, skills
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship,
                   explore-code
                   opt-in:    write-tests, rescue, security-check, deploy,
                              generate-asset, pick-library
-                  vendored:  design-taste
+                  vendored:  slopmonster (prose linter, always on)
 rules/            copied into your project, ~30 lines, always loaded
+reference/        loaded on demand only: cheap contract, skill catalogue
 recipes/          per-stack verify contracts and pitfalls
 template/         thin front door to fork
 scripts/          verify.mjs (the gate), validate.mjs (CI checks),
                   test.mjs (tests both), connect.mjs + connect-core.mjs
-                  (MCP + keys), gen/ (asset generation)
+                  (MCP + keys), skillscan.mjs (the install gate),
+                  gen/ (asset generation)
 tests/            mutation tests for the checking machinery
 evals/            six trigger cases, written but not yet runnable
 docs/assets/      README artwork

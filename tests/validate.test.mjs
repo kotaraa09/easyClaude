@@ -118,8 +118,16 @@ breaks('a Stop prompt hook with no loop guard', '5',
   /must check "stop_hook_active"/);
 
 // --- 5b. curated skill registry ----------------------------------------------
+// The mutation adds an entry rather than editing one, because nothing is vendored today.
+// Editing j.vendored[0] read a property of undefined the moment design-taste was removed,
+// so the test for the pinning rule failed for a reason that had nothing to do with pinning,
+// and would have been "fixed" by deleting it. A check on a policy has to keep working when
+// the repo currently has nothing the policy applies to - that is the state the next
+// vendored skill arrives in.
 breaks('a vendored skill pinned to a branch instead of a commit', '5b',
-  (d) => editJson(d, 'skills/registry.json', (j) => { j.vendored[0].commit = 'main'; }),
+  (d) => editJson(d, 'skills/registry.json', (j) => {
+    j.vendored.push({ name: 'design-taste', commit: 'main', license: 'MIT', why: 'taste rules' });
+  }),
   /40-character commit SHA/);
 
 // --- 6. docs use namespaced invocations --------------------------------------
