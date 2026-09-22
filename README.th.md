@@ -163,7 +163,7 @@ Debt:    3 รายการ - token รีเซ็ตรหัสผ่าน
 /easyclaude:pick-library       หาไลบรารีที่ผ่านการตรวจแล้ว แทนการเขียนเอง
 ```
 
-อีกสี่คำสั่งใช้ควบคุมตัว easyClaude เอง
+อีกหกคำสั่งใช้ควบคุมตัว easyClaude เอง
 
 ```
 /easyclaude:cheap <งาน>        ประหยัดหนึ่งเทิร์น แล้วกลับสู่ปกติ
@@ -171,6 +171,7 @@ Debt:    3 รายการ - token รีเซ็ตรหัสผ่าน
 /easyclaude:full               กลับสู่ปกติ
 /easyclaude:connect            เชื่อมเครื่องมืออื่น (Figma, GitHub, ฐานข้อมูล)
 /easyclaude:autoship           ให้มัน commit หรือ ship เองได้ ปิดไว้เป็นค่าเริ่มต้น
+/easyclaude:skills             ดูรายการสกิลจากที่อื่น แล้วติดตั้งตัวที่เลือก
 ```
 
 </details>
