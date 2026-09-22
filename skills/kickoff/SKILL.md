@@ -124,3 +124,14 @@ Keep those two comments. They are the only thing stopping the file that every se
 Three lines: what you set up, what the verify command is, and the single next action. Then stop — do not start building unless asked.
 
 If the project obviously wants a browser, a database, or live library docs, mention in **one line** that `/easyclaude:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.
+
+easyClaude ships no design skill, no marketing skill, and no deep security or testing skill,
+because bundling one picks it for every project that installs it. So the user has to be told
+the catalogue exists, or they never find out. Mention in **one line** that `/easyclaude:skills`
+browses third-party skills by category and installs the ones they pick. Say it once, at the end,
+and only name the category their project actually needs — design for anything with a UI,
+testing for anything with a weak verify contract. Do not list the categories.
+
+Say what it costs in the same breath: an installed skill rides on every turn afterwards, used
+or not. A user who installs fifty of them pays more per turn than this whole framework. They
+should know that before they pick, not after the bill.
