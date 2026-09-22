@@ -163,9 +163,10 @@ Debt:    3 รายการ - token รีเซ็ตรหัสผ่าน
 /easyclaude:pick-library       หาไลบรารีที่ผ่านการตรวจแล้ว แทนการเขียนเอง
 ```
 
-อีกหกคำสั่งใช้ควบคุมตัว easyClaude เอง
+อีกเจ็ดคำสั่งใช้ควบคุมตัว easyClaude เอง
 
 ```
+/easyclaude:start              สั่งตั้งค่าเอง ถ้ามันไม่ได้เริ่มให้เอง
 /easyclaude:cheap <งาน>        ประหยัดหนึ่งเทิร์น แล้วกลับสู่ปกติ
 /easyclaude:cheap-session      ประหยัดต่อเนื่องจนกว่าคุณจะสั่งเลิก
 /easyclaude:full               กลับสู่ปกติ
@@ -425,7 +426,8 @@ hook ก็มีค่าใช้จ่ายเหมือนกัน แ�
 .claude-plugin/   ไฟล์ manifest ของปลั๊กอินและมาร์เกตเพลส
 .mcp.json         เริ่มต้นว่างเปล่า ให้ /easyclaude:connect เป็นคนเติม
 hooks/            การเปิดเซสชัน และประตูตรวจงาน (รัน verify.mjs)
-commands/         cheap, cheap-session, full, autoship, connect, skills
+commands/         start, cheap, cheap-session, full, autoship, connect,
+                  skills
 skills/           เปิดค้าง:  kickoff, plan-feature, build-task, debug, ship,
                   explore-code
                   เรียกเอง:  write-tests, rescue, security-check, deploy,
