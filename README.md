@@ -163,7 +163,7 @@ Six jobs come up rarely enough that they aren't listening in the background. You
 /easyclaude:pick-library       find a vetted library instead of hand-rolling
 ```
 
-Four more control easyClaude itself:
+Six more control easyClaude itself:
 
 ```
 /easyclaude:cheap <task>       one cheap turn, then back to normal
@@ -171,6 +171,7 @@ Four more control easyClaude itself:
 /easyclaude:full               back to normal
 /easyclaude:connect            hook up other tools (Figma, GitHub, databases)
 /easyclaude:autoship           let it commit or ship on its own, off by default
+/easyclaude:skills             browse a catalogue of third-party skills, install what you pick
 ```
 
 </details>
