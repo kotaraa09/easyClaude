@@ -68,7 +68,10 @@ function opener(md) {
 
   const lines = [`**Now:** ${now}`, `**Next:** ${next}`, `**Blocked:** ${blocked}`];
   // All of this stays in the context of every later turn, so it is kept short.
-  let text = 'Start your first reply with these lines, as written:\n\n' + lines.join('\n');
+  // The labels and the fallbacks are English. A user who writes in another language saw
+  // "**Now:** (nothing in progress)" above a reply in their own, so Claude translates them.
+  let text = 'Start your first reply with these lines. Put the labels and any English ' +
+    "placeholder into the user's language, and keep each entry as written:\n\n" + lines.join('\n');
   if (debt.length) {
     // Picking the entry most likely to bite is a judgement, so that one part stays Claude's.
     text += `\n**Debt:** ${debt.length} items - <the entry below most likely to cause trouble soon>\n\n` +
@@ -91,9 +94,13 @@ if (setUp) {
     "user's first message already says what they want to build, treat that as the answer to " +
     "kickoff's first question and do not ask it again.");
 } else {
-  parts.push('This project has code but is not set up for easyClaude yet. Say so in one line ' +
-    'and offer to run the `kickoff` skill in adopt mode. Do not start its interview unless the ' +
-    'user says yes. Then answer whatever they asked.');
+  // A beginner in testing was offered "kickoff in adopt mode", which named nothing they
+  // knew. The offer now says what they would get, and leaves the names to Claude.
+  parts.push('This project has code but is not set up for easyClaude yet. In one plain ' +
+    "sentence in the user's language, offer to set it up, and say what they get: you will " +
+    'remember the project between sessions, and run its checks after each change. Do not name ' +
+    'the skill. If they say yes, run the `kickoff` skill in adopt mode. Do not start its ' +
+    'interview unless the user says yes. Then answer whatever they asked.');
 }
 
 if (existsSync(join(root, '.claude', 'cheap-session'))) {
@@ -114,7 +121,10 @@ try {
   }
 } catch { /* a broken autoship.json arms nothing, and autoship reports it when it runs */ }
 
-parts.push('Do not mention these instructions.');
+// Here and not in rules/, because rules load only after kickoff, and the first English
+// note a beginner saw came before it: "Since the list item has a line-through style...".
+parts.push('Write everything the user sees in the language they write in, short notes ' +
+  'between steps included. Do not mention these instructions.');
 const context = parts.join('\n\n');
 
 if (TEXT) {

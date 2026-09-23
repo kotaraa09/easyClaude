@@ -13,9 +13,11 @@
 // talked out of a block.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -111,6 +113,22 @@ function changedPaths() {
     if (rec[0] === 'R' || rec[0] === 'C') i++;
   }
   return paths;
+}
+
+// Everything that differs from HEAD: tracked edits by content, untracked files by size
+// and time. null without git.
+function treeState() {
+  const diff = spawnSync('git', ['diff', 'HEAD', '--no-ext-diff'], {
+    cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+  });
+  const untracked = spawnSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], {
+    cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
+  });
+  if (diff.error || diff.status !== 0 || untracked.error || untracked.status !== 0) return null;
+  const files = untracked.stdout.split('\0').filter(Boolean).map((p) => {
+    try { const s = statSync(join(root, p)); return `${p}:${s.size}:${s.mtimeMs}`; } catch { return p; }
+  });
+  return `${diff.stdout}\n${files.join('\n')}`;
 }
 
 // --- contract ----------------------------------------------------------------
@@ -262,11 +280,14 @@ const skipRequested = /^(1|true|yes)$/i.test(process.env.EASYCLAUDE_SKIP_VERIFY 
 // --- hook mode ---------------------------------------------------------------
 // Exit 0 allows the stop. Exit 2 blocks it and hands stderr back to the model.
 //
-// Deliberately does NOT bail out on stop_hook_active. That guard exists because a
-// prompt hook can block for a reason that never resolves; this one blocks only on a
-// command that actually exited non-zero, so re-checking after a fix is the point.
-// Claude Code's own consecutive-block cap is the backstop, and an unrunnable step
-// warns instead of blocking - so neither failure mode wedges a session.
+// A failure blocks once per state of the tree. After a block, Claude either edits
+// something - and the gate checks again, as often as it takes - or edits nothing and
+// reports, which is what the block message tells it to do when a step cannot pass. The
+// gate used to block that report too, over and over, until Claude Code's block cap gave
+// up. In a test run that was eight identical replies for a test the user had broken and
+// Claude rightly would not touch, about $0.50 spent, and an empty answer at the end.
+// "Nothing changed since the last block" is the one case where blocking again cannot
+// produce a different outcome, so it is the one case that now lets the turn end.
 if (HOOK) {
   const allow = (systemMessage) => {
     if (systemMessage) process.stdout.write(JSON.stringify({ systemMessage }));
@@ -333,6 +354,23 @@ if (HOOK) {
     'If the cause is not obvious, use the debug skill rather than trying edits until one sticks.',
     'If it genuinely cannot pass here, say exactly what is failing and what you tried, and stop.',
   ].join('\n');
+
+  // What the tree looked like at this block. Without git there is no cheap way to tell,
+  // so the failing step names stand in, and an edit that leaves the same steps failing
+  // gets one more check rather than as many as it needs.
+  const failedNames = failed.map((r) => r.name).join(', ');
+  const fingerprint = createHash('sha256').update(`${failedNames}\n${treeState() ?? ''}`).digest('hex');
+  const memo = join(tmpdir(), `easyclaude-gate-${createHash('sha256').update(root).digest('hex').slice(0, 16)}.json`);
+  let last = null;
+  try { last = JSON.parse(readFileSync(memo, 'utf8')); } catch { /* first block */ }
+  if (payload.stop_hook_active && last?.session === (payload.session_id ?? null) &&
+      last?.fingerprint === fingerprint) {
+    allow(`easyClaude: ${failedNames} still failing, and nothing changed since the last ` +
+      'check, so the turn ends here. This work is not verified.');
+  }
+  try {
+    writeFileSync(memo, JSON.stringify({ session: payload.session_id ?? null, fingerprint }));
+  } catch { /* an unwritable temp dir means blocking as before, not failing open */ }
 
   process.stderr.write(report);
   process.exit(2);

@@ -11,9 +11,13 @@
 //
 // Method: send "hi" in five projects, each one adding one part, and read the input tokens
 // Claude Code reports. Each difference is what that part costs on every turn, because
-// everything in the first request stays in the context of every later one. The lowest of
-// the repeated runs is kept: the noise seen while building this was an occasional extra
-// block of ~1.5k tokens, never a smaller figure.
+// everything in the first request stays in the context of every later one.
+//
+// MCP servers are off (--strict-mcp-config). They connect in the background, and a
+// connector that finished before the first request added ~1.7k tokens to that case and
+// not the next - one run measured the rules at minus 1,293. They are the user's cost,
+// not the plugin's. With them off, repeated runs agree within a few tokens, and the
+// script refuses a result where they do not, or where any part comes out negative.
 //
 // Why this exists: the README said ~958 tokens per turn, from a chars/4 estimate that left
 // out the CLAUDE.md kickoff writes. Measured, a set-up project cost ~2,300.
@@ -29,6 +33,8 @@ import { COST_FILE, costFingerprint } from './cost-inputs.mjs';
 const args = process.argv.slice(2);
 const WRITE = args.includes('--write');
 const RUNS = Number(args[args.indexOf('--runs') + 1]) || 2;
+// Runs of one case that differ by more than this mean the environment moved, not the plugin.
+const SPREAD = 50;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = JSON.parse(readFileSync(join(root, 'tests', 'fixtures', 'cost-project.json'), 'utf8')).files;
 
@@ -93,6 +99,7 @@ for (const [name, , dir, withPlugin] of CASES) {
   for (let i = 0; i < RUNS; i++) {
     const r = claude([
       '-p', 'hi', ...(withPlugin ? ['--plugin-dir', root] : []), '--settings', settings,
+      '--strict-mcp-config',
       '--disallowedTools', 'Bash', 'Read', 'Glob', 'Grep', '--output-format', 'json',
     ], dir);
     let j;
@@ -117,6 +124,12 @@ for (const [name, , dir, withPlugin] of CASES) {
   }
   tokens[name] = Math.min(...seen);
   process.stdout.write(`${name.padEnd(9)} ${seen.join(', ')}\n`);
+  if (Math.max(...seen) - tokens[name] > SPREAD) {
+    console.error(`measure-cost: the runs of "${name}" differ by ${Math.max(...seen) - tokens[name]} ` +
+      `tokens, more than ${SPREAD}. Something outside the plugin changed between runs, so ` +
+      'nothing was saved. Run it again.');
+    process.exit(1);
+  }
 }
 rmSync(work, { recursive: true, force: true });
 
@@ -127,6 +140,12 @@ const parts = {
   rules: tokens.rules - tokens.claudeMd,
 };
 const total = tokens.rules - tokens.baseline;
+const negative = Object.entries(parts).filter(([, n]) => n < 0);
+if (negative.length) {
+  console.error(`measure-cost: ${negative.map(([k, n]) => `${k} ${n}`).join(', ')} came out negative, ` +
+    'which a part that only adds text cannot do. Nothing was saved. Run it again.');
+  process.exit(1);
+}
 
 console.log('\nAdded to every turn:');
 CASES.slice(1).forEach(([name, what]) => console.log(`  ${String(parts[name]).padStart(5)}  ${what}`));
