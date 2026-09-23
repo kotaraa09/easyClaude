@@ -20,7 +20,7 @@
   <a href="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml"><img src="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml/badge.svg" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1F1E1D" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/works%20with-any%20stack-D97757" alt="Works with any stack">
-  <img src="https://img.shields.io/badge/costs-~1.4k%20tokens%2Fturn-8C8781" alt="Around 1.4k tokens per turn">
+  <img src="https://img.shields.io/badge/costs-~1.5k%20tokens%2Fturn-8C8781" alt="Around 1.5k tokens per turn">
 </p>
 
 ---
@@ -257,7 +257,7 @@ Jev, from TypeSafe, is in the form as a key and nothing more. It answers typed q
 
 Only the MCP server is wired, and it is off until you ask for it. That is a cost decision, not a doubt about the tool.
 
-Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures ~1,430 in a set-up project. Switching Graft on by default would add about three quarters to the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
+Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures ~1,481 in a set-up project. Switching Graft on by default would add about three quarters to the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
 
 Worse, the budget check would not notice. It counts `rules/*.md`, skill descriptions and agent descriptions, and MCP tool schemas are none of those. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
 
@@ -303,7 +303,7 @@ No. Everything in the table above triggers on plain English, and you'll be told 
 
 <br>
 
-It can't trap you. Claude Code counts how many times in a row a turn has been blocked and overrides the gate after a few, so a check that can never pass gives up before it can lock up your session. Set `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` higher if you want it stricter.
+It can't trap you. A failing check sends Claude back to fix it, as often as Claude keeps changing files. If Claude changes nothing after a block, because the fix is not its to make, the gate lets the turn end and says the work is not verified. It used to block that too, and Claude repeated the same report eight times before Claude Code's own cap stopped it.
 
 A check that can't run at all, because there's no compiler on this machine, warns instead of blocking. Wedging every session on a missing toolchain isn't a safety feature.
 
@@ -366,16 +366,16 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Some of it is sent on every turn of every session, whether you use it or not. Measured with Claude Code itself, in a project kickoff has set up:
 
-<!--measured:1430,766,24,264,376-->**~1,430 tokens per turn**, in four parts, for a project whose plan is in English:
+<!--measured:1481,841,1,263,376-->**~1,481 tokens per turn**, in four parts, for a project whose plan is in English:
 
 | part | tokens | when |
 |---|---|---|
-| skills, agent and session opener | ~766 | from install |
-| your plan in `docs/STATE.md`, read back by the opener | ~24 | after kickoff |
-| the `CLAUDE.md` kickoff writes | ~264 | after kickoff |
+| skills, agent and session opener | ~841 | from install |
+| your plan in `docs/STATE.md`, read back by the opener in place of the setup offer | ~1 | after kickoff |
+| the `CLAUDE.md` kickoff writes | ~263 | after kickoff |
 | the rules kickoff copies into `.claude/rules/` | ~376 | after kickoff |
 
-Skill bodies and stack recipes load only when something uses them, so they are not in that figure. easyClaude works in whatever language you write in, and writes your plan in it. The plan part grows with the plan, and with the language: some languages take more tokens per word. The same five-task plan in Thai measured ~173 instead of ~24. Everything else stays in English, whatever you write in, because only Claude reads it.
+Skill bodies and stack recipes load only when something uses them, so they are not in that figure. easyClaude works in whatever language you write in, and writes your plan in it. The plan part grows with the plan, and with the language: some languages take more tokens per word. A five-task plan in Thai measured about 150 tokens more than the same plan in English. Everything else stays in English, whatever you write in, because only Claude reads it.
 
 Call it a page and a half of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
@@ -445,7 +445,7 @@ For design that means [hallmark](https://github.com/Nutlope/hallmark), prose onl
 
 The catalogue says the uncomfortable part out loud, because this is the one document that has to. Nothing is bundled, so none of it costs you anything until you install it — and after you install it, it costs you on every turn, used or not. A 50-skill marketplace lands somewhere near 1,200 to 3,000 tokens per turn, which is more than this entire framework, forever, including on the projects that never open a landing page. So the rule the command repeats is: add the marketplace, install the plugins, leave the other forty-six out.
 
-Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) is good and worth installing alongside, as long as you know what you're taking on. It wants to be invoked before the first tool call of every session and before any plan, which collides with easyClaude's own session setup. Its SKILL.md is 44KB against a framework measured at ~1.4k tokens per turn, and it needs a persistent workspace plus Python scripts. It's a peer framework, not a component.
+Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-skill-to-rule-them-all) is good and worth installing alongside, as long as you know what you're taking on. It wants to be invoked before the first tool call of every session and before any plan, which collides with easyClaude's own session setup. Its SKILL.md is 44KB against a framework measured at ~1.5k tokens per turn, and it needs a persistent workspace plus Python scripts. It's a peer framework, not a component.
 
 </details>
 

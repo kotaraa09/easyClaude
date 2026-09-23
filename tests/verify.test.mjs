@@ -8,7 +8,10 @@
 //
 // These run the real scripts/verify.mjs against throwaway project directories. Nothing
 // here needs the plugin installed, and nothing writes to this repo.
-import { test, assert, assertMatch, projectDir, runVerify } from './harness.mjs';
+import { test, assert, assertMatch, projectDir, runVerify, run, repoRoot } from './harness.mjs';
+import { spawnSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Exit codes in hook mode, from Claude Code's hook contract:
 const ALLOW = 0;   // the turn may end
@@ -189,4 +192,48 @@ test('gate: --list names the steps without running them', async () => {
   const r = await human({ steps: [{ name: 'unique-step-name', cmd: FAILS }] }, ['--list']);
   assert(r.code === 0, `--list must not run the steps. Got exit ${r.code}:\n${r.out}`);
   assertMatch(r.out, /unique-step-name/, '--list must name the steps.');
+});
+
+// --- a failure blocks once per state of the tree -------------------------------
+// The block message tells Claude to stop and report when a step cannot pass. The gate
+// used to block that report as well, eight times in one test run, until Claude Code's
+// block cap ended the turn with an empty reply. These pin the rule that replaced it.
+const repeat = async () => {
+  const dir = projectDir({ steps: [{ name: 'test', cmd: FAILS }] });
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  writeFileSync(join(dir, 'app.js'), 'export const x = 1;\n');
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start');
+  writeFileSync(join(dir, 'app.js'), 'export const x = 2;\n');
+  const call = (active, session = 's1') => run(join(repoRoot, 'scripts', 'verify.mjs'), {
+    cwd: dir, args: ['--hook'],
+    env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+    input: JSON.stringify({ session_id: session, stop_hook_active: active }),
+  });
+  return { dir, call };
+};
+
+test('gate: a second block with nothing changed lets the turn end, and says it is not verified', async () => {
+  const { call } = await repeat();
+  const first = await call(false);
+  assert(first.code === BLOCK, `the first failure must block:\n${first.out}`);
+  const second = await call(true);
+  assert(second.code === ALLOW, `nothing changed, so blocking again cannot help:\n${second.out}`);
+  assertMatch(second.out, /still failing.*not verified/s, 'the turn may end, but never quietly.');
+});
+
+test('gate: an edit after a block is checked again, and blocks again', async () => {
+  const { dir, call } = await repeat();
+  await call(false);
+  writeFileSync(join(dir, 'app.js'), 'export const x = 3;\n');
+  const again = await call(true);
+  assert(again.code === BLOCK, `an edit that still fails must be sent back:\n${again.out}`);
+});
+
+test('gate: a new session is not let through by an old one', async () => {
+  const { call } = await repeat();
+  await call(false, 'old');
+  const fresh = await call(true, 'new');
+  assert(fresh.code === BLOCK, `another session's block must not count:\n${fresh.out}`);
 });
