@@ -42,6 +42,7 @@ Append to `docs/STATE.md` under `## Next` — not a separate file, so it stays w
 ```
 
 Rules for the task list:
+- **Write it in the user's language and in their words.** The next session reads `## Now` and `## Next` back to them as its first lines. "Photos open full screen when tapped" is a task a beginner can follow; "lightbox modal in `gallery.js`" is not. Technical detail goes after a dash, if it is needed at all.
 - Each task is a **vertical slice that runs when it's done** — not "write the model", "write the view", "wire it up".
 - Three to six tasks. More means the feature needs splitting.
 - If a task can't be verified, say how it will be checked by hand.

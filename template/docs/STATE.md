@@ -7,6 +7,9 @@
      which is what clears it. Do not delete it by hand. -->
 
 # State
+<!-- Every session opens by reading Now, Next, Blocked and Debt back to the user. Write
+     entries in the language the user writes in, and in their words: what they will see
+     or be able to do. File names and technical terms go after a dash, if at all. -->
 
 The handover file between sessions. Claude reads this first and updates it as work lands.
 

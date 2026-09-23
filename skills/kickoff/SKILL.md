@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 
 Sets up the project so every later session starts oriented. Runs once.
 
-**Tone:** most users here are beginners. Ask few questions, in plain language, and make the obvious call yourself rather than presenting a menu. Never ask about anything you can detect.
+**Tone:** most users here are beginners. Ask few questions, in plain language, and make the obvious call yourself rather than presenting a menu. Never ask about anything you can detect. Every word you write reaches the user, so write no notes to yourself, such as "Next question: must-have", and write everything in the language the user writes in.
 
 ## 1. Decide the mode
 
@@ -17,7 +17,9 @@ Sets up the project so every later session starts oriented. Runs once.
 
 ## 2. Interview — maximum four questions
 
-Ask these one message at a time, not as a wall:
+Ask these one message at a time, not as a wall. Do not number or label them in your reply -
+the user sees "Question 3" as a form to fill in, and the numbers below skip whatever you
+could already answer:
 
 1. What are you building, in a sentence?
 2. Who uses it?
@@ -25,6 +27,19 @@ Ask these one message at a time, not as a wall:
 4. Only if greenfield and undetectable: what are you building it with? Offer a recommendation rather than a list — if they don't know, pick for them and say why in one line.
 
 Do not ask about architecture, testing philosophy, or deployment. Decide those and record them in `docs/DECISIONS.md`.
+
+**End your last question with the permission warning.** Steps 4 to 6 write into `.claude/`,
+and Claude Code asks permission for every file there, even when edits are allowed. Add one or
+two plain sentences below the question: after their answer you will set the project up, Claude
+Code will ask a few times to save settings files, those hold the working rules, the safety
+blocks and the list of checks, and saying yes is safe. In adopt mode with nothing to ask, say
+it in your first message instead.
+
+A beginner who meets five unexplained prompts about `settings.json` either refuses them all or
+learns to click yes on anything - and the second habit is the one that hurts them later. The
+warning is here, in a turn that is only text, because an instruction to say it just before
+the first write was skipped in testing: the writes happen in a run of tool calls, and nothing
+in between gets said.
 
 ## 3. Detect the stack
 
@@ -87,7 +102,7 @@ everyone who clones the repo.
 
 Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 
-- `CLAUDE.md` — under 30 lines: what this is, the stack, and a pointer to `.claude/rules/`. Nothing that's derivable from the code.
+- `CLAUDE.md` — under 30 lines: what this is, the stack, and a pointer to `.claude/rules/`. Nothing that's derivable from the code. Include one line naming the language the user writes in, and saying that replies and `docs/STATE.md` use it. This file loads in every session, so the next one knows without asking.
 - `docs/PRD.md` — the interview answers. One page.
 - `docs/ARCHITECTURE.md` — stack and where things live.
 - `docs/DECISIONS.md` — seed with the choices you made for them, each with a one-line reason.
@@ -98,6 +113,9 @@ Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 
 ```markdown
 # State
+<!-- Every session opens by reading Now, Next, Blocked and Debt back to the user. Write
+     entries in the language the user writes in, and in their words: what they will see
+     or be able to do. File names and technical terms go after a dash, if at all. -->
 
 ## Now
 (nothing in progress)
@@ -117,7 +135,7 @@ none
      never deleted, just moved. This file is read at the start of every session. -->
 ```
 
-Keep those two comments. They are the only thing stopping the file that every session reads first from growing without bound, and the next session has no other way to know the rule.
+Keep those three comments. The first is what keeps the opener readable to the person it is read to. The other two are the only thing stopping the file that every session reads first from growing without bound. The next session has no other way to know these rules.
 
 ## 7. Close
 
