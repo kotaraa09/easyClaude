@@ -238,7 +238,9 @@ They don't reach the command line either. `claude mcp add` can only take a key t
 | needs no key | `.mcp.json`, committed | teammates get it, and Claude Code holds it at pending approval until a human accepts |
 | needs a key | `~/.claude.json`, outside the repo | a key can't be committed by accident |
 
-Some connectors can't be automated at all. Figma, Notion, Linear, Slack and Sentry sign in through the browser and have no key to paste, so they need the interactive `/mcp` flow. The script lists them by name so you know to do those by hand.
+Some connectors can't be automated at all. Figma, Notion, Linear, Slack, Atlassian, Sentry and Higgsfield sign in through the browser and have no key to paste, so they need the interactive `/mcp` flow. The script lists them by name so you know to do those by hand.
+
+Higgsfield is the one of those that makes things: image and video, across Sora, Veo, Kling and others. The script prints the exact command to add it, because `/mcp` can sign in to a server but cannot add one. It is kept out of the automatic batch on purpose. Every generation spends credits on your Higgsfield account, so it lands private to you and never in the shared `.mcp.json`.
 
 `enableAllProjectMcpServers` is left out of every settings file here on purpose. It auto-approves every server in a committed `.mcp.json`, which would mean cloning a repo silently runs whatever a stranger put in it. That approval gate is what makes shipping a committed `.mcp.json` safe in the first place.
 

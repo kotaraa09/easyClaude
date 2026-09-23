@@ -25,6 +25,9 @@ Three groups come back, and the difference matters:
 - **needs a key** — goes into `~/.claude.json`, outside the repo, private to this user
 - **browser sign-in only** — Figma, Notion, Linear, Slack and friends. **No script can set
   these up.** They need the interactive `/mcp` flow. Say that plainly instead of trying.
+  Where the list prints an add command under a name (Higgsfield does), give the user that
+  exact command, then `/mcp` to sign in. For Higgsfield, say in the same line that every
+  generation spends credits on their account. Do not run the command for them.
 
 ## 2. Put the form where they can fill it
 

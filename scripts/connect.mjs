@@ -101,7 +101,29 @@ const CONNECTORS = [
 
 // These authenticate through a browser. No key exists to put in a form, so no script can
 // set them up - saying "run /mcp" is the honest answer, not a limitation to work around.
-const OAUTH_ONLY = ['figma', 'notion', 'linear', 'slack', 'atlassian', 'sentry'];
+const OAUTH_ONLY = ['figma', 'notion', 'linear', 'slack', 'atlassian', 'sentry', 'higgsfield'];
+
+// /mcp signs in to a server that is already added; it cannot add one. So where an address
+// has been verified - an unauthenticated request answering 401 with OAuth metadata, the
+// same bar as the list above - print the exact command that adds it. The others stay
+// name-only until someone checks theirs.
+//
+// Higgsfield sits here and not in CONNECTORS on purpose. --apply wires every no-key entry
+// in CONNECTORS at once, into a committed .mcp.json. A generation service that bills per
+// call does not belong in a batch nobody picked it out of, or in a file teammates inherit.
+// `claude mcp add` defaults to local scope, so this lands private to the one account that
+// pays for it.
+const OAUTH_ADD = {
+  higgsfield: {
+    url: 'https://mcp.higgsfield.ai/mcp',
+    what: 'image and video generation - every generation spends credits on your Higgsfield account',
+  },
+};
+const oauthHowTo = (pad) => Object.entries(OAUTH_ADD).flatMap(([n, o]) => [
+  `${pad}${n}: ${o.what}`,
+  `${pad}  claude mcp add --transport http ${n} ${o.url}`,
+  `${pad}  then run /mcp and sign in`,
+]);
 
 // Keys that no MCP server needs, but something else in the project does. Imported from the
 // generation catalog rather than restated, so the form and the adapters cannot drift apart.
@@ -134,7 +156,9 @@ if (has('list') || args.length === 0) {
   console.log('\nAlso read from .env:\n');
   for (const p of PROVIDERS) console.log(`  ${''.padEnd(12)} ${p.key.padEnd(20)} ${p.what}`);
   console.log(`\nBrowser sign-in only, cannot be scripted: ${OAUTH_ONLY.join(', ')}`);
-  console.log('  Add those with /mcp inside Claude Code.\n');
+  console.log('  Add those with /mcp inside Claude Code.');
+  for (const line of oauthHowTo('  ')) console.log(line);
+  console.log('');
   process.exit(0);
 }
 
@@ -152,7 +176,9 @@ if (has('form')) {
     console.log(`${c.key}=`);
   }
   console.log(`\n# Browser sign-in only, no key to paste: ${OAUTH_ONLY.join(', ')}`);
-  console.log('# Add those with /mcp inside Claude Code.\n');
+  console.log('# Add those with /mcp inside Claude Code.');
+  for (const line of oauthHowTo('# ')) console.log(line);
+  console.log('');
   process.exit(0);
 }
 
