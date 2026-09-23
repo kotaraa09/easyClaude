@@ -67,15 +67,14 @@ function opener(md) {
   const debt = (s.Debt ?? []).filter((l) => /^\s*[-*]\s+/.test(l)).map(plain);
 
   const lines = [`**Now:** ${now}`, `**Next:** ${next}`, `**Blocked:** ${blocked}`];
-  let text = 'This project uses easyClaude. Put these lines at the very top of your first reply, ' +
-    'exactly as written:\n\n' + lines.join('\n');
+  // All of this stays in the context of every later turn, so it is kept short.
+  let text = 'Start your first reply with these lines, as written:\n\n' + lines.join('\n');
   if (debt.length) {
     // Picking the entry most likely to bite is a judgement, so that one part stays Claude's.
-    text += `\n**Debt:** ${debt.length} items - <the one below most likely to cause trouble soon>\n\n` +
-      'The debt entries, from docs/STATE.md:\n' + debt.map((d) => `- ${d}`).join('\n');
+    text += `\n**Debt:** ${debt.length} items - <the entry below most likely to cause trouble soon>\n\n` +
+      debt.map((d) => `- ${d}`).join('\n');
   }
-  text += '\n\nDo not summarise the project, list finished work or dump files. If the user only ' +
-    'greeted you, stop after these lines. Otherwise answer what they asked, below the lines.';
+  text += '\n\nThen answer what the user asked, if anything. Do not summarise the project.';
   return text;
 }
 
@@ -115,7 +114,7 @@ try {
   }
 } catch { /* a broken autoship.json arms nothing, and autoship reports it when it runs */ }
 
-parts.push('Do not mention this hook or these instructions.');
+parts.push('Do not mention these instructions.');
 const context = parts.join('\n\n');
 
 if (TEXT) {

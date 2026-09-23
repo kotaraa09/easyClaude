@@ -1,11 +1,8 @@
 # <PROJECT NAME>
 
 <One sentence: what this is and who it's for.>
+<The language the user writes in. Replies and docs/STATE.md use it.>
+**Stack:** <filled in by kickoff, with how to run or preview it>
 
-**Stack:** <filled in by kickoff>
-**Verify:** `<the verify command>` — must pass before any work is called done.
-
-Working rules live in `.claude/rules/`. Current state lives in `docs/STATE.md` — read it first.
-
-<!-- Keep this file under 30 lines. It is re-sent on every turn.
-     Anything derivable from the code does not belong here. -->
+<!-- Five lines at most. This file is re-sent on every turn, and measured, a 30-line
+     version cost ~490 tokens each time. kickoff rewrites it. -->

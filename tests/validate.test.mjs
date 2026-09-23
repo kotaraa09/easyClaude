@@ -306,6 +306,32 @@ breaks("a translation's cost marker drifting", '10c',
   (d) => bumpNumber(d, 'README.th.md', /<!--cost:(\d+),\d+,\d+,\d+-->/),
   /cost marker claims \d+ tokens\/turn of total/);
 
+// --- 10d. the measured cost, as Claude Code reports it -----------------------
+// The estimate above said ~958 while a real set-up project cost ~2,190. These pin the
+// measured figure to the README, in both languages and in the badge.
+breaks('a measured figure in the README that is not the measured one', '10d',
+  (d) => bumpNumber(d, 'README.md', /<!--measured:(\d+),/),
+  /README\.md: its measured-cost marker says/);
+
+breaks('a translation that lost its measured-cost marker', '10d',
+  (d) => editText(d, 'README.th.md', (t) => t.replace(/<!--measured:[\d,]+-->/, '')),
+  /README\.th\.md: the cost section must carry <!--measured:/);
+
+breaks('a badge that quotes an old cost', '10d',
+  (d) => editText(d, 'README.md', (t) => t.replace(/badge\/costs-~[\d.]+k/, 'badge/costs-~1.0k')),
+  /its badge says ~1\.0k tokens\/turn/);
+
+breaks('no measurement at all', '10d',
+  (d) => removeFile(d, 'docs/cost.json'),
+  /docs\/cost\.json: missing or not JSON/);
+
+// A warning, not a failure: CI cannot re-measure, so all it can say is that the figure is
+// about files that have changed since. A comment is the mutation because the estimate skips
+// comments, so the only thing this edit can trip is the fingerprint.
+warns('a rule edited after the last measurement', '10d',
+  (d) => appendLine(d, 'rules/workflow.md', '<!-- a note added after the measurement -->'),
+  /docs\/cost\.json: measured on .*changed since/);
+
 // --- 11. the STATE.md compaction rule must not drift -------------------------
 breaks('one of the four copies of the "## Done" cap drifting', '11',
   (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replace('ten most recent', 'twenty most recent')),
