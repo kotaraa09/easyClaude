@@ -5,6 +5,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, basename, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { COST_FILE, costFingerprint } from './cost-inputs.mjs';
 
 // The plugin root, derived from where this file sits rather than from the caller's cwd.
 // This validates *this plugin*, whose layout is fixed relative to the script - so reading
@@ -602,7 +603,10 @@ for (const d of skillNames) {
     costs.push([d, 0]);
     continue;
   }
-  const tok = Math.round((2 + d.length + 2 + fm.description.length + 1) / 4);
+  // Claude Code lists a plugin skill as "- <plugin>:<skill>: <description>", so the name
+  // it measures carries the plugin prefix. Seen in a session transcript, 2026-09-23.
+  const listed = `${plugin?.name ?? ''}:${d}`;
+  const tok = Math.round((2 + listed.length + 2 + fm.description.length + 1) / 4);
   alwaysOn += tok;
   costs.push([d, tok]);
 }
@@ -619,7 +623,10 @@ let rulesTok = 0;
 let scopedTok = 0;
 for (const f of walk(join(root, 'rules')).filter((p) => p.endsWith('.md'))) {
   const text = readFileSync(f, 'utf8');
-  const tok = Math.round(text.length / 4);
+  // HTML comments are stripped before a rule reaches Claude: a transcript showed a
+  // 805-character rule arriving as 480. Counting them made the notes that explain a rule
+  // look like part of what it costs, which is a reason to delete the notes.
+  const tok = Math.round(text.replace(/<!--[\s\S]*?-->/g, '').length / 4);
   // Not parseFrontmatter(): that one is for skills and commands, where every line is
   // "key: value" and a missing block is an error. A rule legitimately has no block, and
   // `paths:` takes a YAML list. Only the question "does this file scope itself?" matters.
@@ -714,11 +721,55 @@ for (const f of walk(root)) {
   });
 }
 
-const rounded = (readOrErr('skills/registry.json', 'missing - the curated-skill rules live there') ?? '')
-  .match(/framework measured at ~([\d.]+)k tokens\/turn/);
-if (rounded && rounded[1] !== (alwaysOn / 1000).toFixed(1)) {
-  err('skills/registry.json', `says the framework costs ~${rounded[1]}k tokens/turn, ` +
-    `measured ~${(alwaysOn / 1000).toFixed(1)}k.`);
+// --- 10d. the measured cost, as Claude Code reports it -----------------------
+// Everything above is an estimate from file lengths. It said ~958 tokens per turn while a
+// set-up project, measured, cost ~2,200: it counted 4 characters as one token and left out
+// the CLAUDE.md that kickoff writes. scripts/measure-cost.mjs asks Claude Code instead and
+// saves the answer in docs/cost.json. CI cannot re-run it - that needs a login and costs
+// money - so it checks what it can: every stated figure quotes that file exactly, and the
+// file still describes the plugin as it is now.
+let cost = null;
+try { cost = JSON.parse(readFileSync(join(root, COST_FILE), 'utf8')); } catch {
+  err(COST_FILE, 'missing or not JSON - run "node scripts/measure-cost.mjs --write" to measure ' +
+    'what a turn costs, since every cost figure in the README quotes it');
+}
+if (cost) {
+  const p = cost.parts ?? {};
+  const want = [cost.total, p.plugin, p.state, p.claudeMd, p.rules];
+  if (want.some((n) => !Number.isInteger(n))) {
+    err(COST_FILE, 'needs "total" and "parts" with plugin, state, claudeMd and rules - re-run ' +
+      '"node scripts/measure-cost.mjs --write"');
+  } else {
+    const k = (cost.total / 1000).toFixed(1);
+    for (const f of walk(root)) {
+      const r = rel(f);
+      if (!/^README(\.[a-z]{2})?\.md$/.test(r) || !isOurs(f)) continue;
+      const text = readFileSync(f, 'utf8');
+      const m = text.match(/<!--\s*measured:(\d+),(\d+),(\d+),(\d+),(\d+)\s*-->/);
+      if (!m) {
+        err(r, `the cost section must carry <!--measured:${want.join(',')}--> beside the measured ` +
+          `figures from ${COST_FILE} (total, plugin, state, CLAUDE.md, rules)`);
+      } else if (m.slice(1).map(Number).join() !== want.join()) {
+        err(r, `its measured-cost marker says ${m.slice(1).join(',')}, but ${COST_FILE} says ` +
+          `${want.join(',')}. Update the figures beside it too.`);
+      }
+      const badge = text.match(/badge\/costs-~([\d.]+)k/);
+      if (badge && badge[1] !== k) {
+        err(r, `its badge says ~${badge[1]}k tokens/turn, but ${COST_FILE} measured ~${k}k`);
+      }
+    }
+    const rounded = (readOrErr('skills/registry.json', 'missing - the curated-skill rules live there') ?? '')
+      .match(/framework measured at ~([\d.]+)k tokens\/turn/);
+    if (rounded && rounded[1] !== k) {
+      err('skills/registry.json', `says the framework costs ~${rounded[1]}k tokens/turn, ` +
+        `${COST_FILE} measured ~${k}k.`);
+    }
+    if (cost.inputs !== costFingerprint(root)) {
+      warn(COST_FILE, `measured on ${cost.measured}, and the files that set the cost changed ` +
+        'since. The figures may be stale: run "node scripts/measure-cost.mjs --write" and update ' +
+        'the README.');
+    }
+  }
 }
 
 // --- 11. the STATE.md compaction rule must not drift -------------------------

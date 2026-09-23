@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: Set up a project for easyClaude — interview the user about what they are building, detect the stack, and write the PRD, state file, verify contract, and project rules. Use when a project has no docs/STATE.md, when the user is starting something new from an empty directory, or when adopting easyClaude into an existing codebase.
+description: Set up a project for easyClaude with a short interview, then write its state file, checks and rules. Use when the session opener says to, or when the user asks to set up easyClaude or start a new project.
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -102,7 +102,7 @@ everyone who clones the repo.
 
 Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 
-- `CLAUDE.md` — under 30 lines: what this is, the stack, and a pointer to `.claude/rules/`. Nothing that's derivable from the code. Include one line naming the language the user writes in, and saying that replies and `docs/STATE.md` use it. This file loads in every session, so the next one knows without asking.
+- `CLAUDE.md` — **five lines at most**, because it loads on every turn of every session: a title, one line on what this is and who it is for, one line naming the language the user writes in (replies and `docs/STATE.md` use it), and one line on the stack and how to run or preview it. Write it in English whatever the user writes in: only Claude reads it, and English takes the fewest tokens. No list of files and no pointer to the rules: `docs/` is easy to find, and `.claude/rules/` loads without one. Measured, a 30-line version cost ~490 tokens on every turn.
 - `docs/PRD.md` — the interview answers. One page.
 - `docs/ARCHITECTURE.md` — stack and where things live.
 - `docs/DECISIONS.md` — seed with the choices you made for them, each with a one-line reason.

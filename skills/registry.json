@@ -65,7 +65,7 @@
       "verdict": "Genuinely good and actively maintained. Install it alongside easyClaude if you want it - but knowingly, not by default.",
       "why_not_vendored": [
         "Its own instructions require invocation before the first tool call of every session and before any plan is written. easyClaude's SessionStart hook already owns the session opener and plan-feature owns planning, so the two would compete for the same moments.",
-        "Its SKILL.md is 44KB - roughly 11k tokens whenever it triggers, against a framework measured at ~1.0k tokens/turn that ships .mcp.json empty specifically to avoid this kind of cost.",
+        "Its SKILL.md is 44KB - roughly 11k tokens whenever it triggers, against a framework measured at ~1.4k tokens/turn that ships .mcp.json empty specifically to avoid this kind of cost.",
         "It needs a persistent workspace at a stable absolute path and ships two Python scripts, against easyClaude's zero-runtime-dependency design.",
         "It overlaps Anthropic's shipped skill-creator.",
         "It is a peer framework, not a component. Bundling it would silently make easyClaude a different product."
