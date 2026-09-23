@@ -133,6 +133,23 @@ const PROVIDERS = GEN.filter((p) => p.key).map((p) => ({
   where: p.where,
 }));
 
+// Keys for a service with no official MCP server. easyClaude wires nothing for these: the
+// form holds the key so the project's own code can read it from .env, and Claude still
+// never sees it. --apply ignores them.
+//
+// The reason they are not CONNECTORS is the reason CONNECTORS is short. Jev had more than
+// ten community MCP servers the day this was written, each days old with one maintainer,
+// and a connector entry would hand the user's paid key to whichever one was picked. The
+// API itself was checked the usual way: an unauthenticated POST answers 403 "Must supply
+// an API key". When TypeSafe ships its own server, it moves up into CONNECTORS.
+const KEY_ONLY = [
+  {
+    name: 'jev', key: 'TYPESAFE_API_KEY',
+    what: 'Jev typed judgments - classify, score, pick one option - no official MCP server yet, so nothing is wired; the key is here for your own code to read',
+    where: 'https://console.typesafe.ai/',
+  },
+];
+
 const args = process.argv.slice(2);
 const has = (n) => args.includes(`--${n}`);
 const die = (m) => { console.error(`error: ${m}`); process.exit(1); };
@@ -155,6 +172,8 @@ if (has('list') || args.length === 0) {
   }
   console.log('\nAlso read from .env:\n');
   for (const p of PROVIDERS) console.log(`  ${''.padEnd(12)} ${p.key.padEnd(20)} ${p.what}`);
+  console.log('\nKey only, nothing wired (your own code reads it from .env):\n');
+  for (const k of KEY_ONLY) console.log(`  ${k.name.padEnd(12)} ${k.key.padEnd(20)} ${k.what}`);
   console.log(`\nBrowser sign-in only, cannot be scripted: ${OAUTH_ONLY.join(', ')}`);
   console.log('  Add those with /mcp inside Claude Code.');
   for (const line of oauthHowTo('  ')) console.log(line);
@@ -170,7 +189,7 @@ if (has('form')) {
   // directory - the script lives inside the plugin. Naming a path that isn't there sent
   // people looking for a file they don't have, so name the command instead.
   console.log('# Then run /easyclaude:connect in Claude Code to apply them.');
-  for (const c of [...CONNECTORS.filter((x) => x.key), ...PROVIDERS]) {
+  for (const c of [...CONNECTORS.filter((x) => x.key), ...PROVIDERS, ...KEY_ONLY]) {
     console.log(`\n# ${c.what}`);
     console.log(`# get one: ${c.where}`);
     console.log(`${c.key}=`);
@@ -191,7 +210,7 @@ if (has('status')) {
     const state = c.key === null ? 'ready (no key needed)' : values.has(c.key) ? 'key present' : 'not set';
     console.log(`  ${c.name.padEnd(12)} ${state}`);
   }
-  for (const p of PROVIDERS) {
+  for (const p of [...PROVIDERS, ...KEY_ONLY]) {
     console.log(`  ${p.key.padEnd(20)} ${values.has(p.key) ? 'key present' : 'not set'}`);
   }
   console.log(`\nOAuth-only (use /mcp): ${OAUTH_ONLY.join(', ')}\n`);
