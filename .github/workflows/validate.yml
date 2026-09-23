@@ -37,6 +37,16 @@ jobs:
       - name: Validate plugin structure
         run: node scripts/validate.mjs
 
+      # validate.mjs checks hooks.json against rules this repo wrote. Up to 0.1.2 those rules
+      # described the wrong shape, and Claude Code loaded zero hooks with every check green.
+      # This asks the real binary what it loads. Unpinned on purpose: the question is whether
+      # the version users install today accepts the plugin. `plugin details` needs no login.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Claude Code loads every hook
+        run: node scripts/load-check.mjs --require
+
       # The suite that checks the checking machinery. This used to be roughly three hundred
       # lines of bash living in this file, which meant nobody could run it while editing the
       # thing it covers: a check that had stopped checking was only ever found after a push,

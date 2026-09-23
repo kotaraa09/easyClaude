@@ -5,8 +5,8 @@
 // machinery kept breaking without anyone seeing it.
 import { test, assert, assertMatch, run, repoRoot, projectDir } from './harness.mjs';
 import { readEnv } from '../scripts/env.mjs';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 
 const script = (name) => join(repoRoot, 'scripts', name);
 
@@ -20,6 +20,7 @@ for (const [name, args] of [
   ['connect.mjs', ['--status']],
   ['gen/generate.mjs', ['--list']],
   ['verify.mjs', ['--list']],
+  ['session-start.mjs', ['--text']],
   ['validate.mjs', []],
 ]) {
   test(`entry point: node scripts/${name} ${args.join(' ')} runs`, async () => {
@@ -215,4 +216,82 @@ test('skillscan: --allow-unscanned passes, and says it was not scanned', async (
   });
   assert(r.code === 0, `the documented override did not pass:\n${r.out}`);
   assertMatch(r.out, /NOT SCANNED/, 'an unscanned install must say so, not go quiet.');
+});
+
+// --- the session opener -------------------------------------------------------
+// It was a prompt hook that Claude Code refuses on SessionStart, so for every release up
+// to 0.1.2 no session opened the way the README says. Each branch is pinned here, because
+// the branch it takes is now decided by this script and nothing else.
+const opener = async (files, args = ['--text']) => {
+  const dir = projectDir();
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(join(dir, dirname(rel)), { recursive: true });
+    writeFileSync(join(dir, rel), body);
+  }
+  return run(script('session-start.mjs'), { cwd: dir, args, env: { CLAUDE_PROJECT_DIR: dir } });
+};
+const STATE = [
+  '# State', '', '## Now', '- [ ] Add the contact form', '', '## Next',
+  '### Gallery', '- [x] Pick a layout', '- [ ] Upload photos', '', '## Blocked', 'none', '',
+  '## Debt', '<!-- a comment, not an entry -->', '- Images are not resized', '- No alt text', '',
+  '## Done', '- Set up the project', '',
+].join('\n');
+
+test('session-start: an empty folder goes straight to kickoff', async () => {
+  const r = await opener({});
+  assert(r.code === 0, `it exited ${r.code}:\n${r.out}`);
+  assertMatch(r.out, /Invoke the `kickoff` skill/, 'a new project must reach setup on its own.');
+});
+
+test('session-start: a fresh template fork goes to kickoff, not the opener', async () => {
+  const stub = readFileSync(join(repoRoot, 'template', 'docs', 'STATE.md'), 'utf8');
+  const r = await opener({ 'docs/STATE.md': stub, 'CLAUDE.md': '# x', 'design/tokens.md': '' });
+  assertMatch(r.out, /Invoke the `kickoff` skill/,
+    'the template ships a state file, and only the marker says it was never set up.');
+});
+
+test('session-start: code with no state offers adopt mode, and does not start the interview', async () => {
+  const r = await opener({ 'package.json': '{}' });
+  assertMatch(r.out, /adopt mode/, 'an existing codebase must be offered adopt mode.');
+  assertMatch(r.out, /Do not start its interview unless/, 'the interview must wait for a yes.');
+});
+
+test('session-start: a set-up project opens with its state, read by the script', async () => {
+  const r = await opener({ 'docs/STATE.md': STATE, 'index.html': '' });
+  assertMatch(r.out, /\*\*Now:\*\* Add the contact form/, 'Now must be the task in progress.');
+  assertMatch(r.out, /\*\*Next:\*\* Upload photos/, 'Next must skip ticked tasks and headings.');
+  assertMatch(r.out, /\*\*Blocked:\*\* none/, 'Blocked must read back as written.');
+  assertMatch(r.out, /\*\*Debt:\*\* 2 items/, 'a comment inside Debt is not an entry.');
+  assert(!/kickoff/.test(r.out), `a set-up project must not be sent to kickoff:\n${r.out}`);
+});
+
+test('session-start: no debt means no Debt line', async () => {
+  const r = await opener({ 'docs/STATE.md': STATE.replace(/## Debt[\s\S]*?## Done/, '## Debt\n\n## Done') });
+  assert(!/\*\*Debt:\*\*/.test(r.out), `an empty Debt section still printed a line:\n${r.out}`);
+});
+
+test('session-start: armed cheap mode and autoship are both announced', async () => {
+  const r = await opener({
+    'docs/STATE.md': STATE,
+    '.claude/cheap-session': '2026-09-23',
+    '.claude/cheap-contract.md': 'Smallest fix that works.',
+    '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'pr' }),
+  });
+  assertMatch(r.out, /cheap mode is on[\s\S]*Smallest fix that works/, 'the contract must ride along.');
+  assertMatch(r.out, /Autoship is armed through "pr"/, 'a session that can push must say so.');
+});
+
+test('session-start: a disabled autoship says nothing', async () => {
+  const r = await opener({
+    'docs/STATE.md': STATE, '.claude/autoship.json': JSON.stringify({ enabled: false, through: 'merge' }),
+  });
+  assert(!/Autoship/.test(r.out), `a disabled autoship was announced:\n${r.out}`);
+});
+
+test('session-start: the hook form is the JSON Claude Code reads', async () => {
+  const r = await opener({}, []);
+  const j = JSON.parse(r.out);
+  assert(j.hookSpecificOutput?.hookEventName === 'SessionStart',
+    'without hookEventName, Claude Code drops the context.');
+  assertMatch(j.hookSpecificOutput.additionalContext, /kickoff/, 'the context must carry the decision.');
 });

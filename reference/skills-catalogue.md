@@ -203,7 +203,7 @@ A large, well-made lifecycle framework: brainstorming, planning, worktrees, suba
 execution, TDD, review. It ships a `SessionStart` hook and its own workflow.
 
 It is a peer framework, not a component. `hooks/hooks.json` reserves `SessionStart` for the
-opener, whose instruction is "and nothing else". Running both means two frameworks
+opener, which is told to add nothing else. Running both means two frameworks
 narrating the same first turn and disagreeing about what happens next. Install it instead
 of easyClaude, or alongside it knowingly, but not because a catalogue suggested it.
 

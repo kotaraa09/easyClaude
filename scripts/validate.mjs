@@ -42,6 +42,10 @@ const HOOK_EVENTS = new Set([
   'Stop', 'SubagentStop', 'PreCompact', 'Notification',
 ]);
 
+// Events Claude Code refuses a prompt hook on. Only the one seen failing is listed. The
+// load check in scripts/load-check.mjs cannot catch this: the hook loads, and fails later.
+const NO_PROMPT_HOOKS = new Set(['SessionStart']);
+
 const walk = (dir, out = []) => {
   if (!existsSync(dir)) return out;
   for (const e of readdirSync(dir)) {
@@ -237,9 +241,19 @@ if (market && plugin) {
 }
 
 // --- 5. hooks ----------------------------------------------------------------
-const hooks = json['hooks/hooks.json'];
-if (!hooks) {
+// A plugin's hooks.json wraps its events in a top-level "hooks" object. Without it Claude
+// Code rejects the whole file and registers nothing - no gate, no opener - while this
+// check, written against the same wrong shape, printed OK. From the first commit to 0.1.2
+// no installed copy of easyClaude ran either hook, and nothing here could see it.
+const hooksFile = json['hooks/hooks.json'];
+const hooks = hooksFile?.hooks;
+if (!hooksFile) {
   err('hooks/hooks.json', 'missing');
+} else if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) {
+  const stray = Object.keys(hooksFile).filter((k) => HOOK_EVENTS.has(k));
+  err('hooks/hooks.json', 'must put its events under a top-level "hooks" object' +
+    (stray.length ? ` (found ${stray.join(', ')} at the top level)` : '') +
+    '. Claude Code refuses the whole file otherwise, and no hook runs at all.');
 } else {
   for (const [event, entries] of Object.entries(hooks)) {
     if (!HOOK_EVENTS.has(event)) {
@@ -261,6 +275,12 @@ if (!hooks) {
         }
         if (h.type === 'prompt' && !h.prompt) {
           err('hooks/hooks.json', `"${event}" prompt hook missing "prompt"`);
+        }
+        // Claude Code loads these, then fails each one at run time with "prompt-type hooks
+        // are not supported for SessionStart events". The session opens as if no hook exists.
+        if (h.type === 'prompt' && NO_PROMPT_HOOKS.has(event)) {
+          err('hooks/hooks.json', `"${event}" cannot be a prompt hook - Claude Code has no ` +
+            'conversation to run it in yet, so it fails every time. Use a command hook.');
         }
         if (h.type === 'command' && !h.command) {
           err('hooks/hooks.json', `"${event}" command hook missing "command"`);
@@ -781,7 +801,11 @@ if (stateStub && !stateStub.includes(NOT_KICKED_OFF)) {
   err('template/docs/STATE.md', `must carry ${NOT_KICKED_OFF}, or the SessionStart hook reads ` +
     'the empty stub as a set-up project and never runs kickoff - which template/README.md promises');
 }
-const hookPrompt = JSON.stringify(hooks?.SessionStart ?? '');
+// The hook is a command now, so the marker lives in the script it runs, not in hooks.json.
+const sessionScripts = (hooks?.SessionStart ?? []).flatMap((e) => e.hooks ?? [])
+  .flatMap((h) => [...(h.command ?? '').matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^\s"']+)/g)])
+  .map((m) => (existsSync(join(root, m[1])) ? readFileSync(join(root, m[1]), 'utf8') : ''));
+const hookPrompt = JSON.stringify(hooks?.SessionStart ?? '') + sessionScripts.join('\n');
 if (hooks?.SessionStart && !hookPrompt.includes(NOT_KICKED_OFF)) {
   err('hooks/hooks.json', `the SessionStart hook must test for ${NOT_KICKED_OFF}, or a fresh ` +
     'fork of the template never reaches kickoff');
