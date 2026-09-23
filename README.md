@@ -242,6 +242,8 @@ Some connectors can't be automated at all. Figma, Notion, Linear, Slack, Atlassi
 
 Higgsfield is the one of those that makes things: image and video, across Sora, Veo, Kling and others. The script prints the exact command to add it, because `/mcp` can sign in to a server but cannot add one. It is kept out of the automatic batch on purpose. Every generation spends credits on your Higgsfield account, so it lands private to you and never in the shared `.mcp.json`.
 
+Jev, from TypeSafe, is in the form as a key and nothing more. It answers typed questions: pick one option, score this, yes or no. TypeSafe has no official MCP server, and the community ones were each a few days old with one maintainer when this was written. Handing your paid key to one of those is the risk this list exists to avoid. So `TYPESAFE_API_KEY` sits in `.env` for your own code to read, Claude still never sees it, and `--apply` wires nothing for it. When TypeSafe ships its own server, it moves up into the list.
+
 `enableAllProjectMcpServers` is left out of every settings file here on purpose. It auto-approves every server in a committed `.mcp.json`, which would mean cloning a repo silently runs whatever a stranger put in it. That approval gate is what makes shipping a committed `.mcp.json` safe in the first place.
 
 </details>

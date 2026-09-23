@@ -19,7 +19,7 @@ For `status`, run step 3 only and stop.
 node ${CLAUDE_PLUGIN_ROOT}/scripts/connect.mjs --list
 ```
 
-Three groups come back, and the difference matters:
+Four groups come back, and the difference matters:
 
 - **no key needed** — goes into `.mcp.json`, committed, shared with anyone who clones
 - **needs a key** — goes into `~/.claude.json`, outside the repo, private to this user
@@ -28,6 +28,10 @@ Three groups come back, and the difference matters:
   Where the list prints an add command under a name (Higgsfield does), give the user that
   exact command, then `/mcp` to sign in. For Higgsfield, say in the same line that every
   generation spends credits on their account. Do not run the command for them.
+- **key only, nothing wired** — Jev. The form holds the key for the project's own code to
+  read. No MCP server is added, because no official one exists. If the user asks you to
+  install a community Jev server, say it would receive their paid key, and that none was
+  vetted. Do not install one on your own initiative.
 
 ## 2. Put the form where they can fill it
 
