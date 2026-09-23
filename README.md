@@ -261,7 +261,7 @@ Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per tur
 
 Worse, the budget check would not notice. It counts `rules/*.md`, skill descriptions and agent descriptions, and MCP tool schemas are none of those. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
 
-`graft init` is a second, separate step, and it is not run for you. It writes hooks on `SessionStart` and `Stop` - the only two events easyClaude uses. Its SessionStart emits a repo orientation block into the same first turn that `hooks/hooks.json` reserves for the four-line opener, and the opener's own instruction is "and nothing else". It also installs a statusline and a `.claude/skills/graft/SKILL.md`. Run it yourself if you want that - knowingly, not by default.
+`graft init` is a second, separate step, and it is not run for you. It writes hooks on `SessionStart` and `Stop` - the only two events easyClaude uses. Its SessionStart emits a repo orientation block into the same first turn that `hooks/hooks.json` reserves for the four-line opener, and the opener is told to add nothing else. It also installs a statusline and a `.claude/skills/graft/SKILL.md`. Run it yourself if you want that - knowingly, not by default.
 
 Two things to know before you switch it on:
 

@@ -132,7 +132,7 @@ breaks('a plugin the marketplace does not list', '4',
 // --- 5. hooks ----------------------------------------------------------------
 breaks('a hook pointing at a script that is not there', '5',
   (d) => editJson(d, 'hooks/hooks.json', (j) => {
-    j.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/renamed.mjs" --hook';
+    j.hooks.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/renamed.mjs" --hook';
   }),
   /scripts\/renamed\.mjs.*does not exist/);
 
@@ -140,9 +140,21 @@ breaks('a hook pointing at a script that is not there', '5',
 // overrides it, which wedges the session rather than failing it.
 breaks('a Stop prompt hook with no loop guard', '5',
   (d) => editJson(d, 'hooks/hooks.json', (j) => {
-    j.Stop[0].hooks[0] = { type: 'prompt', timeout: 600, prompt: 'Check the work before stopping.' };
+    j.hooks.Stop[0].hooks[0] = { type: 'prompt', timeout: 600, prompt: 'Check the work before stopping.' };
   }),
   /must check "stop_hook_active"/);
+
+// The shape every release up to 0.1.2 shipped: events at the top level. Claude Code refused
+// the whole file and ran no hook at all, while this check printed OK.
+breaks('events at the top level, with no "hooks" object around them', '5',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => j.hooks),
+  /must put its events under a top-level "hooks" object \(found SessionStart, Stop/);
+
+breaks('a SessionStart prompt hook, which Claude Code fails at run time', '5',
+  (d) => editJson(d, 'hooks/hooks.json', (j) => {
+    j.hooks.SessionStart[0].hooks[0] = { type: 'prompt', timeout: 30, prompt: 'Orient yourself.' };
+  }),
+  /"SessionStart" cannot be a prompt hook/);
 
 // --- 5b. curated skill registry ----------------------------------------------
 // The mutation adds an entry rather than editing one, because nothing is vendored today.
@@ -304,6 +316,11 @@ breaks('a template that can never reach kickoff', '11b',
   (d) => editText(d, 'template/docs/STATE.md', (t) => t.replace('<!-- easyclaude:not-kicked-off -->', '')),
   /template\/docs\/STATE\.md: must carry/);
 
+breaks('a session-start script that no longer knows the marker', '11b',
+  (d) => editText(d, 'scripts/session-start.mjs',
+    (t) => t.replaceAll('<!-- easyclaude:not-kicked-off -->', '<!-- renamed -->')),
+  /SessionStart hook must test for/);
+
 breaks("kickoff's state template carrying the not-kicked-off marker", '11b',
   (d) => editText(d, 'skills/kickoff/SKILL.md',
     (t) => t.replace('`docs/STATE.md` starts as', '`docs/STATE.md` starts as <!-- easyclaude:not-kicked-off -->')),
@@ -327,22 +344,22 @@ breaks('a phrase promised for a skill that cannot hear one', '12',
 // The gate is the product. Each of these three left the framework enforcing nothing while
 // every other check still passed.
 breaks('a Stop hook that runs something else entirely', '12a',
-  (d) => editJson(d, 'hooks/hooks.json', (j) => { j.Stop[0].hooks[0].command = 'echo hello'; }),
+  (d) => editJson(d, 'hooks/hooks.json', (j) => { j.hooks.Stop[0].hooks[0].command = 'echo hello'; }),
   /does not invoke scripts\/verify\.mjs --hook/);
 
 breaks('a Stop hook that runs the gate without --hook', '12a',
   (d) => editJson(d, 'hooks/hooks.json', (j) => {
-    j.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs"';
+    j.hooks.Stop[0].hooks[0].command = 'node "${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs"';
   }),
   /does not invoke scripts\/verify\.mjs --hook/);
 
 breaks('no Stop hook at all', '12a',
-  (d) => editJson(d, 'hooks/hooks.json', (j) => { delete j.Stop; }),
+  (d) => editJson(d, 'hooks/hooks.json', (j) => { delete j.hooks.Stop; }),
   /no Stop command hook/);
 
 // --- 12b. the hook's time limit and the gate's own budget must agree ---------
 breaks("the hook's timeout drifting from the gate's budget", '12b',
-  (d) => editJson(d, 'hooks/hooks.json', (j) => { j.Stop[0].hooks[0].timeout = 45; }),
+  (d) => editJson(d, 'hooks/hooks.json', (j) => { j.hooks.Stop[0].hooks[0].timeout = 45; }),
   /HOOK_TIMEOUT_MS is \d+ms, but the Stop hook/);
 
 // --- 12b. the hook's time limit and the gate's own budget must agree ---------
