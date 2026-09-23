@@ -12,6 +12,7 @@ If the project grows enough to deserve verification, that's the moment to add a 
 
 **Pitfalls**
 - **Opening the page with `file://` breaks things silently.** ES modules, `fetch`, and most APIs fail on the `file:` protocol due to CORS. Always serve over HTTP: `python -m http.server` or `npx serve`. Beginners lose hours to this.
+- **Start that server yourself, and hand the user a link.** Do not tell a beginner to open a terminal and type a command - many have no Python, and none know which folder to run it in. Run it in the background, ask their permission when Claude Code prompts, and give them the `http://localhost:…` address to click. If neither Python nor Node is installed, say that in one line, and keep the page free of ES modules and `fetch` so that double-clicking `index.html` still works.
 - Relative versus absolute paths behave differently once the site is hosted in a subdirectory. Pick one convention early.
 - Hard refresh after changes. Cached CSS makes it look like an edit did nothing.
 - Every dependency loaded from a CDN is a third party who can change your site. Pin versions with `integrity` hashes, or vendor the file.
