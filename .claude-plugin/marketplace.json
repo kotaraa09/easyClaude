@@ -3,7 +3,7 @@
   "owner": { "name": "DegonCore" },
   "metadata": {
     "description": "easyClaude - a stack-agnostic harness for building real projects with Claude Code.",
-    "version": "0.1.7"
+    "version": "0.1.8"
   },
   "plugins": [
     {
