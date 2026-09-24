@@ -484,7 +484,7 @@ scripts/          verify.mjs (the gate), validate.mjs (CI checks),
                   (MCP + keys), skillscan.mjs (the install gate),
                   gen/ (asset generation)
 tests/            mutation tests for the checking machinery
-evals/            seven trigger cases, written but not yet runnable
+evals/            seven trigger cases, run against a sample project
 docs/assets/      README artwork
 ```
 
@@ -507,7 +507,7 @@ The test suite exists because four of them later stopped checking, and passed wh
 
 So the suite tests the checkers rather than the plugin. It copies the tree, breaks exactly one thing, and requires the validator to report it; a check that stops checking now fails a test instead of going quiet. It pins the gate's behaviour the same way — a failing step must block the turn, a missing toolchain must only warn, and test output that happens to say "not found" must not be mistaken for a missing toolchain. One case is about the suite itself: every numbered check in the validator must have at least one test, so a new check cannot ship untested and an old one cannot lose its last test unnoticed.
 
-What none of it can check is which skill actually wins a given sentence, since a validator reads frontmatter and not meaning. [`evals/`](evals/) holds six cases for exactly that — four skills that must fire, and two sentences that must leave every skill quiet. They cannot run yet: `claude plugin eval` is still in early access. The validator checks their shape on every push so they cannot rot in the meantime, and `evals/README.md` is explicit about which parts of them are unproven until the first real run.
+What none of it can check is which skill actually wins a given sentence, since a validator reads frontmatter and not meaning. [`evals/`](evals/) holds seven cases for exactly that: five skills that must fire, and two sentences that must leave the wrong skill quiet. Each case runs in a small sample project, and `claude plugin eval` runs them. They cost money and need a login, so CI does not run them; the validator checks their shape on every push instead, and `evals/README.md` has the command and the latest results.
 
 ---
 

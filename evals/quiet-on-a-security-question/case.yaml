@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: quiet-on-a-security-question
+# Everything else lives in prompt.md and graders/. This file exists for the one field
+# that form cannot carry: the scaffold. The runner merges the two.
+context:
+  scaffold_script: setup.sh

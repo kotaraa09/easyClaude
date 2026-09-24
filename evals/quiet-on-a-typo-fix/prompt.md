@@ -5,7 +5,7 @@ description: A one-word change must not start the workflow. A framework that fir
 tags: [triggering, negative]
 runs: 3
 max_turns: 6
-allowed_tools: [Skill, Read, Glob, Grep]
+allowed_tools: [Skill, Read, Glob, Grep, Edit]
 ---
 
 fix this typo in the footer
