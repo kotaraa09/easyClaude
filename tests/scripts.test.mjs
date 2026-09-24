@@ -295,3 +295,18 @@ test('session-start: the hook form is the JSON Claude Code reads', async () => {
     'without hookEventName, Claude Code drops the context.');
   assertMatch(j.hookSpecificOutput.additionalContext, /kickoff/, 'the context must carry the decision.');
 });
+
+// --- the cost fingerprint -----------------------------------------------------
+// It warns that docs/cost.json is stale. A skill's body loads only when the skill runs, so
+// an edit there must not trip it - it did, on the first edit to the deploy skill - and an
+// edit to the description, which rides on every turn, must.
+test('cost fingerprint: a skill body edit is ignored, a description edit is not', async () => {
+  const { costFingerprint } = await import('../scripts/cost-inputs.mjs');
+  const { workspace, editText } = await import('./harness.mjs');
+  const dir = workspace();
+  const before = costFingerprint(dir);
+  editText(dir, 'skills/deploy/SKILL.md', (t) => `${t}\nOne more step.\n`);
+  assert(costFingerprint(dir) === before, 'a body edit changed the fingerprint.');
+  editText(dir, 'skills/deploy/SKILL.md', (t) => t.replace(/^description: /m, 'description: Now '));
+  assert(costFingerprint(dir) !== before, 'a description edit left the fingerprint unchanged.');
+});

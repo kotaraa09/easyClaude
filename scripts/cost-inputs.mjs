@@ -24,9 +24,14 @@ function list(root, dir, keep) {
   return out;
 }
 
-// Skill and agent files are included whole, not just their descriptions. A change to a
-// skill body does not move the per-turn figure, so this over-reports staleness - which is
-// the safe direction for a warning, and far simpler than a second frontmatter parser.
+// Skills and agents count by their frontmatter only: the name, description and flags are
+// what rides on every turn, and a body loads only when the skill runs. Hashing whole files
+// warned that the cost was stale after every edit to a skill's steps - the deploy skill's
+// first change after measuring - and a warning that is usually wrong teaches people to
+// ignore it.
+const HEADER_ONLY = /^(skills\/.+\/SKILL\.md|agents\/.+\.md)$/;
+const header = (text) => text.match(/^---\r?\n[\s\S]*?\r?\n---/)?.[0] ?? text;
+
 export function costInputs(root) {
   return [
     ...list(root, 'skills', (r) => r.endsWith('/SKILL.md')),
@@ -42,7 +47,8 @@ export function costFingerprint(root) {
   const h = createHash('sha256');
   for (const r of costInputs(root)) {
     // Line endings normalised, so a Windows checkout and a Linux one agree.
-    h.update(`${r}\n${readFileSync(join(root, r), 'utf8').replace(/\r\n/g, '\n')}\n`);
+    const text = readFileSync(join(root, r), 'utf8').replace(/\r\n/g, '\n');
+    h.update(`${r}\n${HEADER_ONLY.test(r) ? header(text) : text}\n`);
   }
   return h.digest('hex').slice(0, 16);
 }

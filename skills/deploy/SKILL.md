@@ -53,7 +53,11 @@ Point 4 is why OAuth "works locally but not in production" — the callback URL 
 
 ## 4. Deploy
 
-Prefer connecting the git repository over pushing from a laptop, so deploys are reproducible and anyone can trigger one.
+**Connect the host to the git repository whenever the project is in git.** Then every push goes live on its own, and the live site cannot fall behind the code. An upload is a copy, and a copy goes stale the first time someone changes the code and forgets to upload again. In testing, a beginner was given a `site/` folder to drag onto Netlify Drop, and the only thing that would have kept their friends off an old version was their own memory.
+
+- **In git, with a GitHub remote:** connect that repository in the host's dashboard. The user signs in and clicks; you say which buttons to press.
+- **In git, with no remote:** recommend making one. Say in plain words what it involves: a free GitHub account, a repository, and a push, which puts the code where others can see it unless the repository is private. The user creates the account. Push only after they say yes.
+- **Not in git, or the user declines:** an upload is fine. Copy only the files the site needs into a folder, so `docs/`, `.claude/` and other working files stay private, and gitignore that folder. Then add one line to `CLAUDE.md`: the live site is an upload from that folder, so after any change to the site, refresh the folder and remind the user to upload it again. `CLAUDE.md` loads on every turn, so the reminder arrives with the change, not months later.
 
 Watch the build log to completion. A green CLI exit with a failed remote build is a false success.
 

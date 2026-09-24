@@ -35,6 +35,8 @@ const WRITE = args.includes('--write');
 const RUNS = Number(args[args.indexOf('--runs') + 1]) || 2;
 // Runs of one case that differ by more than this mean the environment moved, not the plugin.
 const SPREAD = 50;
+// A part that moved by this much or less since the last save is noise, not a change.
+const NOISE = 10;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = JSON.parse(readFileSync(join(root, 'tests', 'fixtures', 'cost-project.json'), 'utf8')).files;
 
@@ -139,7 +141,7 @@ const parts = {
   claudeMd: tokens.claudeMd - tokens.state,
   rules: tokens.rules - tokens.claudeMd,
 };
-const total = tokens.rules - tokens.baseline;
+let total = tokens.rules - tokens.baseline;
 const negative = Object.entries(parts).filter(([, n]) => n < 0);
 if (negative.length) {
   console.error(`measure-cost: ${negative.map(([k, n]) => `${k} ${n}`).join(', ')} came out negative, ` +
@@ -153,6 +155,18 @@ console.log(`  ${String(total).padStart(5)}  total, in a set-up project\n`);
 console.log(`${version}, ${model}, ${RUNS} runs a case, $${spent.toFixed(2)} spent`);
 
 if (WRITE) {
+  // Runs differ by a few tokens even with nothing changed, and the README quotes these
+  // figures exactly. When every part is within the noise of the saved one, the saved
+  // figures stand and only the date and fingerprint move - a re-measurement that finds no
+  // change should not make anyone edit two READMEs.
+  let saved = null;
+  try { saved = JSON.parse(readFileSync(join(root, COST_FILE), 'utf8')); } catch { /* first run */ }
+  const same = saved?.parts && Object.keys(parts).every((k) => Math.abs(parts[k] - saved.parts[k]) <= NOISE);
+  if (same) {
+    Object.assign(parts, saved.parts);
+    total = saved.total;
+    console.log(`every part is within ${NOISE} tokens of ${COST_FILE}, so its figures stand`);
+  }
   const out = {
     _about: 'Written by scripts/measure-cost.mjs --write. The README quotes these figures, ' +
       'and validate.mjs warns when "inputs" no longer matches the files that set the cost.',
