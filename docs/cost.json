@@ -4,12 +4,12 @@
   "claude": "2.1.280 (Claude Code)",
   "model": "claude-opus-5-5",
   "runs": 2,
-  "total": 1481,
+  "total": 1540,
   "parts": {
-    "plugin": 841,
-    "state": 1,
-    "claudeMd": 263,
-    "rules": 376
+    "plugin": 918,
+    "state": 0,
+    "claudeMd": 258,
+    "rules": 364
   },
-  "inputs": "9c6b24b67e42edfd"
+  "inputs": "f029c5844ba26e55"
 }

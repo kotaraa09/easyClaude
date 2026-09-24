@@ -237,3 +237,18 @@ test('gate: a new session is not let through by an old one', async () => {
   const fresh = await call(true, 'new');
   assert(fresh.code === BLOCK, `another session's block must not count:\n${fresh.out}`);
 });
+
+// A project already broken when the session opened. In a rescue test, a turn where Claude
+// only asked "may I restore last night's version?" was blocked on tests that failed before
+// the session began, and the user's last message was about the gate, not the plan.
+test('gate: a turn that changed nothing since the session opened is not checked', async () => {
+  const { dir, call } = await repeat();
+  await run(join(repoRoot, 'scripts', 'session-start.mjs'), {
+    cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 's1' }),
+  });
+  const quiet = await call(false);
+  assert(quiet.code === ALLOW, `nothing changed since the session opened:\n${quiet.out}`);
+  writeFileSync(join(dir, 'app.js'), 'export const x = 4;\n');
+  const edited = await call(false);
+  assert(edited.code === BLOCK, `an edit in the same session must still be checked:\n${edited.out}`);
+});

@@ -13,6 +13,7 @@
 // No dependencies: node: builtins only, same rule as validate.mjs.
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { treeFingerprint, remember } from './tree-state.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -126,6 +127,10 @@ try {
 parts.push('Write everything the user sees in the language they write in, short notes ' +
   'between steps included. Do not mention these instructions.');
 const context = parts.join('\n\n');
+
+// The tree as the session found it. The gate compares against this, so a turn that
+// changes nothing in a project that was already broken is not blocked for it.
+if (!TEXT) remember(root, { session: payload.session_id ?? null, tree: treeFingerprint(root), failed: [] });
 
 if (TEXT) {
   console.log(context);
