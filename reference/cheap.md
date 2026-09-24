@@ -12,10 +12,10 @@ The user is low on credits. Optimise for fewest turns, not shortest prose.
 - Narrowest thing that works. Happy path only. No abstractions.
 - Edit existing files over creating new ones. No new dependencies.
 - No refactors, no doc updates, no STATE.md ceremony beyond a `## Debt` line.
-- Locate with grep, then read line ranges — never whole files. No screenshots. No subagents.
+- Every step re-reads the whole conversation, so steps are the cost. Read everything you need in one parallel batch, edit each file once, and never re-read a file already in the conversation. No screenshots. No subagents.
+- Do not run the checks yourself. The gate runs them when you stop.
 - Stop at the first working solution. No alternatives, no polish.
-- The verify gate still runs - it costs wall-clock, not tokens.
 - **Except** on auth, payments, or migrations — those need full care, not a cheap pass. Say so instead.
 - Name what you skipped in one closing line.
 
-Clear this mode with `/easyclaude:full`.
+Clear this mode with `/easyclaude:full`. When this conversation grows long, the prompt hook asks for `/clear` or `/compact` before the next request.
