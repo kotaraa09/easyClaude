@@ -218,11 +218,13 @@ breaks('a recipe detecting on a marker kickoff never looks for', '8b',
 
 // --- 9. skill descriptions must not collide ----------------------------------
 // Both skills set disable-model-invocation, so copying a description between them changes
-// no token figure and this case cannot be passing for some unrelated reason.
+// no token figure and this case cannot be passing for some unrelated reason. It used deploy
+// and rescue until rescue started listening for plain words in 0.1.7; then the copy moved
+// the estimate and the case failed for a reason that had nothing to do with overlap.
 warns('two skills competing for the same turn', '9',
   (d) => {
     const from = readText(d, 'skills/deploy/SKILL.md').match(/^description:(.*)$/m)[1];
-    editText(d, 'skills/rescue/SKILL.md', (t) => t.replace(/^description:.*$/m, `description:${from}`));
+    editText(d, 'skills/security-check/SKILL.md', (t) => t.replace(/^description:.*$/m, `description:${from}`));
   },
   /descriptions overlap/);
 

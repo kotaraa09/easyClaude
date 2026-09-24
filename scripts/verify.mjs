@@ -13,11 +13,10 @@
 // talked out of a block.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
-import { readFileSync, existsSync, writeFileSync, statSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
+import { treeFingerprint, lastSeen, remember } from './tree-state.mjs';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -113,22 +112,6 @@ function changedPaths() {
     if (rec[0] === 'R' || rec[0] === 'C') i++;
   }
   return paths;
-}
-
-// Everything that differs from HEAD: tracked edits by content, untracked files by size
-// and time. null without git.
-function treeState() {
-  const diff = spawnSync('git', ['diff', 'HEAD', '--no-ext-diff'], {
-    cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
-  });
-  const untracked = spawnSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], {
-    cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
-  });
-  if (diff.error || diff.status !== 0 || untracked.error || untracked.status !== 0) return null;
-  const files = untracked.stdout.split('\0').filter(Boolean).map((p) => {
-    try { const s = statSync(join(root, p)); return `${p}:${s.size}:${s.mtimeMs}`; } catch { return p; }
-  });
-  return `${diff.stdout}\n${files.join('\n')}`;
 }
 
 // --- contract ----------------------------------------------------------------
@@ -314,6 +297,23 @@ if (HOOK) {
     process.exit(0);
   }
 
+  // A turn is judged by what it changed. If the tree is exactly as the last check or the
+  // session start left it, this turn changed nothing, and running the contract again can
+  // only repeat the last verdict. That covers two cases found in testing: a tree already
+  // broken before the session, where every question Claude asked got blocked; and a
+  // block Claude answered by reporting instead of editing, which used to be blocked
+  // again until Claude Code's cap stopped it - eight times in one run.
+  const session = payload.session_id ?? null;
+  const tree = treeFingerprint(root);
+  const seen = lastSeen(root);
+  if (tree && seen?.session === session && seen.tree === tree) {
+    if (seen.failed?.length) {
+      allow(`easyClaude: ${seen.failed.join(', ')} still failing, and nothing changed since the ` +
+        'last check, so the turn ends here. This work is not verified.');
+    }
+    process.exit(0);
+  }
+
   // Fast tier only. On an untiered contract that is every step, so nothing changes
   // for a project that never opted in.
   const due = cfg.steps.filter((s) => s.tier === 'fast');
@@ -331,6 +331,18 @@ if (HOOK) {
   const results = due.map(runStep);
   const failed = results.filter((r) => r.result === FAIL);
   const unrunnable = results.filter((r) => r.result === UNRUNNABLE);
+
+  // Without git there is no tree to compare, so the failing step names stand in: after a
+  // block, a turn that still fails the same steps is let through once rather than
+  // blocked until the cap. An edit that leaves the same steps failing gets one more check
+  // rather than as many as it needs - the price of not knowing what changed.
+  const failedNames = failed.map((r) => r.name);
+  if (!tree && failed.length && payload.stop_hook_active && seen?.session === session &&
+      seen.tree === null && seen.failed?.join() === failedNames.join()) {
+    allow(`easyClaude: ${failedNames.join(', ')} still failing after the last block, so the ` +
+      'turn ends here. This work is not verified.');
+  }
+  remember(root, { session, tree, failed: failedNames });
 
   if (!failed.length) {
     allow(unrunnable.length
@@ -354,23 +366,6 @@ if (HOOK) {
     'If the cause is not obvious, use the debug skill rather than trying edits until one sticks.',
     'If it genuinely cannot pass here, say exactly what is failing and what you tried, and stop.',
   ].join('\n');
-
-  // What the tree looked like at this block. Without git there is no cheap way to tell,
-  // so the failing step names stand in, and an edit that leaves the same steps failing
-  // gets one more check rather than as many as it needs.
-  const failedNames = failed.map((r) => r.name).join(', ');
-  const fingerprint = createHash('sha256').update(`${failedNames}\n${treeState() ?? ''}`).digest('hex');
-  const memo = join(tmpdir(), `easyclaude-gate-${createHash('sha256').update(root).digest('hex').slice(0, 16)}.json`);
-  let last = null;
-  try { last = JSON.parse(readFileSync(memo, 'utf8')); } catch { /* first block */ }
-  if (payload.stop_hook_active && last?.session === (payload.session_id ?? null) &&
-      last?.fingerprint === fingerprint) {
-    allow(`easyClaude: ${failedNames} still failing, and nothing changed since the last ` +
-      'check, so the turn ends here. This work is not verified.');
-  }
-  try {
-    writeFileSync(memo, JSON.stringify({ session: payload.session_id ?? null, fingerprint }));
-  } catch { /* an unwritable temp dir means blocking as before, not failing open */ }
 
   process.stderr.write(report);
   process.exit(2);

@@ -144,6 +144,7 @@ There are no commands to learn for the common things. Say what you want in norma
 | *"it's throwing an error"* | Reproduced, fixed, and a test left behind so it can't come back <!--skill:debug--> |
 | *"ship it"* | Checks, branches, reviews, commits, opens a pull request <!--skill:ship--> |
 | *"where does login happen?"* | It searches before it reads, and says what it found <!--skill:explore-code--> |
+| *"it broke, I want yesterday's version back"* | It finds what changed, says what it will restore, and waits for your yes <!--skill:rescue--> |
 
 Small stuff skips all of that. A one-line bug fix is just a one-line bug fix.
 
@@ -152,11 +153,10 @@ Small stuff skips all of that. A one-line bug fix is just a one-line bug fix.
 
 <br>
 
-Six jobs come up rarely enough that they aren't listening in the background. You call them by name when you need them, and they cost nothing until you do. That is also why they are not in the table above: a skill that costs nothing per turn is one that cannot be listening for a phrase.
+Five jobs come up rarely enough that they aren't listening in the background. You call them by name when you need them, and they cost nothing until you do. That is also why they are not in the table above: a skill that costs nothing per turn is one that cannot be listening for a phrase.
 
 ```
 /easyclaude:write-tests        start a test suite, so the gate checks behaviour
-/easyclaude:rescue             undo something, get your work back
 /easyclaude:security-check     sweep secrets, git history, endpoints, dependencies
 /easyclaude:deploy             prove the build, pick a host, check the live URL
 /easyclaude:generate-asset     images, audio, 3D
@@ -257,7 +257,7 @@ Jev, from TypeSafe, is in the form as a key and nothing more. It answers typed q
 
 Only the MCP server is wired, and it is off until you ask for it. That is a cost decision, not a doubt about the tool.
 
-Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures ~1,481 in a set-up project. Switching Graft on by default would add about three quarters to the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
+Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per turn, by the same chars/4 rule `scripts/validate.mjs` uses on everything else here. The framework itself measures ~1,540 in a set-up project. Switching Graft on by default would add about three quarters to the standing cost of every turn in every session, including the ones that never touch a graph - and the badge at the top of this page would stop being true.
 
 Worse, the budget check would not notice. It counts `rules/*.md`, skill descriptions and agent descriptions, and MCP tool schemas are none of those. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
 
@@ -366,14 +366,14 @@ easyClaude is not free to run, and a project that argues about token cost should
 
 Some of it is sent on every turn of every session, whether you use it or not. Measured with Claude Code itself, in a project kickoff has set up:
 
-<!--measured:1481,841,1,263,376-->**~1,481 tokens per turn**, in four parts, for a project whose plan is in English:
+<!--measured:1540,918,0,258,364-->**~1,540 tokens per turn**, in four parts, for a project whose plan is in English:
 
 | part | tokens | when |
 |---|---|---|
-| skills, agent and session opener | ~841 | from install |
-| your plan in `docs/STATE.md`, read back by the opener in place of the setup offer | ~1 | after kickoff |
-| the `CLAUDE.md` kickoff writes | ~263 | after kickoff |
-| the rules kickoff copies into `.claude/rules/` | ~376 | after kickoff |
+| skills, agent and session opener | ~918 | from install |
+| your plan in `docs/STATE.md`, read back by the opener in place of the setup offer | ~0 | after kickoff |
+| the `CLAUDE.md` kickoff writes | ~258 | after kickoff |
+| the rules kickoff copies into `.claude/rules/` | ~364 | after kickoff |
 
 Skill bodies and stack recipes load only when something uses them, so they are not in that figure. easyClaude works in whatever language you write in, and writes your plan in it. The plan part grows with the plan, and with the language: some languages take more tokens per word. A five-task plan in Thai measured about 150 tokens more than the same plan in English. Everything else stays in English, whatever you write in, because only Claude reads it.
 
@@ -388,7 +388,7 @@ Call it a page and a half of text per turn. If that's more than you want to spen
 
 Until 0.1.3 this page said ~958 tokens per turn. Measured, a set-up project with a Thai plan cost ~2,190. The old figure was an estimate: it counted four characters as one token, which is optimistic, and it left out the `CLAUDE.md` kickoff writes. Cutting duplicated rules and shortening that `CLAUDE.md` brought it to today's figure.
 
-CI still makes the estimate, because it can do that on every push: <!--cost:704,220,427,57-->**~704 tokens per turn**: ~220 of rules, ~427 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
+CI still makes the estimate, because it can do that on every push: <!--cost:749,213,479,57-->**~749 tokens per turn**: ~213 of rules, ~479 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
 
 </details>
 
@@ -397,13 +397,13 @@ CI still makes the estimate, because it can do that on every push: <!--cost:704,
 
 <br>
 
-Skills are split by how often they fire. <!--always-on:7-->Seven stay loaded, so plain English keeps working. Six of them fire constantly: kickoff, plan-feature, build-task, debug, ship, explore-code. The seventh is the vendored slopmonster, at ~59 tokens, and its description is what makes "does this sound like AI" reach it at all. A vendored design skill held that slot until September 2026 and cost ~156 tokens. It went because it picked an aesthetic for every project that installed it, and `/easyclaude:skills` asks instead. Worth knowing you now pay 59 tokens a turn for the slop linter, prose project or not.
+Skills are split by how often they fire. <!--always-on:8-->Eight stay loaded, so plain English keeps working. Six of them fire constantly: kickoff, plan-feature, build-task, debug, ship, explore-code. The seventh is rescue, which fires rarely but joined them in 0.1.7: a user in a panic says "take me back", not a command name, and without the skill loaded Claude restored files before asking, twice in testing. The eighth is the vendored slopmonster, at ~59 tokens, and its description is what makes "does this sound like AI" reach it at all. A vendored design skill held that slot until September 2026 and cost ~156 tokens. It went because it picked an aesthetic for every project that installed it, and `/easyclaude:skills` asks instead. Worth knowing you now pay 59 tokens a turn for the slop linter, prose project or not.
 
-The six occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all six discoverable, plus `/easyclaude:skills`, for about 76 tokens. Loading the six in full would cost roughly 424.
+The five occasional ones set `disable-model-invocation`, which drops them from the per-turn cost completely, because that's how Claude Code's own cost function treats them. A one-line pointer keeps all five discoverable, plus `/easyclaude:skills`, for about 69 tokens. Loading the five in full would cost roughly 368.
 
 One agent ships, and it costs ~57 tokens a turn for the same reason a skill does: its name and description sit in the tool list whether you dispatch it or not. `easyclaude-diff-reviewer` is the fresh pair of eyes in step 3 of `ship` — it reads a diff it did not write and reports only what breaks. It holds `Read`, `Glob` and `Grep`, and nothing that can write or run a command, because a reviewer that fixes what it finds puts unreviewed code past the gate. The review ran before this, on whichever general helper was to hand; naming it is what buys the read-only grant and a cheaper model.
 
-CI enforces the ceiling. `skills/registry.json` sets it, the validator estimates the figure from the files, and the build fails if it drifts over. About 696 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
+CI enforces the ceiling. `skills/registry.json` sets it, the validator estimates the figure from the files, and the build fails if it drifts over. About 651 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
 
 The ceiling has a blind spot, and it is worth knowing about. It counts `rules/*.md`, skill descriptions and agent descriptions. It does not count MCP tool schemas, which are larger than both - Graft's six measure ~1,095 on their own. That is why `.mcp.json` ships empty rather than merely small: on that ground the default does the work the gate cannot.
 
@@ -470,8 +470,8 @@ hooks/            session orientation, verify gate (runs verify.mjs)
 commands/         start, cheap, cheap-session, full, autoship, connect,
                   skills
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship,
-                  explore-code
-                  opt-in:    write-tests, rescue, security-check, deploy,
+                  explore-code, rescue
+                  opt-in:    write-tests, security-check, deploy,
                              generate-asset, pick-library
                   vendored:  slopmonster (prose linter, always on)
 agents/           easyclaude-diff-reviewer: read-only fresh eyes for ship step 3
@@ -484,7 +484,7 @@ scripts/          verify.mjs (the gate), validate.mjs (CI checks),
                   (MCP + keys), skillscan.mjs (the install gate),
                   gen/ (asset generation)
 tests/            mutation tests for the checking machinery
-evals/            six trigger cases, written but not yet runnable
+evals/            seven trigger cases, written but not yet runnable
 docs/assets/      README artwork
 ```
 
