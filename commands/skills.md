@@ -115,8 +115,8 @@ Then `/plugin`, and install the named plugins from the list.
 
 ## 7. Watch for the two collisions
 
-`hooks/hooks.json` owns `SessionStart` and `Stop`. If something installs a hook on either
-one, say so plainly and let the user decide which wins. Do not edit their hooks to make room.
+`hooks/hooks.json` owns `SessionStart`, `UserPromptSubmit` and `Stop`. If something installs
+a hook on any of them, say so plainly and let the user decide which wins. Do not edit their hooks to make room.
 
 If the new skill overlaps one easyClaude already ships - the catalogue names which ones do
 - say which is stricter and let both stand, or let the user drop ours. Do not quietly

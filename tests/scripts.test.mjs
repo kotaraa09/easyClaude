@@ -21,6 +21,7 @@ for (const [name, args] of [
   ['gen/generate.mjs', ['--list']],
   ['verify.mjs', ['--list']],
   ['session-start.mjs', ['--text']],
+  ['prompt-check.mjs', []],
   ['validate.mjs', []],
 ]) {
   test(`entry point: node scripts/${name} ${args.join(' ')} runs`, async () => {
@@ -309,4 +310,61 @@ test('cost fingerprint: a skill body edit is ignored, a description edit is not'
   assert(costFingerprint(dir) === before, 'a body edit changed the fingerprint.');
   editText(dir, 'skills/deploy/SKILL.md', (t) => t.replace(/^description: /m, 'description: Now '));
   assert(costFingerprint(dir) !== before, 'a description edit left the fingerprint unchanged.');
+});
+
+// --- the prompt hook ------------------------------------------------------------
+// Every step of a turn re-reads the conversation, and a long one cost several times a
+// short one for the same task. These pin when the hook speaks, and that it stays quiet
+// otherwise - it runs on every prompt, and it costs tokens only when it prints.
+const transcript = (sizes) => {
+  const dir = projectDir();
+  const file = join(dir, 'session.jsonl');
+  writeFileSync(file, sizes.map((n, i) => JSON.stringify({
+    type: 'assistant', isSidechain: false, uuid: `u${i}`,
+    message: { usage: { input_tokens: 2, cache_creation_input_tokens: 0, cache_read_input_tokens: n - 2 } },
+  })).join('\n') + '\n');
+  return { dir, file };
+};
+const promptHook = (dir, file, prompt, session = `s-${Math.random()}`) =>
+  run(script('prompt-check.mjs'), {
+    cwd: dir, env: { CLAUDE_PROJECT_DIR: dir },
+    input: JSON.stringify({ prompt, transcript_path: file, session_id: session }),
+  });
+
+test('prompt hook: history is the growth past the smallest request, so /compact resets it', async () => {
+  const { historyTokens } = await import('../scripts/prompt-check.mjs');
+  assert(historyTokens(transcript([30_000, 45_000, 70_000]).file) === 40_000, 'growth from the first request');
+  assert(historyTokens(transcript([30_000, 90_000, 33_000]).file) === 3_000,
+    'after /compact the context shrinks in the same file, and the history must shrink with it.');
+});
+
+test('prompt hook: cheap mode in a long conversation holds the task and asks for /clear or /compact', async () => {
+  const { dir, file } = transcript([30_000, 80_000]);
+  const r = await promptHook(dir, file, '/easyclaude:cheap add a counter');
+  assertMatch(r.out, /Do not start the task/, 'a long conversation must hold the cheap task.');
+  assertMatch(r.out, /\/clear[\s\S]*\/compact/, 'both ways out must be named.');
+});
+
+test('prompt hook: cheap mode in a short conversation says nothing', async () => {
+  const { dir, file } = transcript([30_000, 35_000]);
+  const r = await promptHook(dir, file, '/easyclaude:cheap add a counter');
+  assert(r.out.trim() === '', `a short conversation needs no advice:\n${r.out}`);
+});
+
+test('prompt hook: an armed cheap session holds any prompt once the conversation is long', async () => {
+  const { dir, file } = transcript([30_000, 80_000]);
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'cheap-session'), '2026-09-24');
+  const r = await promptHook(dir, file, 'add a counter');
+  assertMatch(r.out, /Do not start the task/, 'the armed session is cheap mode too.');
+});
+
+test('prompt hook: a very long normal conversation gets the /clear advice once', async () => {
+  const { dir, file } = transcript([30_000, 150_000]);
+  const session = `advice-${Date.now()}-${Math.random()}`;
+  const first = await promptHook(dir, file, 'add a counter', session);
+  assertMatch(first.out, /\/clear makes every step cheaper/, 'the advice must come once.');
+  assert(!/Do not start/.test(first.out), 'outside cheap mode the task goes ahead.');
+  const second = await promptHook(dir, file, 'and a footer', session);
+  assert(second.out.trim() === '', `the advice must not repeat in one session:\n${second.out}`);
 });

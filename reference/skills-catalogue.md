@@ -93,7 +93,7 @@ screenshots what it built, critiques the screenshot, and fixes it.
 - Apache-2.0. **1 skill plus several agents.**
 - Warning: it installs hooks and runs an engine binary that downloads itself on first use.
   Upstream's own README warns those hooks run whether or not the session approves the
-  command they launch. `hooks/hooks.json` already owns `SessionStart` and `Stop`. Prefer
+  command they launch. `hooks/hooks.json` already owns `SessionStart`, `UserPromptSubmit` and `Stop`. Prefer
   the plugin route over `npx impeccable install`, which writes hooks directly.
 
 ### emilkowalski/skills - motion and interface craft

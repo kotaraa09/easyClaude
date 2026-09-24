@@ -148,7 +148,7 @@ breaks('a Stop prompt hook with no loop guard', '5',
 // the whole file and ran no hook at all, while this check printed OK.
 breaks('events at the top level, with no "hooks" object around them', '5',
   (d) => editJson(d, 'hooks/hooks.json', (j) => j.hooks),
-  /must put its events under a top-level "hooks" object \(found SessionStart, Stop/);
+  /must put its events under a top-level "hooks" object \(found SessionStart, /);
 
 breaks('a SessionStart prompt hook, which Claude Code fails at run time', '5',
   (d) => editJson(d, 'hooks/hooks.json', (j) => {
