@@ -989,11 +989,11 @@ for (const f of walk(root)) {
   }
 }
 
-// --- 16. eval cases must stay loadable, though nothing can run them yet ------
-// `claude plugin eval` is still in early access, so these cases cannot be executed here.
-// Files nobody can run are files nobody notices going stale, which is the argument the
-// evals README made for writing none at all. This check is the answer to that: the shape
-// of every case is verified on each push, so the suite is wrong loudly rather than quietly.
+// --- 16. eval cases must stay loadable ---------------------------------------
+// `claude plugin eval` runs these cases, but it costs money and needs a login, so CI does
+// not run it. Files nobody runs are files nobody notices going stale. This check is the
+// answer to that: the shape of every case is verified on each push, so the suite is wrong
+// loudly rather than quietly.
 //
 // The rules below are not invented. The field names come from the CLI's own schema, and
 // the three floor invariants - a negative case, an outcome grader per case, runs >= 3 -
@@ -1063,13 +1063,38 @@ function findCaseDirs(dir, out = []) {
 }
 const caseDirs = existsSync(evalsDir) ? findCaseDirs(evalsDir) : [];
 
-// The other supported form. Nothing here can read it - that needs a YAML parser, and this
-// script has no dependencies - so a case written that way would sit unchecked, which is
-// the one thing this check exists to prevent.
+// The other supported form. A full case.yaml needs a YAML parser, and this script has no
+// dependencies, so a case written that way would sit unchecked - the one thing this check
+// exists to prevent.
+//
+// One narrow shape is allowed: a case.yaml beside prompt.md that carries only the
+// scaffold. prompt.md frontmatter cannot hold `context`, and without a scaffold every case
+// ran in an empty folder, where the SessionStart hook rightly sends everything to kickoff.
+// The first real run showed that: no case fired the skill it names. The runner merges
+// the two files, so the prompt, the settings and the graders all stay in the form checked
+// below. Anything more than the scaffold in case.yaml is refused.
+const SCAFFOLD_ONLY = /^schema_version: *"?[\d.]+"?\nname: *(\S+)\ncontext:\n +scaffold_script: *(\S+)$/;
 for (const f of existsSync(evalsDir) ? walk(evalsDir) : []) {
-  if (basename(f) === 'case.yaml') {
-    err(rel(f), 'check 16 reads the prompt.md + graders/ form and cannot read case.yaml, so ' +
-      'this case would go unchecked. Convert it, or teach validate.mjs to read case.yaml.');
+  if (basename(f) !== 'case.yaml') continue;
+  const dir = dirname(f);
+  const body = readFileSync(f, 'utf8').split(/\r?\n/)
+    .filter((l) => l.trim() && !l.trimStart().startsWith('#')).join('\n');
+  const m = body.match(SCAFFOLD_ONLY);
+  if (!m || !existsSync(join(dir, 'prompt.md'))) {
+    err(rel(f), 'check 16 reads the prompt.md + graders/ form. It accepts a case.yaml only ' +
+      'beside a prompt.md, holding schema_version, name and context.scaffold_script and ' +
+      'nothing else. Anything more would go unchecked. Move it into prompt.md or graders/.');
+    continue;
+  }
+  if (m[1] !== basename(dir)) {
+    err(rel(f), `"name: ${m[1]}" does not match the directory`);
+  }
+  // The runner refuses a scaffold path outside the case directory, so check the same.
+  const script = join(dir, m[2]);
+  if (m[2].startsWith('/') || m[2].split(/[\\/]/).includes('..')) {
+    err(rel(f), `scaffold_script "${m[2]}" leaves the case directory - the runner refuses that`);
+  } else if (!existsSync(script)) {
+    err(rel(f), `scaffold_script "${m[2]}" does not exist, so every run of this case fails to start`);
   }
 }
 
@@ -1159,6 +1184,13 @@ for (const dir of caseDirs) {
       // them loudly rather than leave them asserting on a name nothing can match.
       if (gfm.input_match && gfm.tool === 'Skill' && !skillNames.includes(gfm.input_match)) {
         err(gWhere, `matches skill "${gfm.input_match}", which is not a skill in this plugin`);
+      }
+      // The runner defaults min to 1, so "max: 0" alone means 1..0 and can never pass. All
+      // three should-not-fire graders were written that way, and the first real run failed
+      // every one of them whatever the model did.
+      if (gfm.max !== undefined && gfm.min === undefined && Number(gfm.max) < 1) {
+        err(gWhere, `"max: ${gfm.max}" with no "min" - the runner defaults min to 1, so this ` +
+          'grader can never pass. Add "min: 0".');
       }
     }
   }

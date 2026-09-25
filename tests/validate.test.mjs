@@ -417,9 +417,9 @@ breaks('an always-on count drifting from the measured set', '15',
   (d) => bumpNumber(d, 'README.th.md', /<!--\s*always-on:(\d+)\s*-->/),
   /claims \d+ always-on skills, measured/);
 
-// --- 16. eval cases must stay loadable, though nothing can run them yet ------
-// Nothing can execute these cases yet, so this check is the only thing standing between
-// the suite and quiet rot. Each mutation below is a way a case could be wrong while
+// --- 16. eval cases must stay loadable ---------------------------------------
+// CI does not run these cases, so this check is the only thing on each push standing
+// between the suite and quiet rot. Each mutation below is a way a case could be wrong while
 // looking fine in a diff.
 const CASE = 'evals/plan-feature-on-a-feature-request';
 const NEGATIVE = 'evals/quiet-on-a-typo-fix';
@@ -486,7 +486,29 @@ breaks('a case nested below the top level', '16',
 // let an unreadable case sit in the suite looking covered.
 breaks('a case written in the form this check cannot read', '16',
   (d) => writeAt(d, 'evals/orphan/case.yaml', 'name: orphan\n'),
-  /cannot read case\.yaml/);
+  /accepts a case\.yaml only/);
+
+// The one case.yaml it does accept carries the scaffold and nothing else. A grader or a
+// prompt slipped in beside it would run without ever being checked.
+breaks('a scaffold case.yaml that also carries settings', '16',
+  (d) => editText(d, `${CASE}/case.yaml`, (t) => `${t}runs: 1\n`),
+  /accepts a case\.yaml only/);
+
+breaks('a scaffold that does not exist', '16',
+  (d) => removeFile(d, `${CASE}/setup.sh`),
+  /does not exist, so every run of this case fails to start/);
+
+// The runner refuses this path, so each case carries a one-line setup.sh of its own.
+breaks('a scaffold outside the case directory', '16',
+  (d) => editText(d, `${CASE}/case.yaml`,
+    (t) => t.replace(/scaffold_script: .*/, 'scaffold_script: ../_fixture/setup.sh')),
+  /leaves the case directory/);
+
+// The runner defaults min to 1. Every should-not-fire grader here was once written with
+// max: 0 alone, and the first real run failed all of them whatever the model did.
+breaks('a should-not-fire grader that can never pass', '16',
+  (d) => editText(d, `${NEGATIVE}/graders/quiet.md`, (t) => t.replace(/^min: 0\n/m, '')),
+  /can never pass\. Add "min: 0"/);
 
 // The runner skips a graders/ file with no frontmatter, so notes may sit beside the
 // graders. Failing on one made this stricter than the tool it checks for.
