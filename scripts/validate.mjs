@@ -40,7 +40,7 @@ const KNOWN_KEYS = new Set([
 
 const HOOK_EVENTS = new Set([
   'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse',
-  'Stop', 'SubagentStop', 'PreCompact', 'Notification',
+  'Stop', 'SubagentStop', 'PreCompact', 'Notification', 'PreModelSwitch', 'PostModelSwitch',
 ]);
 
 // Events Claude Code refuses a prompt hook on. Only the one seen failing is listed. The

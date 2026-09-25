@@ -261,7 +261,7 @@ Graft's six tool schemas plus its MCP instructions measure ~1,095 tokens per tur
 
 Worse, the budget check would not notice. It counts `rules/*.md`, skill descriptions and agent descriptions, and MCP tool schemas are none of those. The one number CI guards is blind to the largest thing that could move it. That is the actual reason `.mcp.json` ships empty: the gate cannot defend that ground, so the default has to.
 
-`graft init` is a second, separate step, and it is not run for you. It writes hooks on `SessionStart` and `Stop`, two of the three events easyClaude uses. Its SessionStart emits a repo orientation block into the same first turn that `hooks/hooks.json` reserves for the four-line opener, and the opener is told to add nothing else. It also installs a statusline and a `.claude/skills/graft/SKILL.md`. Run it yourself if you want that - knowingly, not by default.
+`graft init` is a second, separate step, and it is not run for you. It writes hooks on `SessionStart` and `Stop`, two of the four events easyClaude uses. Its SessionStart emits a repo orientation block into the same first turn that `hooks/hooks.json` reserves for the four-line opener, and the opener is told to add nothing else. It also installs a statusline and a `.claude/skills/graft/SKILL.md`. Run it yourself if you want that - knowingly, not by default.
 
 Two things to know before you switch it on:
 
@@ -379,6 +379,10 @@ Skill bodies and stack recipes load only when something uses them, so they are n
 
 Call it a page and a half of text per turn. If that's more than you want to spend, use `/easyclaude:cheap`.
 
+Two moments cost far more than a normal turn, and easyClaude tells you before each one. Reopening an old conversation sends all of it again with your first message. Switching model in a long conversation does the same, because each model keeps its own copy. When either would cost more than about $0.25, a line shows the figure and says that `/clear` is cheaper. That line is in English whatever you write in, because Claude Code shows it before Claude reads anything.
+
+To see what every installed skill costs you, easyClaude's and everyone else's, and which ones you never use, run `/skill-doctor` (Claude Code 2.1.252 or later).
+
 <details>
 <summary><b>How it was measured, and why the old figure was wrong</b></summary>
 
@@ -466,7 +470,7 @@ Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-
 ```
 .claude-plugin/   plugin + marketplace manifests
 .mcp.json         starts empty, /easyclaude:connect fills it
-hooks/            session orientation, verify gate (runs verify.mjs)
+hooks/            session orientation, verify gate (runs verify.mjs), cost notices
 commands/         start, cheap, cheap-session, full, autoship, connect,
                   skills
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship,

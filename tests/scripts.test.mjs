@@ -392,3 +392,67 @@ test('prompt hook: a very long normal conversation gets the /clear advice once',
   const second = await promptHook(dir, file, 'and a footer', session);
   assert(second.out.trim() === '', `the advice must not repeat in one session:\n${second.out}`);
 });
+
+// --- the cost notices ---------------------------------------------------------
+// Claude Code reports what reopening or switching will re-send, before it is sent. The
+// notices show that to the user only when it is worth /clear, and never to Claude.
+const noticeRun = (name, dir, payload) => run(script(name), {
+  cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify(payload),
+});
+const BIG = { context_tokens: 182_340, estimated_cache_write_usd: 1.1396, pricing: 'catalog' };
+const SMALL = { context_tokens: 12_000, estimated_cache_write_usd: 0.07, pricing: 'catalog' };
+
+test('cost notice: reopening a big conversation with an expired copy shows the figure', async () => {
+  const dir = projectDir();
+  mkdirSync(join(dir, 'docs'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'STATE.md'), STATE);
+  const r = await noticeRun('session-start.mjs', dir,
+    { session_id: 'r1', source: 'resume', prompt_cache_likely_expired: true, ...BIG });
+  const j = JSON.parse(r.out);
+  assertMatch(j.systemMessage ?? '', /about 182k tokens, about \$1\.14.*\/clear.*docs\/STATE\.md/s,
+    'the user must see the cost and the cheaper way before the first message.');
+  assert(!/182k/.test(j.hookSpecificOutput.additionalContext),
+    'the figure is for the user; telling Claude costs tokens on the request it warns about.');
+});
+
+test('cost notice: no line for a new session, a warm copy, or a small conversation', async () => {
+  const dir = projectDir();
+  for (const payload of [
+    { source: 'startup', prompt_cache_likely_expired: true, ...BIG },
+    { source: 'resume', prompt_cache_likely_expired: false, ...BIG },
+    { source: 'resume', prompt_cache_likely_expired: true, ...SMALL },
+  ]) {
+    const j = JSON.parse((await noticeRun('session-start.mjs', dir, { session_id: 'r2', ...payload })).out);
+    assert(!j.systemMessage, `this needed no notice: ${JSON.stringify(payload)}\n${j.systemMessage}`);
+  }
+});
+
+test('cost notice: a model switch in a big warm conversation shows the figure, and never blocks', async () => {
+  const dir = projectDir();
+  const warm = await noticeRun('model-switch.mjs', dir, { prompt_cache_warm: true, ...BIG });
+  assert(warm.code === 0, `the switch hook must never block (exit ${warm.code}).`);
+  const j = JSON.parse(warm.out);
+  assertMatch(j.systemMessage, /182k tokens.*\/clear first/s, 'the switch must show its cost.');
+  assert(!j.hookSpecificOutput && !j.decision,
+    'an "ask" is a refusal in /config and for fast mode, so this hook must only add a line.');
+});
+
+test('cost notice: a cold or small switch says nothing, and bad input lets it through', async () => {
+  const dir = projectDir();
+  for (const payload of [{ prompt_cache_warm: false, ...BIG }, { prompt_cache_warm: true, ...SMALL }]) {
+    const r = await noticeRun('model-switch.mjs', dir, payload);
+    assert(r.code === 0 && r.out.trim() === '', `this needed no notice: ${JSON.stringify(payload)}\n${r.out}`);
+  }
+  const bad = await run(script('model-switch.mjs'), { cwd: dir, input: 'not json' });
+  assert(bad.code === 0 && bad.out.trim() === '',
+    `a hook that fails on this event blocks the switch, so bad input must exit 0 quietly:\n${bad.out}`);
+});
+
+test('cost notice: with no price, tokens decide, and the figure says so', async () => {
+  const { switchNotice } = await import('../scripts/cost-notice.mjs');
+  assert(switchNotice({ prompt_cache_warm: true, context_tokens: 60_000 }, false),
+    'no price must not mean no notice.');
+  assertMatch(switchNotice({ prompt_cache_warm: true, context_tokens: 90_000,
+    estimated_cache_write_usd: 0.5, pricing: 'default' }, false), /roughly \$0\.50/,
+    'an assumed price must not read as a known one.');
+});

@@ -14,6 +14,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { treeFingerprint, remember } from './tree-state.mjs';
+import { resumeNotice } from './cost-notice.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -143,10 +144,15 @@ const context = parts.join('\n\n');
 // Not after a compaction: the session is the same one, and so is its baseline.
 if (!TEXT && !COMPACT) remember(root, { session: payload.session_id ?? null, tree: treeFingerprint(root), failed: [] });
 
+// Reopening an old conversation re-sends all of it on the first message. The user sees
+// this before typing that message; Claude never does. See cost-notice.mjs.
+const notice = resumeNotice(payload, setUp);
+
 if (TEXT) {
   console.log(context);
 } else {
   console.log(JSON.stringify({
     hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context },
+    ...(notice ? { systemMessage: notice } : {}),
   }));
 }
