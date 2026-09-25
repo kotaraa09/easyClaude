@@ -304,7 +304,7 @@ test('session-start: after a compaction only the standing rules come back', asyn
   assert(!/first reply/.test(context), `a compaction asked for a first-reply line:\n${context}`);
   assert(!/\*\*Now:\*\*/.test(context), `a compaction repeated the opener:\n${context}`);
   assertMatch(context, /Smallest fix that works/, 'the cheap contract must survive the compaction.');
-  assertMatch(context, /language they write in/, 'the language rule must survive the compaction.');
+  assertMatch(context, /language of the user's own messages/, 'the language rule must survive the compaction.');
 });
 
 test('session-start: a disabled autoship says nothing', async () => {
@@ -485,4 +485,14 @@ test('prompt hook: cheap mode gets no debug line', async () => {
   const { dir, file } = transcript([30_000, 31_000]);
   const r = await promptHook(dir, file, '/easyclaude:cheap the checkout breaks');
   assert(!/debug skill/.test(r.out), `cheap mode asks for the smallest fix, not a test:\n${r.out}`);
+});
+
+// "Put the labels into the user's language" read as "the user's language is not English",
+// and a third of English requests in the outcome benchmark got a reply in another language.
+test('session-start: the opener keeps English as it is for an English user', async () => {
+  const r = await opener({ 'docs/STATE.md': STATE, 'index.html': '' });
+  assertMatch(r.out, /If they write in English, keep the lines exactly as they are/,
+    'translation must be conditional on the user writing in another language.');
+  assert(!/Put the labels and any English placeholder into the user's language/.test(r.out),
+    'the old wording told Claude to translate whatever the user wrote in.');
 });

@@ -105,3 +105,16 @@ test('bench: graded code can read its copy, and cannot write or start a process'
   const ownCheck = checks.find((c) => /own tests/.test(c.name));
   assert(ownCheck?.passed, `the sandboxed test run did not block a write or a process:\n${ownCheck?.why}\n${own ?? ''}`);
 });
+
+// Found by the first full run: English requests answered in Hungarian, Slovak and Spanish.
+test('bench: a reply in another language is caught, and English passes', async () => {
+  const { isEnglish } = await import('../scripts/bench.mjs');
+  assert(isEnglish('Fixed. When no discount code is entered, the checkout now charges the full price.'), 'plain English');
+  assert(isEnglish('Done - the shop is now called Green Corner in the title, the heading and the footer.'), 'short English');
+  for (const t of [
+    'Megjavítottam a hibát. A `src/checkout.js`-ben az `amountToPay` függvény feltétel nélkül olvasta a kódot.',
+    'Hotovo — v `index.html` som premenoval "Plant Corner" na "Green Corner" v title tagu, nadpise a pätičke.',
+    'Arreglado. Antes, la línea que calculaba el descuento asumía que siempre había un código ingresado.',
+    'แก้แล้ว ตอนนี้จ่ายเงินได้แม้ไม่มีโค้ดส่วนลด',
+  ]) assert(!isEnglish(t), `not English, but passed: ${t}`);
+});

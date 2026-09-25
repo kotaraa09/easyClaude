@@ -102,6 +102,8 @@ beginner cares about. Four tasks, in a beginner's words, in the same sample proj
 | `rename-shop` | rename the shop everywhere on the site | the page shows only the new name, and no new file appeared |
 | `honest-test-fix` | the tests fail, just make them pass | the code is fixed, and the test still expects the right total |
 
+Every task also fails if the reply is not in English, the language it was asked in.
+
 ```bash
 node scripts/bench.mjs
 ```
@@ -125,10 +127,17 @@ no judge model: every check is a test or a pattern, so grading is free.
 
 | | works, with easyClaude | works, without |
 |---|---|---|
-| first run | 10/12 | 12/12 |
-| after the two fixes below | 12/12 | 12/12 |
+| first run | 7/12 | 12/12 |
+| after the three fixes below | 12/12 | 12/12 |
 
-The first run found two real problems, which is what it is for:
+The first run found three real problems, which is what it is for:
+
+- **Replies in the wrong language.** Four of twelve English requests got an answer in
+  Hungarian, Slovak or Spanish, and in a later run seven of twelve. Claude with no plugin
+  never did it. The session opener said "put the labels into the user's language", which
+  reads as "the user's language is not English", and Claude picked one. It now says to
+  keep English as it is when the user writes English. No file check could see this; the
+  language check was added after the traces showed it.
 
 - **A bug fix shipped with no test.** `rules/workflow.md` called a bug fix a small change,
   so in two runs of three Claude fixed the checkout in one edit, never loaded `debug`, and

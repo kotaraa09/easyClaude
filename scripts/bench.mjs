@@ -164,6 +164,31 @@ function hashTree(dir, h) {
   }
 }
 
+// Every task is asked in English, so the reply must be English. The first full run found a
+// third of easyClaude's replies in Hungarian, Slovak or Spanish, and no check noticed,
+// because every check looked at files. A beginner who cannot read the answer did not get
+// one. Common English words make up a fifth or more of English prose and almost none of
+// those languages; "a" is left out because Hungarian uses it too.
+const ENGLISH = new Set(['the', 'and', 'to', 'is', 'it', 'you', 'of', 'in', 'that', 'now', 'was', 'this', 'with', 'for']);
+export function isEnglish(text) {
+  const words = text.toLowerCase().match(/[\p{L}']+/gu) ?? [];
+  return words.length > 0 && words.filter((w) => ENGLISH.has(w)).length / words.length >= 0.08;
+}
+const LANGUAGE_CHECK = 'the reply is in English, like the request';
+// Applied at report time, to fresh and cached runs alike, so a baseline cached before this
+// check existed is judged the same way as a new run.
+function withLanguageCheck(arm) {
+  for (const c of arm?.cases ?? []) {
+    for (const r of c.runs) {
+      if (!r.checks.some((k) => k.name === LANGUAGE_CHECK)) {
+        r.checks.push({ name: LANGUAGE_CHECK, passed: isEnglish(r.reply ?? ''), why: (r.reply ?? '').slice(0, 60) });
+      }
+      r.success = r.checks.every((k) => k.passed);
+    }
+  }
+  return arm;
+}
+
 // The last thing Claude said, from the run's trace: what a beginner would have read.
 function lastReply(trace) {
   let text = '';
@@ -307,6 +332,8 @@ async function main() {
     }
   }
 
+  withLanguageCheck(withArm);
+  withLanguageCheck(without);
   const w = summarise(withArm);
   const wo = summarise(without);
   const lines = [
