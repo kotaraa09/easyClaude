@@ -44,6 +44,16 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
 
+      # Claude Code's own checker, next to ours. validate.mjs checks rules this repo wrote,
+      # and those rules were wrong once already (see above). This one moves with each
+      # release: MCP entries that load would drop, unquoted plugin paths in hooks, fields
+      # the manifest no longer accepts. On a directory it reads the marketplace, so the
+      # plugin manifest is named as well.
+      - name: Claude Code's own plugin checks
+        run: |
+          claude plugin validate .
+          claude plugin validate .claude-plugin/plugin.json
+
       - name: Claude Code loads every hook
         run: node scripts/load-check.mjs --require
 
