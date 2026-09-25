@@ -252,3 +252,18 @@ test('gate: a turn that changed nothing since the session opened is not checked'
   const edited = await call(false);
   assert(edited.code === BLOCK, `an edit in the same session must still be checked:\n${edited.out}`);
 });
+
+// Compaction fires SessionStart in the middle of a task. It used to record the tree as the
+// session's starting point, so an edit that broke the build before the compaction passed
+// the next check as "nothing changed since the session opened".
+test('gate: a compaction does not wave through an edit made before it', async () => {
+  const { dir, call } = await repeat();
+  const start = (source) => run(join(repoRoot, 'scripts', 'session-start.mjs'), {
+    cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 's1', source }),
+  });
+  await start('startup');
+  writeFileSync(join(dir, 'app.js'), 'export const x = 5;\n');
+  await start('compact');
+  const after = await call(false);
+  assert(after.code === BLOCK, `the edit came before the compaction, and must still be checked:\n${after.out}`);
+});
