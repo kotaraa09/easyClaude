@@ -18,6 +18,7 @@ const SUITES = [
   ['scripts', () => import('../tests/scripts.test.mjs')],
   ['connect', () => import('../tests/connect.test.mjs')],
   ['providers', () => import('../tests/providers.test.mjs')],
+  ['bench', () => import('../tests/bench.test.mjs')],
 ];
 
 const filter = process.argv.slice(2).filter((a) => !a.startsWith('-'));

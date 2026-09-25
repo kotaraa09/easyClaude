@@ -52,18 +52,46 @@ export function historyTokens(transcriptPath) {
   return Math.max(0, sizes[sizes.length - 1] - Math.min(...sizes));
 }
 
+// A bug report in plain words. The outcome benchmark (scripts/bench.mjs) found that with
+// easyClaude loaded, Claude fixed "the checkout breaks" in one edit and wrote no test in
+// two runs of three, where Claude with no plugin wrote one every time. The debug skill
+// says to write that test, and a rule in workflow.md said it too - but neither loads
+// when Claude decides the fix is too small to need them, and here it decided that before
+// it read either. This line arrives with the message, before anything is decided.
+// English and Thai, the two languages this project is written in; a miss costs nothing
+// but the nudge.
+const BUG_REPORT = new RegExp([
+  /(?<![a-z])(bugs?|broken|breaks?|crash(es|ed|ing)?|errors?|exceptions?|fail(s|ed|ing)?|wrong)(?![a-z])/.source,
+  /(?<![a-z])(doesn'?t|does not|isn'?t|is not|won'?t|stopped|not) work/.source,
+  'พัง', 'ไม่ทำงาน', 'ใช้ไม่ได้', 'ใช้งานไม่ได้', 'บั๊ก', 'ผิดพลาด', 'ค้าง',
+].join('|'), 'i');
+export const looksLikeBug = (prompt) => !/^\s*\//.test(prompt) && BUG_REPORT.test(prompt);
+const BUG_NUDGE = 'easyClaude: this reads like a bug report. Use the debug skill: find the ' +
+  'cause before you edit, and add a test that fails without the fix. A one-line fix gets ' +
+  'its test too.';
+
+function say(context) {
+  if (context) {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context },
+    }));
+  }
+}
+
 function main() {
   let payload = {};
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { return; }
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
   const prompt = String(payload.prompt ?? '');
   const cheap = CHEAP_COMMAND.test(prompt) || existsSync(join(root, '.claude', 'cheap-session'));
+  // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
+  const bug = !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null;
   // Nothing left to say this session, so the transcript - which can run to megabytes - is
   // not read on every prompt.
-  if (!cheap && alreadyAdvised(payload.session_id)) return;
+  if (!cheap && alreadyAdvised(payload.session_id)) return say(bug);
 
   const history = payload.transcript_path ? historyTokens(payload.transcript_path) : null;
-  if (history === null) return;
+  if (history === null) return say(bug);
   const k = `about ${Math.round(history / 1000)}k tokens`;
 
   let context = null;
@@ -85,11 +113,7 @@ function main() {
     markAdvised(payload.session_id);
   }
 
-  if (context) {
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context },
-    }));
-  }
+  say([bug, context].filter(Boolean).join('\n\n'));
 }
 
 // Once per session: advice repeated on every prompt is noise, and costs tokens each time.

@@ -25,7 +25,9 @@ export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // One pristine copy is made per run and then cloned per test. Copying the working tree
 // rather than exporting from git is deliberate: the working tree is what is under review,
 // and it means the suite works on an uncommitted change.
+// evals/results is run output, git-ignored, and can hold hundreds of saved workspaces.
 const SKIP = new Set(['.git', 'node_modules']);
+const SKIP_PATHS = new Set(['evals/results']);
 let pristineDir = null;
 const temps = [];
 
@@ -46,7 +48,10 @@ function pristine() {
   pristineDir = join(tempDir('easyclaude-pristine-'), 'plugin');
   cpSync(repoRoot, pristineDir, {
     recursive: true,
-    filter: (src) => !SKIP.has(src.slice(repoRoot.length + 1).split(/[\\/]/)[0]),
+    filter: (src) => {
+      const rel = src.slice(repoRoot.length + 1).split(/[\\/]/);
+      return !SKIP.has(rel[0]) && !SKIP_PATHS.has(rel.slice(0, 2).join('/'));
+    },
   });
   return pristineDir;
 }

@@ -567,6 +567,10 @@ test('16: a fault in a block-list case is still caught', async () => {
     'the block form must be read as a list, not as one string.');
 }, { covers: '16' });
 
+breaks('an outcome case with nothing to grade it', '16',
+  (d) => removeFile(d, 'evals/outcomes/outcome-rename-shop/check.mjs'),
+  /is tagged outcome but has no check\.mjs/);
+
 breaks('a suite with no should-not-fire case', '16',
   (d) => {
     for (const c of ['quiet-on-a-typo-fix', 'quiet-on-a-security-question']) {

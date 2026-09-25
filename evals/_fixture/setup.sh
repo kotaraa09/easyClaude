@@ -12,6 +12,12 @@
 #   bash setup.sh            the shop as it stands: clean tree, two commits
 #   bash setup.sh ship       plus finished, uncommitted work on a feature branch
 #   bash setup.sh rescue     plus a commit from today and uncommitted edits that break it
+#   bash setup.sh broken     plus a commit from today that breaks the cart, so a test fails
+#
+# The outcome benchmark (scripts/bench.mjs) also runs every case without easyClaude. Its
+# copy of the suite carries a .bench-baseline file at the plugin root, and then the shop is
+# built as a project nobody set up: no docs/, no CLAUDE.md, no .claude/. The code and the
+# git history are the same, so the only difference between the arms is easyClaude.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -19,10 +25,14 @@ plugin="$(cd "$here/../.." && pwd)"
 variant="${1:-base}"
 
 cp -R "$here/project/." .
-# kickoff copies the plugin's rules into every project it sets up. Copying the live ones
-# keeps the sample in step with them instead of freezing a copy here.
-mkdir -p .claude/rules
-cp "$plugin"/rules/*.md .claude/rules/
+if [ -f "$plugin/.bench-baseline" ]; then
+  rm -rf docs CLAUDE.md .claude
+else
+  # kickoff copies the plugin's rules into every project it sets up. Copying the live ones
+  # keeps the sample in step with them instead of freezing a copy here.
+  mkdir -p .claude/rules
+  cp "$plugin"/rules/*.md .claude/rules/
+fi
 
 # Minutes, not hours: a "today" commit made hours back crosses midnight in a late run, and
 # then "yesterday's version" names a different commit. That happened in a real run.
@@ -99,6 +109,14 @@ JS
     sed -i.bak '/<ul id="plants">/,/<\/ul>/d' index.html
     sed -i.bak 's/item.price \* item.qty/item.price * item.quantity/' src/cart.js
     rm -f index.html.bak src/cart.js.bak
+    ;;
+  broken)
+    # Committed, so the tree is clean and the only clue is the failing test. The test is
+    # right and the code is wrong - which is the point of the case built on this.
+    sed -i.bak 's/item.price \* item.qty/item.price * item.quantity/' src/cart.js
+    rm -f src/cart.js.bak
+    git add -A
+    commit 5 "Tidy up the cart"
     ;;
   *) echo "unknown variant: $variant" >&2; exit 2 ;;
 esac

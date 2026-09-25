@@ -52,6 +52,9 @@ const walk = (dir, out = []) => {
   for (const e of readdirSync(dir)) {
     if (e === '.git' || e === 'node_modules') continue;
     const p = join(dir, e);
+    // Run output, git-ignored. A benchmark run saves each workspace Claude left there,
+    // package.json and all, and none of it is this plugin's source.
+    if (p === join(root, 'evals', 'results')) continue;
     statSync(p).isDirectory() ? walk(p, out) : out.push(p);
   }
   return out;
@@ -1167,6 +1170,12 @@ for (const dir of caseDirs) {
   if (!(runs >= 3)) err(`${where}/prompt.md`, `runs: ${fm.runs} - three is the minimum, or a single lucky turn decides the result`);
 
   if (asList(fm.tags).some((t) => t.toLowerCase() === 'negative')) negativeCases++;
+  // An outcome case is graded by scripts/bench.mjs from its check.mjs, after the run. The
+  // runner never reads that file, so without this nothing notices it is missing until a
+  // paid run reports a case it could not grade.
+  if (asList(fm.tags).some((t) => t.toLowerCase() === 'outcome') && !existsSync(join(dir, 'check.mjs'))) {
+    err(where, 'is tagged outcome but has no check.mjs, so scripts/bench.mjs has nothing to grade it with');
+  }
 
   const gradersDir = join(dir, 'graders');
   const graderFiles = existsSync(gradersDir)

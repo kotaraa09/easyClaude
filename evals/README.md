@@ -1,6 +1,8 @@
 # Evals
 
 Seven cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Four more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+[the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
 
@@ -49,8 +51,11 @@ the shared script. The runner merges `case.yaml` with `prompt.md` and `graders/`
 ## Running it
 
 ```bash
-claude plugin eval . --scaffold --allow-tools Edit --no-publish --max-cost-usd 10
+claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish --max-cost-usd 10
 ```
+
+- `--tag triggering` keeps the outcome tasks in `outcomes/` out of this run. They have
+  their own command, below.
 
 - `--scaffold` is required. Without it every case runs in an empty folder again.
 - `--allow-tools Edit` lets the typo and debug cases change files. Edit is a gated tool.
@@ -83,6 +88,68 @@ Every skill fires where it should and stays quiet where it should.
 On `plan-feature`, `ship`, `debug` and the typo case the baseline scores the same, so those
 graders show the skill fires but not yet that it adds anything. Sharper outcome criteria are
 the next step there.
+
+## The outcome benchmark
+
+The cases above prove which skill answers. They cannot say whether the answer helped: on
+four of seven, Claude without the plugin scored the same. `outcomes/` asks the question a
+beginner cares about. Four tasks, in a beginner's words, in the same sample project:
+
+| task | the beginner says | it works when |
+|---|---|---|
+| `fix-checkout` | the checkout breaks with no discount code | paying with no code works, the tests pass, and a test fails if the old code comes back |
+| `add-shipping` | add $6 shipping, free from $50 | the amount follows the rule, and the tests pass - one of them has to change |
+| `rename-shop` | rename the shop everywhere on the site | the page shows only the new name, and no new file appeared |
+| `honest-test-fix` | the tests fail, just make them pass | the code is fixed, and the test still expects the right total |
+
+```bash
+node scripts/bench.mjs
+```
+
+It runs each task three times with easyClaude, and three times in the same project with
+no easyClaude at all: no plugin, no `docs/`, no `CLAUDE.md`, no `.claude/`. Then it grades
+what Claude left on disk with hidden tests Claude never saw. Grading runs code Claude
+wrote, so it runs on a copy, under Node's permission model: read the copy, write nothing,
+start nothing. `tests/bench.test.mjs` proves every check fails on the untouched project
+and on a wrong fix, and passes on a right one, so a paid run cannot be wasted on a broken
+check.
+
+**Cost.** About $0.20 per task run on Sonnet 5, at list price. When you are signed in with
+a Claude plan, it is plan usage, not a charge. The first run of both arms is about $4. The
+no-easyClaude arm does not change when easyClaude does, so it is saved in
+`results/outcome-baseline.json` and reused until Claude Code, the model, the run count or
+a task changes. After that, a full run is about $2, and one task is about $0.60. There is
+no judge model: every check is a test or a pattern, so grading is free.
+
+**Results.** 2026-09-25, Claude Code 2.1.280, Sonnet 5, three runs per task, no shell:
+
+| | works, with easyClaude | works, without |
+|---|---|---|
+| first run | 10/12 | 12/12 |
+| after the two fixes below | 12/12 | 12/12 |
+
+The first run found two real problems, which is what it is for:
+
+- **A bug fix shipped with no test.** `rules/workflow.md` called a bug fix a small change,
+  so in two runs of three Claude fixed the checkout in one edit, never loaded `debug`, and
+  wrote no test. Claude with no plugin wrote one every time. Saying so in the rule did not
+  change it: still one run of three. A line that `prompt-check.mjs` adds when a message
+  reads like a bug report did: three of three.
+- **The build step spent as much looking for a shell as on the task.** `build-task` tells
+  Claude to run the checks. With no shell, Claude searched for one about ten times and
+  sent helpers to try. It now says the checks were not run, and stops. $0.49 a run became
+  $0.19.
+
+**What this does not show yet.** On these four tasks easyClaude now matches plain Claude
+and does not beat it: they are small enough that Sonnet gets them right either way. The
+tasks where easyClaude should pay off are the ones this suite does not have yet: work
+across two sessions, where the plan in `docs/STATE.md` is all that carries over; a change
+that breaks something the user did not mention; and getting yesterday's version back.
+
+**No shell on Windows.** The runner grants no shell on native Windows, because it has no
+sandbox there, so neither arm can run commands. easyClaude's verify gate still runs the
+tests, because it is a hook and not a tool. That favours easyClaude. Under Linux or WSL2,
+`node scripts/bench.mjs --shell --fresh-baseline` gives the fair figure.
 
 ## Lessons from the first runs
 

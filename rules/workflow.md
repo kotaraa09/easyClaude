@@ -4,12 +4,15 @@
      project kickoff sets up. Measured, each line here costs more than its length suggests.
      Only rules that must hold on a turn that opens no skill belong here. Anything a skill
      already says when it loads - plan first, reproduce the bug, one task per turn, record
-     debt - was cut on 2026-09-23 for that reason. Standards for writing code live in
+     debt - was cut on 2026-09-23 for that reason. "Bug fix" left the small-change
+     list on 2026-09-25, when scripts/bench.mjs caught it: with this line calling a bug fix
+     small, debug did not load in two runs of three and no test was written. Saying so here
+     did not fix it; the line prompt-check.mjs adds to a bug report did. Standards for writing code live in
      code-standards.md, behind a paths: header. HTML comments are not sent to Claude. -->
 
 `docs/STATE.md` is the source of truth across sessions. Read it before you start, and update it when work lands. If it disagrees with your memory, it wins.
 
-- **Small change** (bug fix, copy, styling, under 30 lines): just do it, with no plan.
+- **Small change** (copy, styling, under 30 lines): just do it, with no plan.
 - **Do not call work done while a check fails.** Say what failed and show the output.
 - **No placeholder data outside tests.** A part that is not built fails loudly.
 - **Secrets only in `.env`**, never in source or a commit.
