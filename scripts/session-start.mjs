@@ -83,11 +83,20 @@ function opener(md) {
 }
 
 // --- decide ---------------------------------------------------------------------------
+// Compaction fires SessionStart too, in the middle of a task and often in the middle of a
+// turn. The opener, the setup offer and the one-line notices all say "start your first
+// reply with", which there is a reply half-written, and resetting the gate's baseline there
+// let a tree broken before the compaction pass as "already broken when the session began".
+// So after a compaction only the standing rules come back: the cheap contract, which the
+// summary may have dropped, and the language line.
+const COMPACT = payload.source === 'compact';
 const parts = [];
 const state = read('docs/STATE.md');
 const setUp = state !== null && !state.includes(NOT_KICKED_OFF);
 
-if (setUp) {
+if (COMPACT) {
+  // Nothing here: see above.
+} else if (setUp) {
   parts.push(opener(state));
 } else if (!hasCode()) {
   parts.push('This project is not set up for easyClaude yet, and it has no code. Invoke the ' +
@@ -106,8 +115,9 @@ if (setUp) {
 
 if (existsSync(join(root, '.claude', 'cheap-session'))) {
   const contract = read('.claude/cheap-contract.md');
-  parts.push('The user armed cheap mode for this session. Add one line to your first reply ' +
-    'saying cheap mode is on and that /easyclaude:full turns it off. ' +
+  parts.push('The user armed cheap mode for this session. ' +
+    (COMPACT ? '' : 'Add one line to your first reply saying cheap mode is on and that ' +
+      '/easyclaude:full turns it off. ') +
     (contract ? `This contract applies to every turn of this session:\n\n${contract.trim()}`
       : 'The contract file .claude/cheap-contract.md is missing, so tell the user to run ' +
         '/easyclaude:cheap-session again.'));
@@ -115,7 +125,7 @@ if (existsSync(join(root, '.claude', 'cheap-session'))) {
 
 try {
   const auto = JSON.parse(read('.claude/autoship.json') ?? 'null');
-  if (auto?.enabled === true) {
+  if (auto?.enabled === true && !COMPACT) {
     // The user must always know when a session can commit, push or merge on their behalf.
     parts.push(`Autoship is armed through "${auto.through ?? 'commit'}". Add one line to your ` +
       'first reply saying so, and that /easyclaude:autoship off turns it off.');
@@ -130,7 +140,8 @@ const context = parts.join('\n\n');
 
 // The tree as the session found it. The gate compares against this, so a turn that
 // changes nothing in a project that was already broken is not blocked for it.
-if (!TEXT) remember(root, { session: payload.session_id ?? null, tree: treeFingerprint(root), failed: [] });
+// Not after a compaction: the session is the same one, and so is its baseline.
+if (!TEXT && !COMPACT) remember(root, { session: payload.session_id ?? null, tree: treeFingerprint(root), failed: [] });
 
 if (TEXT) {
   console.log(context);

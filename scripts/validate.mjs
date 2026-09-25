@@ -942,6 +942,40 @@ if (!Array.isArray(denyRules)) {
   }
 }
 
+// --- 13b. every command guardrail must be able to match something ------------
+// Claude Code splits a command at |, &&, ||, ; and & and checks each part on its own, and
+// it reads :* as a wildcard only at the very end of a pattern. So Bash(curl:* | sh) could
+// never match any command - and it, with two like it, sat in this list from the first
+// commit, blocking nothing, with every check green. A rule that cannot match is worse
+// than no rule, because the README says the thing is blocked.
+//
+// And on Windows the PowerShell tool is on by default. A Bash rule does not cover it, so
+// every git guardrail needs a PowerShell twin, or force-pushing is one tool away.
+if (Array.isArray(denyRules)) {
+  const SEPARATOR = /\||&&|;|(^|\s)&(\s|$)/;
+  const shellRules = denyRules
+    .map((rule) => rule.match(/^(Bash|PowerShell)\((.*)\)$/))
+    .filter(Boolean);
+  for (const [rule, , pattern] of shellRules) {
+    if (SEPARATOR.test(pattern)) {
+      err('rules/permissions.json', `${JSON.stringify(rule)} can never match: Claude Code splits a ` +
+        'command at |, &&, ; and & and checks each part alone. Deny the part instead, such as Bash(sh) ' +
+        'for curl ... | sh');
+    }
+    if (pattern.slice(0, -2).includes(':*')) {
+      err('rules/permissions.json', `${JSON.stringify(rule)} has :* before the end of the pattern, where ` +
+        'Claude Code reads it as a literal colon. Write a space and * instead');
+    }
+  }
+  const psPatterns = new Set(shellRules.filter((m) => m[1] === 'PowerShell').map((m) => m[2]));
+  for (const [rule, tool, pattern] of shellRules) {
+    if (tool === 'Bash' && /^git\s/.test(pattern) && !psPatterns.has(pattern)) {
+      err('rules/permissions.json', `${JSON.stringify(rule)} has no PowerShell(${pattern}) twin - on ` +
+        'Windows the PowerShell tool is on by default, and a Bash rule does not cover it');
+    }
+  }
+}
+
 // --- 14. the template must protect what its own docs say it protects ---------
 // template/.env.example tells the user to copy it to .env and paste real API keys in, and
 // says ".env is gitignored" while it says so. The template shipped no .gitignore at all, so

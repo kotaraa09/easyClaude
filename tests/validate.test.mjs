@@ -407,6 +407,25 @@ breaks('a guardrail the merged rules do not carry', '13',
   (d) => editJson(d, 'rules/permissions.json', (j) => { j.deny.pop(); }),
   /a project set up by kickoff runs without that guardrail/);
 
+// --- 13b. every command guardrail must be able to match something ------------
+// Each mutation goes into both copies, so check 13 stays quiet and only 13b can fire.
+const bothDenyLists = (dir, change) => {
+  editJson(dir, 'rules/permissions.json', (j) => { j.deny = change(j.deny); });
+  editJson(dir, 'template/.claude/settings.json', (j) => { j.permissions.deny = change(j.permissions.deny); });
+};
+
+breaks('a guardrail that spells out a whole pipeline', '13b',
+  (d) => bothDenyLists(d, (deny) => [...deny, 'Bash(curl * | sh)']),
+  /"Bash\(curl \* \| sh\)" can never match/);
+
+breaks('a guardrail with :* in the middle', '13b',
+  (d) => bothDenyLists(d, (deny) => [...deny, 'Bash(git:* push)']),
+  /"Bash\(git:\* push\)" has :\* before the end/);
+
+breaks('a git guardrail with no PowerShell twin', '13b',
+  (d) => bothDenyLists(d, (deny) => deny.filter((r) => !/^PowerShell\(git push --force/.test(r))),
+  /has no PowerShell\(git push --force \*\) twin/);
+
 // --- 14. the template must protect what its own docs say it protects ---------
 breaks('a template that does not ignore the file it tells you to put keys in', '14',
   (d) => editText(d, 'template/.gitignore', (t) => t.replace(/^\.env$/m, '')),

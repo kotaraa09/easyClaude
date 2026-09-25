@@ -282,6 +282,30 @@ test('session-start: armed cheap mode and autoship are both announced', async ()
   assertMatch(r.out, /Autoship is armed through "pr"/, 'a session that can push must say so.');
 });
 
+// After a compaction Claude is mid-task, often mid-turn. "Start your first reply with"
+// there put the Now/Next block in the middle of the work.
+test('session-start: after a compaction only the standing rules come back', async () => {
+  const dir = projectDir();
+  const files = {
+    'docs/STATE.md': STATE,
+    '.claude/cheap-session': '2026-09-23',
+    '.claude/cheap-contract.md': 'Smallest fix that works.',
+    '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'pr' }),
+  };
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(join(dir, dirname(rel)), { recursive: true });
+    writeFileSync(join(dir, rel), body);
+  }
+  const r = await run(script('session-start.mjs'), {
+    cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 's1', source: 'compact' }),
+  });
+  const context = JSON.parse(r.out).hookSpecificOutput.additionalContext;
+  assert(!/first reply/.test(context), `a compaction asked for a first-reply line:\n${context}`);
+  assert(!/\*\*Now:\*\*/.test(context), `a compaction repeated the opener:\n${context}`);
+  assertMatch(context, /Smallest fix that works/, 'the cheap contract must survive the compaction.');
+  assertMatch(context, /language they write in/, 'the language rule must survive the compaction.');
+});
+
 test('session-start: a disabled autoship says nothing', async () => {
   const r = await opener({
     'docs/STATE.md': STATE, '.claude/autoship.json': JSON.stringify({ enabled: false, through: 'merge' }),

@@ -32,6 +32,8 @@ So get eyes that did not write it. Dispatch the `easyclaude-diff-reviewer` subag
 
 Keep the brief that short. A reviewer asked for everything reports style opinions; a reviewer asked for three things reports bugs. The reviewer cannot edit files, which is deliberate: a reviewer that fixes what it finds ships code past the gate in step 1 that nobody reviewed at all.
 
+**Wait for the report before step 4.** In an interactive session the reviewer runs in the background, so its report arrives in a later message, not as the result of the call. Do not commit, push or open the PR until it has arrived and you have read it. If the turn has to end first, say the review is still running and stop there.
+
 If you cannot dispatch a subagent, do the pass yourself against the same three questions and **say in your report that the review had no fresh eyes**. Never skip it silently — an unreviewed diff that claims review is worse than one that admits it.
 
 Findings are not automatically work. Fix what is wrong, put what is merely arguable under `## Debt`, and say which you did. Anything you left unresolved blocks the automatic path in step 8.
