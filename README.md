@@ -515,6 +515,8 @@ What none of it can check is which skill actually wins a given sentence, since a
 
 Firing the right skill is not the same as helping. `node scripts/bench.mjs` gives four small tasks, in a beginner's words, to Claude with and without easyClaude, and grades the result with hidden tests. Its first run found that easyClaude made things worse: 7 of 12 against 12 of 12. A third of English requests got a reply in another language, a bug fix shipped with no test, and a missing shell sent Claude searching. All three are fixed. A fifth task runs over two sessions: five changes asked on day one, "finish the rest" in a new session on day two. There easyClaude finishes 3 of 3, and plain Claude 0 of 3, because nothing from day one reaches day two except what was written down. Over all five tasks: 15 of 15 against 10 of 15. `evals/README.md` has the details, the cost and the caveats.
 
+What comes next, in order and with the reason for each, is in [ROADMAP.md](ROADMAP.md).
+
 ---
 
 <p align="center">
