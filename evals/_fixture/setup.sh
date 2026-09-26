@@ -13,6 +13,7 @@
 #   bash setup.sh ship       plus finished, uncommitted work on a feature branch
 #   bash setup.sh rescue     plus a commit from today and uncommitted edits that break it
 #   bash setup.sh broken     plus a commit from today that breaks the cart, so a test fails
+#   bash setup.sh thai       the base shop, set up for an owner who writes in Thai
 #
 # The outcome benchmark (scripts/bench.mjs) also runs every case without easyClaude. Its
 # copy of the suite carries a .bench-baseline file at the plugin root, and then the shop is
@@ -32,6 +33,33 @@ else
   # keeps the sample in step with them instead of freezing a copy here.
   mkdir -p .claude/rules
   cp "$plugin"/rules/*.md .claude/rules/
+  # The same shop, set up for an owner who writes in Thai: kickoff names the language in
+  # CLAUDE.md and writes docs/STATE.md in it. The first Thai run used the English set-up,
+  # which told Claude "the user writes in English", and its notes between steps followed.
+  if [ "$variant" = thai ]; then
+    sed -i.bak 's/^The user writes in English. Replies and docs\/STATE.md use English.$/The user writes in Thai. Replies and docs\/STATE.md use Thai./' CLAUDE.md
+    grep -q 'writes in Thai' CLAUDE.md || { echo "setup.sh: CLAUDE.md language line not found" >&2; exit 2; }
+    node -e '
+      const fs = require("fs");
+      let s = fs.readFileSync("docs/STATE.md", "utf8");
+      for (const [en, th] of [
+        ["(nothing in progress)", "(ยังไม่มีงานที่ทำค้างอยู่)"],
+        ["## Blocked\nnone", "## Blocked\nไม่มี"],
+        ["Shoppers see the shipping cost on the checkout page before they pay", "ลูกค้าเห็นค่าส่งในหน้าชำระเงินก่อนจ่าย"],
+        ["Shoppers get an email receipt after they pay", "ลูกค้าได้ใบเสร็จทางอีเมลหลังจ่ายเงิน"],
+        ["The shop owner can mark a plant as sold out", "เจ้าของร้านตั้งให้ต้นไม้เป็น \"สินค้าหมด\" ได้"],
+        ["Discount codes are checked only in the browser, so a shopper could fake one", "โค้ดส่วนลดถูกตรวจแค่ในเบราว์เซอร์ ลูกค้าจึงอาจปลอมโค้ดได้"],
+        ["Shoppers can pay on a checkout page, with an optional discount code", "ลูกค้าจ่ายเงินในหน้าชำระเงินได้ ใส่โค้ดส่วนลดได้ถ้ามี"],
+        ["Shoppers can add plants to a cart and see the total", "ลูกค้าใส่ต้นไม้ลงตะกร้าและเห็นยอดรวมได้"],
+        ["The home page lists every plant with its price", "หน้าแรกแสดงต้นไม้ทุกต้นพร้อมราคา"],
+      ]) {
+        if (!s.includes(en)) { console.error(`setup.sh: "${en}" not in docs/STATE.md`); process.exit(2); }
+        s = s.replace(en, th);
+      }
+      fs.writeFileSync("docs/STATE.md", s);
+    '
+    rm -f CLAUDE.md.bak
+  fi
 fi
 
 # Minutes, not hours: a "today" commit made hours back crosses midnight in a late run, and
@@ -53,7 +81,7 @@ git add -A
 commit 1440 "Checkout page with discount codes"
 
 case "$variant" in
-  base) ;;
+  base | thai) ;;
   ship)
     git checkout -q -b shipping-cost
     cat > src/checkout.js <<'JS'

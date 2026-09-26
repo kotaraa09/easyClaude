@@ -164,7 +164,7 @@ function hashTree(dir, h) {
   }
 }
 
-// Every task is asked in English, so the reply must be English. The first full run found a
+// A task asked in English needs a reply in English. The first full run found a
 // third of easyClaude's replies in Hungarian, Slovak or Spanish, and no check noticed,
 // because every check looked at files. A beginner who cannot read the answer did not get
 // one. Common English words make up a fifth or more of English prose and almost none of
@@ -194,14 +194,52 @@ export function isEnglish(text) {
   const other = words.filter((w) => FOREIGN.has(w) && !ENGLISH.has(w)).length;
   return en > 0 && en >= other;
 }
-const LANGUAGE_CHECK = 'the reply is in English, like the request';
+// Thai: most of the letters outside code are Thai. File names, function names and the
+// shop's own English name are Latin in any Thai reply, so text in backticks is left out
+// first, and 30% is enough (see below). It also looks at each paragraph: the first Thai run passed a
+// reply that opened with a full English paragraph, and a beginner who cannot read English
+// stops at the first one. A paragraph fails only when it is almost all Latin. Half was
+// tried first, and failed a Thai line naming "title, header, footer" and both shop names.
+const thaiShare = (prose) => {
+  const thai = (prose.match(/\p{Script=Thai}/gu) ?? []).length;
+  const other = (prose.match(/\p{L}/gu) ?? []).filter((l) => !/\p{Script=Thai}/u.test(l)).length;
+  return { thai, other };
+};
+export function isThai(text) {
+  const prose = text.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]*`/g, ' ');
+  // 30%, not half: a Thai reply naming both shop names, the page parts and two email
+  // addresses is under half Thai, and English with a Thai line at the end is near 10%.
+  const all = thaiShare(prose);
+  if (!all.thai || all.thai < 0.3 * (all.thai + all.other)) return false;
+  return prose.split(/\n\s*\n/).every((p) => {
+    const { thai, other } = thaiShare(p);
+    return thai + other < 30 || thai >= 0.2 * (thai + other);
+  });
+}
+
+// A task asks in English unless its check.mjs exports `language`. Every task was English
+// until 0.1.12, so a bug that showed only in Thai - the language most users write in -
+// would have passed unseen.
+const LANGUAGES = {
+  en: { name: 'the reply is in English, like the request', test: isEnglish },
+  th: { name: 'the reply is in Thai, like the request', test: isThai },
+};
+export async function caseLanguage(name) {
+  const file = join(OUTCOMES, name, 'check.mjs');
+  if (!existsSync(file)) return LANGUAGES.en;
+  const { language = 'en' } = await import(pathToFileURL(file).href);
+  if (!LANGUAGES[language]) throw new Error(`${name}/check.mjs: no language check for "${language}"`);
+  return LANGUAGES[language];
+}
+
 // Applied at report time, to fresh and cached runs alike, so a baseline cached before this
 // check existed is judged the same way as a new run.
-function withLanguageCheck(arm) {
+async function withLanguageCheck(arm) {
   for (const c of arm?.cases ?? []) {
+    const lang = await caseLanguage(c.name);
     for (const r of c.runs) {
-      if (!r.checks.some((k) => k.name === LANGUAGE_CHECK)) {
-        r.checks.push({ name: LANGUAGE_CHECK, passed: isEnglish(r.reply ?? ''), why: (r.reply ?? '').slice(0, 60) });
+      if (!r.checks.some((k) => k.name === lang.name)) {
+        r.checks.push({ name: lang.name, passed: lang.test(r.reply ?? ''), why: (r.reply ?? '').slice(0, 60) });
       }
       r.success = r.checks.every((k) => k.passed);
     }
@@ -288,6 +326,7 @@ async function runArm(label, pluginDir, opts) {
     rmSync(seedsRoot, { recursive: true, force: true });
   }
   const cases = [];
+  let limited = 0;
   for (const c of result.cases) {
     const caseDir = join(OUTCOMES, c.name);
     const runs = [];
@@ -309,9 +348,12 @@ async function runArm(label, pluginDir, opts) {
         if (g.name !== 'changed-files') checks.push({ name: g.name, passed: g.passed, why: g.explanation });
       }
       const trace = join(saved, 'trace.jsonl');
+      const reply = existsSync(trace) ? lastReply(readFileSync(trace, 'utf8')) : '';
+      // A run the account's usage limit stopped measured nothing. The first Thai run of
+      // the no-easyClaude arm stopped this way three times, and was cached as 0/3.
+      if (USAGE_LIMIT.test(reply)) limited++;
       runs.push({
-        success: checks.every((k) => k.passed), checks,
-        reply: existsSync(trace) ? lastReply(readFileSync(trace, 'utf8')) : '',
+        success: checks.every((k) => k.passed), checks, reply,
         saved: relative(root, saved),
         // Day one's cost, spread over the day-two runs it seeded.
         costUsd: (run.costUsd ?? 0) + (dayOne[c.name] ?? 0) / Math.max(1, c.arms.with.length),
@@ -321,8 +363,14 @@ async function runArm(label, pluginDir, opts) {
     cases.push({ name: c.name, runs });
   }
   const seedCost = Object.values(dayOne).reduce((s, n) => s + n, 0);
-  return { claudeVersion: result.claudeVersion, costUsd: (result.costUsd ?? 0) + seedCost, partial: result.partial, cases };
+  if (limited) console.log(`\n${label}: ${limited} run(s) stopped at a usage limit. Nothing from this arm is cached.`);
+  return {
+    claudeVersion: result.claudeVersion, costUsd: (result.costUsd ?? 0) + seedCost,
+    partial: Boolean(result.partial || limited), cases,
+  };
 }
+
+export const USAGE_LIMIT = /you'?ve hit your [\w ]*limit|usage limit reached/i;
 
 // What a task's no-easyClaude result depends on: the Claude Code version, the run
 // settings, the task's own files, its day one if it has one, and the shared sample
@@ -432,8 +480,8 @@ async function main() {
     };
   }
 
-  withLanguageCheck(withArm);
-  withLanguageCheck(without);
+  await withLanguageCheck(withArm);
+  await withLanguageCheck(without);
   const w = summarise(withArm);
   const wo = summarise(without);
   const lines = [
@@ -454,7 +502,9 @@ async function main() {
     lines.push('', 'No shell: neither arm could run commands. easyClaude\'s verify gate still ran the ' +
       'tests, because it is a hook, so this favours easyClaude. Use --shell under Linux or WSL2 for the fair figure.');
   }
-  if (withArm.partial || without?.partial) lines.push('', 'PARTIAL: the cost ceiling stopped a run. Do not publish these figures.');
+  if (withArm.partial || without?.partial) {
+    lines.push('', 'PARTIAL: the cost ceiling or a usage limit stopped a run. Do not publish these figures.');
+  }
   lines.push('', `This run cost ${money(withArm.costUsd + (without?.costUsd ?? 0))} at list price` +
     ' (plan usage, not a charge, when you are signed in with a Claude plan).');
 
