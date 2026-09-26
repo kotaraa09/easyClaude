@@ -24,6 +24,7 @@ import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { markLater } from './later-memo.mjs';
 
 // History, in tokens, beyond what the session's first request carried. That first request
 // is Claude Code's own prompt, tools and project files - a floor no /clear removes - so it
@@ -113,12 +114,14 @@ function main() {
   const prompt = String(payload.prompt ?? '');
   const cheap = CHEAP_COMMAND.test(prompt) || existsSync(join(root, '.claude', 'cheap-session'));
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
+  const later = leavesWorkForLater(prompt) && existsSync(join(root, 'docs', 'STATE.md'));
+  // The Stop hook holds the turn once if docs/STATE.md is still unchanged. See later-memo.mjs.
+  if (later) markLater(root, payload.session_id);
   const nudges = [
     !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null,
     // Only where there is a state file to write to. In cheap mode too: forgetting the rest
     // of the request is not a saving.
-    leavesWorkForLater(prompt) && existsSync(join(root, 'docs', 'STATE.md'))
-      ? laterNudge(new Date().toLocaleDateString('en-CA')) : null,
+    later ? laterNudge(new Date().toLocaleDateString('en-CA')) : null,
     // Not in cheap mode, which does one thing per turn on purpose.
     !cheap && asksToFinishSeveral(prompt) ? FINISH_NUDGE : null,
   ].filter(Boolean).join('\n\n') || null;

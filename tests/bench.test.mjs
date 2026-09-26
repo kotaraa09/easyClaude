@@ -111,6 +111,8 @@ test('bench: a reply in another language is caught, and English passes', async (
   const { isEnglish } = await import('../scripts/bench.mjs');
   assert(isEnglish('Fixed. When no discount code is entered, the checkout now charges the full price.'), 'plain English');
   assert(isEnglish('Done - the shop is now called Green Corner in the title, the heading and the footer.'), 'short English');
+  // A real reply the first rule failed: correct, English, and mostly nouns.
+  assert(isEnglish('Updated `index.html` — page title, header, footer copyright, and contact email now all say Green Corner.'), 'terse English');
   for (const t of [
     'Megjavítottam a hibát. A `src/checkout.js`-ben az `amountToPay` függvény feltétel nélkül olvasta a kódot.',
     'Hotovo — v `index.html` som premenoval "Plant Corner" na "Green Corner" v title tagu, nadpise a pätičke.',
@@ -199,4 +201,15 @@ test('bench: --case picks two-session tasks by the same glob the runner uses', a
   assert(globToRegex('outcome-two*').test('outcome-two-sessions'), 'a prefix glob');
   assert(!globToRegex('outcome-fix*').test('outcome-two-sessions'), 'another task');
   assert(globToRegex('outcome-two-sessions').test('outcome-two-sessions'), 'an exact name');
+});
+
+// One key over every task re-ran the whole no-easyClaude arm when one prompt changed.
+test('bench: each task has its own cache key, and the run settings are part of it', async () => {
+  const { caseKey } = await import('../scripts/bench.mjs');
+  const opts = { model: 'claude-sonnet-5', runs: 3, shell: false };
+  const a = caseKey('outcome-fix-checkout', 'v1', opts);
+  assert(a === caseKey('outcome-fix-checkout', 'v1', opts), 'the same inputs must give the same key');
+  assert(a !== caseKey('outcome-rename-shop', 'v1', opts), 'two tasks must not share a key');
+  assert(a !== caseKey('outcome-fix-checkout', 'v2', opts), 'a new Claude Code must invalidate it');
+  assert(a !== caseKey('outcome-fix-checkout', 'v1', { ...opts, model: 'claude-opus-5-5' }), 'so must a new model');
 });

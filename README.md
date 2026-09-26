@@ -488,7 +488,7 @@ scripts/          verify.mjs (the gate), validate.mjs (CI checks),
                   (MCP + keys), skillscan.mjs (the install gate),
                   gen/ (asset generation), bench.mjs (outcome benchmark)
 tests/            mutation tests for the checking machinery
-evals/            seven trigger cases and four outcome tasks, run against a sample project
+evals/            seven trigger cases and five outcome tasks, run against a sample project
 docs/assets/      README artwork
 ```
 
@@ -513,7 +513,7 @@ So the suite tests the checkers rather than the plugin. It copies the tree, brea
 
 What none of it can check is which skill actually wins a given sentence, since a validator reads frontmatter and not meaning. [`evals/`](evals/) holds seven cases for exactly that: five skills that must fire, and two sentences that must leave the wrong skill quiet. Each case runs in a small sample project, and `claude plugin eval` runs them. They cost money and need a login, so CI does not run them; the validator checks their shape on every push instead, and `evals/README.md` has the command and the latest results.
 
-Firing the right skill is not the same as helping. `node scripts/bench.mjs` gives four small tasks, in a beginner's words, to Claude with and without easyClaude, and grades the result with hidden tests. Its first run found that easyClaude made things worse: 7 of 12 against 12 of 12. A third of English requests got a reply in another language, a bug fix shipped with no test, and a missing shell sent Claude searching. All three are fixed, and both now score 12 of 12. The tasks where easyClaude should pull ahead, like work across two sessions, are not in it yet. `evals/README.md` has the details and the cost.
+Firing the right skill is not the same as helping. `node scripts/bench.mjs` gives four small tasks, in a beginner's words, to Claude with and without easyClaude, and grades the result with hidden tests. Its first run found that easyClaude made things worse: 7 of 12 against 12 of 12. A third of English requests got a reply in another language, a bug fix shipped with no test, and a missing shell sent Claude searching. All three are fixed. A fifth task runs over two sessions: five changes asked on day one, "finish the rest" in a new session on day two. There easyClaude finishes 3 of 3, and plain Claude 0 of 3, because nothing from day one reaches day two except what was written down. Over all five tasks: 15 of 15 against 10 of 15. `evals/README.md` has the details, the cost and the caveats.
 
 ---
 

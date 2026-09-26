@@ -10,7 +10,7 @@
 // here needs the plugin installed, and nothing writes to this repo.
 import { test, assert, assertMatch, projectDir, runVerify, run, repoRoot } from './harness.mjs';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Exit codes in hook mode, from Claude Code's hook contract:
@@ -266,4 +266,42 @@ test('gate: a compaction does not wave through an edit made before it', async ()
   await start('compact');
   const after = await call(false);
   assert(after.code === BLOCK, `the edit came before the compaction, and must still be checked:\n${after.out}`);
+});
+
+// --- work left for later -------------------------------------------------------
+// The two-session benchmark: a gate block on a test pulled the turn away, and day one
+// ended with four requests written nowhere. The Stop hook now holds the turn once.
+const laterProject = () => {
+  const dir = projectDir({ steps: [{ name: 'ok', cmd: 'node -e ""' }] });
+  mkdirSync(join(dir, 'docs'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'STATE.md'), '# State\n\n## Next\n');
+  return dir;
+};
+const askLater = (dir, session) => run(join(repoRoot, 'scripts', 'prompt-check.mjs'), {
+  cwd: dir, env: { CLAUDE_PROJECT_DIR: dir },
+  input: JSON.stringify({ prompt: "just the first one, we'll do the rest tomorrow", session_id: session }),
+});
+const stop = (dir, session) => run(join(repoRoot, 'scripts', 'verify.mjs'), {
+  cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+  input: JSON.stringify({ session_id: session, stop_hook_active: false }),
+});
+
+test('gate: work left for later with STATE.md unchanged is held once, then let go', async () => {
+  const dir = laterProject();
+  const session = `later-${Date.now()}-${Math.random()}`;
+  await askLater(dir, session);
+  const first = await stop(dir, session);
+  assert(first.code === BLOCK, `an unwritten plan must hold the turn:\n${first.out}`);
+  assertMatch(first.out, /top of ## Next/, 'the block must say what to write, and where.');
+  const second = await stop(dir, session);
+  assert(second.code === ALLOW, `once only - a passing mention of "later" must not loop:\n${second.out}`);
+});
+
+test('gate: work left for later that STATE.md records is not held', async () => {
+  const dir = laterProject();
+  const session = `later-${Date.now()}-${Math.random()}`;
+  await askLater(dir, session);
+  writeFileSync(join(dir, 'docs', 'STATE.md'), '# State\n\n## Next\n- [ ] WELCOME5 takes $5 off (asked 2026-09-26)\n');
+  const r = await stop(dir, session);
+  assert(r.code === ALLOW, `the plan was written, so nothing to hold:\n${r.out}`);
 });
