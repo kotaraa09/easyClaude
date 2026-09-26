@@ -23,6 +23,7 @@ for (const [name, args] of [
   ['session-start.mjs', ['--text']],
   ['prompt-check.mjs', []],
   ['validate.mjs', []],
+  ['bench.mjs', ['--help']],
 ]) {
   test(`entry point: node scripts/${name} ${args.join(' ')} runs`, async () => {
     const r = await run(script(name), { cwd: repoRoot, args });
@@ -303,7 +304,7 @@ test('session-start: after a compaction only the standing rules come back', asyn
   assert(!/first reply/.test(context), `a compaction asked for a first-reply line:\n${context}`);
   assert(!/\*\*Now:\*\*/.test(context), `a compaction repeated the opener:\n${context}`);
   assertMatch(context, /Smallest fix that works/, 'the cheap contract must survive the compaction.');
-  assertMatch(context, /language they write in/, 'the language rule must survive the compaction.');
+  assertMatch(context, /language of the user's own messages/, 'the language rule must survive the compaction.');
 });
 
 test('session-start: a disabled autoship says nothing', async () => {
@@ -455,4 +456,43 @@ test('cost notice: with no price, tokens decide, and the figure says so', async 
   assertMatch(switchNotice({ prompt_cache_warm: true, context_tokens: 90_000,
     estimated_cache_write_usd: 0.5, pricing: 'default' }, false), /roughly \$0\.50/,
     'an assumed price must not read as a known one.');
+});
+
+// --- the bug-report line -------------------------------------------------------
+// scripts/bench.mjs found that with easyClaude loaded, a one-line bug fix shipped with no
+// test in two runs of three. This line is what fixed it, so its reach is pinned both ways.
+test('prompt hook: a bug report gets the debug line, other requests do not', async () => {
+  const { looksLikeBug } = await import('../scripts/prompt-check.mjs');
+  for (const p of ['the checkout breaks when there is no code', 'The tests keep failing',
+    "it doesn't work", 'there is an error on the cart page', 'หน้าเช็คเอาท์พัง', 'ปุ่มจ่ายเงินใช้ไม่ได้']) {
+    assert(looksLikeBug(p), `a bug report was missed: ${p}`);
+  }
+  for (const p of ['add shipping for orders under $50', 'rename the shop', 'keep going', 'ship it',
+    'is this safe to make public?', '/easyclaude:cheap fix the error']) {
+    assert(!looksLikeBug(p), `this is not a bug report, or it is a command: ${p}`);
+  }
+});
+
+test('prompt hook: the debug line rides with the long-conversation advice', async () => {
+  const { dir, file } = transcript([30_000, 150_000]);
+  const r = await promptHook(dir, file, 'the checkout breaks', `bug-${Date.now()}-${Math.random()}`);
+  const context = JSON.parse(r.out).hookSpecificOutput.additionalContext;
+  assert(/debug skill/.test(context) && /\/clear makes every step cheaper/.test(context),
+    `both lines must arrive together:\n${context}`);
+});
+
+test('prompt hook: cheap mode gets no debug line', async () => {
+  const { dir, file } = transcript([30_000, 31_000]);
+  const r = await promptHook(dir, file, '/easyclaude:cheap the checkout breaks');
+  assert(!/debug skill/.test(r.out), `cheap mode asks for the smallest fix, not a test:\n${r.out}`);
+});
+
+// "Put the labels into the user's language" read as "the user's language is not English",
+// and a third of English requests in the outcome benchmark got a reply in another language.
+test('session-start: the opener keeps English as it is for an English user', async () => {
+  const r = await opener({ 'docs/STATE.md': STATE, 'index.html': '' });
+  assertMatch(r.out, /If they write in English, keep the lines exactly as they are/,
+    'translation must be conditional on the user writing in another language.');
+  assert(!/Put the labels and any English placeholder into the user's language/.test(r.out),
+    'the old wording told Claude to translate whatever the user wrote in.');
 });

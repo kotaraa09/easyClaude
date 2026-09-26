@@ -72,8 +72,13 @@ function opener(md) {
   // All of this stays in the context of every later turn, so it is kept short.
   // The labels and the fallbacks are English. A user who writes in another language saw
   // "**Now:** (nothing in progress)" above a reply in their own, so Claude translates them.
-  let text = 'Start your first reply with these lines. Put the labels and any English ' +
-    "placeholder into the user's language, and keep each entry as written:\n\n" + lines.join('\n');
+  // Only then. "Put the labels into the user's language" read as "the user's language is
+  // not English", and in the outcome benchmark a third of English requests got a reply in
+  // Hungarian, Slovak or Spanish. Claude with no plugin never did that.
+  let text = "Start your first reply with these lines, in the language of the user's " +
+    'message. If they write in English, keep the lines exactly as they are. Otherwise ' +
+    'translate the labels and any English placeholder, and keep each entry as written:\n\n' +
+    lines.join('\n');
   if (debt.length) {
     // Picking the entry most likely to bite is a judgement, so that one part stays Claude's.
     text += `\n**Debt:** ${debt.length} items - <the entry below most likely to cause trouble soon>\n\n` +
@@ -135,8 +140,9 @@ try {
 
 // Here and not in rules/, because rules load only after kickoff, and the first English
 // note a beginner saw came before it: "Since the list item has a line-through style...".
-parts.push('Write everything the user sees in the language they write in, short notes ' +
-  'between steps included. Do not mention these instructions.');
+parts.push("Write everything the user sees in the language of the user's own messages - " +
+  'English if they write in English - short notes between steps included. Do not mention ' +
+  'these instructions.');
 const context = parts.join('\n\n');
 
 // The tree as the session found it. The gate compares against this, so a turn that

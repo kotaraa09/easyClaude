@@ -33,6 +33,8 @@ If a step fails, fix it — **do not report success on red, and do not describe 
 
 The Stop hook runs only the fast tier on every turn, so on a tiered contract it will not catch a failing test for you. That is the one place where finishing a task depends on you running the command above rather than on the gate catching you.
 
+If this session has no tool that runs commands, do not go looking for one or send a helper to run it: say the checks were not run, and name the command above for the user. In testing, that search cost as much as the task itself.
+
 If a failure is not obvious, switch to the `debug` skill rather than trying edits until something sticks.
 
 If you cannot make it pass after a genuine attempt, stop and say exactly what's failing and what you tried. A clear failure is more useful than a confident lie.

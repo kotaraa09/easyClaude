@@ -392,7 +392,7 @@ To see what every installed skill costs you, easyClaude's and everyone else's, a
 
 Until 0.1.3 this page said ~958 tokens per turn. Measured, a set-up project with a Thai plan cost ~2,190. The old figure was an estimate: it counted four characters as one token, which is optimistic, and it left out the `CLAUDE.md` kickoff writes. Cutting duplicated rules and shortening that `CLAUDE.md` brought it to today's figure.
 
-CI still makes the estimate, because it can do that on every push: <!--cost:749,213,479,57-->**~749 tokens per turn**: ~213 of rules, ~479 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
+CI still makes the estimate, because it can do that on every push: <!--cost:747,211,479,57-->**~747 tokens per turn**: ~211 of rules, ~479 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
 
 </details>
 
@@ -407,7 +407,7 @@ The five occasional ones set `disable-model-invocation`, which drops them from t
 
 One agent ships, and it costs ~57 tokens a turn for the same reason a skill does: its name and description sit in the tool list whether you dispatch it or not. `easyclaude-diff-reviewer` is the fresh pair of eyes in step 3 of `ship` — it reads a diff it did not write and reports only what breaks. It holds `Read`, `Glob` and `Grep`, and nothing that can write or run a command, because a reviewer that fixes what it finds puts unreviewed code past the gate. The review ran before this, on whichever general helper was to hand; naming it is what buys the read-only grant and a cheaper model.
 
-CI enforces the ceiling. `skills/registry.json` sets it, the validator estimates the figure from the files, and the build fails if it drifts over. About 651 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
+CI enforces the ceiling. `skills/registry.json` sets it, the validator estimates the figure from the files, and the build fails if it drifts over. About 653 tokens are left. Two changes bought that room, and both are worth copying. `reference/cheap.md` left `rules/` entirely: it applies only while a marker file exists, so 191 tokens per turn were being spent on nearly every session that never used it. And `rules/code-standards.md` declares `paths:`, so Claude Code loads it only when it touches a source file - standards about naming were being paid for on turns that wrote no code.
 
 The ceiling has a blind spot, and it is worth knowing about. It counts `rules/*.md`, skill descriptions and agent descriptions. It does not count MCP tool schemas, which are larger than both - Graft's six measure ~1,095 on their own. That is why `.mcp.json` ships empty rather than merely small: on that ground the default does the work the gate cannot.
 
@@ -486,9 +486,9 @@ template/         thin front door to fork
 scripts/          verify.mjs (the gate), validate.mjs (CI checks),
                   test.mjs (tests both), connect.mjs + connect-core.mjs
                   (MCP + keys), skillscan.mjs (the install gate),
-                  gen/ (asset generation)
+                  gen/ (asset generation), bench.mjs (outcome benchmark)
 tests/            mutation tests for the checking machinery
-evals/            seven trigger cases, run against a sample project
+evals/            seven trigger cases and four outcome tasks, run against a sample project
 docs/assets/      README artwork
 ```
 
@@ -512,6 +512,8 @@ The test suite exists because four of them later stopped checking, and passed wh
 So the suite tests the checkers rather than the plugin. It copies the tree, breaks exactly one thing, and requires the validator to report it; a check that stops checking now fails a test instead of going quiet. It pins the gate's behaviour the same way — a failing step must block the turn, a missing toolchain must only warn, and test output that happens to say "not found" must not be mistaken for a missing toolchain. One case is about the suite itself: every numbered check in the validator must have at least one test, so a new check cannot ship untested and an old one cannot lose its last test unnoticed.
 
 What none of it can check is which skill actually wins a given sentence, since a validator reads frontmatter and not meaning. [`evals/`](evals/) holds seven cases for exactly that: five skills that must fire, and two sentences that must leave the wrong skill quiet. Each case runs in a small sample project, and `claude plugin eval` runs them. They cost money and need a login, so CI does not run them; the validator checks their shape on every push instead, and `evals/README.md` has the command and the latest results.
+
+Firing the right skill is not the same as helping. `node scripts/bench.mjs` gives four small tasks, in a beginner's words, to Claude with and without easyClaude, and grades the result with hidden tests. Its first run found that easyClaude made things worse: 7 of 12 against 12 of 12. A third of English requests got a reply in another language, a bug fix shipped with no test, and a missing shell sent Claude searching. All three are fixed, and both now score 12 of 12. The tasks where easyClaude should pull ahead, like work across two sessions, are not in it yet. `evals/README.md` has the details and the cost.
 
 ---
 
