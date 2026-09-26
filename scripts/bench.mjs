@@ -206,19 +206,67 @@ function lastReply(trace) {
 // One arm: run the eval, then grade every run it kept, then delete what it kept. The
 // trace and the files Claude changed are saved first, under evals/results/, because a
 // failed run with nothing left to read cannot be told apart from a broken check.
-async function runArm(label, pluginDir, opts) {
-  const out = join(mkdtempSync(join(tmpdir(), 'easyclaude-bench-')), `${label}.json`);
+function runEval(label, pluginDir, tag, caseGlob, opts) {
+  const out = join(mkdtempSync(join(tmpdir(), 'easyclaude-bench-')), 'result.json');
   const args = [
-    'plugin', 'eval', pluginDir, '--tag', 'outcome', '--ablation', 'none', '--scaffold', '--keep-temp',
+    'plugin', 'eval', pluginDir, '--tag', tag, '--ablation', 'none', '--scaffold', '--keep-temp',
     '--trust-plugin', '--no-publish', '--model', opts.model, '--runs', String(opts.runs),
     '--max-cost-usd', String(opts.maxCost), '--json', out, '-j', String(opts.concurrency),
     '--allow-tools', 'Edit', 'Write', ...(opts.shell ? ['Bash'] : []),
-    ...(opts.case ? ['--case', opts.case] : []),
+    ...(caseGlob ? ['--case', caseGlob] : []),
   ];
   console.log(`\n${label}: claude ${args.join(' ')}`);
   const r = claude(args, { stdio: ['ignore', 'inherit', 'inherit'] });
   if (!existsSync(out)) throw new Error(`${label}: the runner wrote no result (exit ${r.status})`);
-  const result = JSON.parse(readFileSync(out, 'utf8'));
+  return JSON.parse(readFileSync(out, 'utf8'));
+}
+
+export const globToRegex = (glob) =>
+  new RegExp(`^${glob.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+
+// A case with a "<name>-day1" sibling runs over two sessions. Day one runs first, tagged
+// outcome-seed so no normal run picks it up, and each run's project - git history and all
+// - is saved where the day-two case's setup.sh claims one per run. Nothing else carries
+// over: not the conversation, not any memory outside the project. Returns what day one
+// cost per case, so the table charges it to the task it belongs to.
+async function runSeeds(label, pluginDir, seedsRoot, opts) {
+  const dependents = readdirSync(OUTCOMES)
+    .filter((n) => existsSync(join(OUTCOMES, `${n}-day1`)))
+    .filter((n) => !opts.case || globToRegex(opts.case).test(n));
+  const cost = {};
+  for (const name of dependents) {
+    const result = runEval(`${label}, day one of ${name}`, pluginDir, 'outcome-seed', `${name}-day1`, opts);
+    cost[name] = result.costUsd ?? 0;
+    const runs = result.cases.find((c) => c.name === `${name}-day1`)?.arms?.with ?? [];
+    runs.forEach((run, i) => {
+      const kept = run.tracePath ? dirname(dirname(run.tracePath)) : null;
+      try {
+        const workspace = kept && join(kept, 'home', 'cwd');
+        if (workspace && existsSync(workspace)) cpSync(workspace, join(seedsRoot, name, String(i + 1)), { recursive: true });
+        const saved = join(opts.saveDir, `${label.replace(/\W+/g, '-')}-${name}-day1-${i + 1}`);
+        if (run.tracePath && existsSync(run.tracePath)) {
+          mkdirSync(saved, { recursive: true });
+          cpSync(run.tracePath, join(saved, 'trace.jsonl'));
+        }
+      } finally {
+        if (kept) rmSync(kept, { recursive: true, force: true });
+      }
+    });
+  }
+  return cost;
+}
+
+async function runArm(label, pluginDir, opts) {
+  const seedsRoot = join(pluginDir, 'evals', 'results', 'seeds');
+  rmSync(seedsRoot, { recursive: true, force: true });
+  let result;
+  let dayOne;
+  try {
+    dayOne = await runSeeds(label, pluginDir, seedsRoot, opts);
+    result = runEval(label, pluginDir, 'outcome', opts.case, opts);
+  } finally {
+    rmSync(seedsRoot, { recursive: true, force: true });
+  }
   const cases = [];
   for (const c of result.cases) {
     const caseDir = join(OUTCOMES, c.name);
@@ -245,12 +293,15 @@ async function runArm(label, pluginDir, opts) {
         success: checks.every((k) => k.passed), checks,
         reply: existsSync(trace) ? lastReply(readFileSync(trace, 'utf8')) : '',
         saved: relative(root, saved),
-        costUsd: run.costUsd ?? 0, turns: run.turns ?? 0, error: run.error ?? null,
+        // Day one's cost, spread over the day-two runs it seeded.
+        costUsd: (run.costUsd ?? 0) + (dayOne[c.name] ?? 0) / Math.max(1, c.arms.with.length),
+        turns: run.turns ?? 0, error: run.error ?? null,
       });
     }
     cases.push({ name: c.name, runs });
   }
-  return { claudeVersion: result.claudeVersion, costUsd: result.costUsd ?? 0, partial: result.partial, cases };
+  const seedCost = Object.values(dayOne).reduce((s, n) => s + n, 0);
+  return { claudeVersion: result.claudeVersion, costUsd: (result.costUsd ?? 0) + seedCost, partial: result.partial, cases };
 }
 
 // A copy of the suite beside an empty plugin: same cases, same fixture, nothing loaded.

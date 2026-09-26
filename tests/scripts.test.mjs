@@ -496,3 +496,44 @@ test('session-start: the opener keeps English as it is for an English user', asy
   assert(!/Put the labels and any English placeholder into the user's language/.test(r.out),
     'the old wording told Claude to translate whatever the user wrote in.');
 });
+
+// --- the work-left-for-later line ---------------------------------------------
+// The two-session benchmark: "just do the first one, we'll do the rest tomorrow" left the
+// other four requests unwritten in one run of three, and below older tasks in the others.
+test('prompt hook: work left for later is caught, in English and Thai, and nothing else is', async () => {
+  const { leavesWorkForLater } = await import('../scripts/prompt-check.mjs');
+  for (const p of ["just do the first one, we'll do the rest tomorrow", 'finish it later',
+    'ทำอันแรกก่อน ที่เหลือพรุ่งนี้', 'ที่เหลือไว้ทำทีหลัง']) {
+    assert(leavesWorkForLater(p), `work left for later was missed: ${p}`);
+  }
+  for (const p of ['add shipping', 'keep going', 'the checkout breaks', '/easyclaude:cheap later']) {
+    assert(!leavesWorkForLater(p), `nothing is being left for later here: ${p}`);
+  }
+});
+
+test('prompt hook: the later line asks for dated items at the top of Next, only with a state file', async () => {
+  const { dir, file } = transcript([30_000, 31_000]);
+  const without = await promptHook(dir, file, "do the rest tomorrow");
+  assert(!/## Next/.test(without.out), `no docs/STATE.md, so nothing to write to:\n${without.out}`);
+  mkdirSync(join(dir, 'docs'), { recursive: true });
+  writeFileSync(join(dir, 'docs', 'STATE.md'), '# State\n');
+  const r = await promptHook(dir, file, "do the rest tomorrow");
+  const context = JSON.parse(r.out).hookSpecificOutput.additionalContext;
+  assert(/top of ## Next/.test(context) && /\(asked \d{4}-\d{2}-\d{2}\)/.test(context),
+    `the items must go first, and carry the date they were asked:\n${context}`);
+});
+
+// Day two of the benchmark: "finish the rest" got one task and "want me to continue?".
+test('prompt hook: finishing several is caught, one thing and cheap mode are not', async () => {
+  const { asksToFinishSeveral } = await import('../scripts/prompt-check.mjs');
+  for (const p of ['Please finish the rest of the things I asked for yesterday.', 'do all of them',
+    'finish everything', 'ทำที่เหลือให้เสร็จ']) {
+    assert(asksToFinishSeveral(p), `a request to finish several was missed: ${p}`);
+  }
+  for (const p of ['add shipping', 'keep going', 'finish the footer', 'the rest is fine']) {
+    assert(!asksToFinishSeveral(p), `this asks for one thing, or nothing: ${p}`);
+  }
+  const { dir, file } = transcript([30_000, 31_000]);
+  const cheap = await promptHook(dir, file, '/easyclaude:cheap finish the rest');
+  assert(!/finish several tasks/.test(cheap.out), `cheap mode does one thing a turn on purpose:\n${cheap.out}`);
+});

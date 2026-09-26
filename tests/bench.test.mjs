@@ -6,9 +6,9 @@
 // three ways, against the sample project the real run starts from: untouched, fixed the
 // way a good answer would fix it, and fixed the wrong way. The first and last must fail.
 import { test, assert, repoRoot } from './harness.mjs';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { gradeWorkspace } from '../scripts/bench.mjs';
 
@@ -117,4 +117,86 @@ test('bench: a reply in another language is caught, and English passes', async (
     'Arreglado. Antes, la línea que calculaba el descuento asumía que siempre había un código ingresado.',
     'แก้แล้ว ตอนนี้จ่ายเงินได้แม้ไม่มีโค้ดส่วนลด',
   ]) assert(!isEnglish(t), `not English, but passed: ${t}`);
+});
+
+// --- the two-session task --------------------------------------------------------
+
+// All five changes, the way a good day two would leave them.
+const allFive = (dir) => {
+  edit(dir, 'src/cart.js', (t) => t.replace(
+    /export function addItem[\s\S]*?\n}\n/,
+    [
+      'export function addItem(cart, item) {',
+      '  const qty = item.qty ?? 1;',
+      '  const line = cart.items.find((i) => i.id === item.id);',
+      '  if (line) line.qty = Math.min(10, line.qty + qty);',
+      '  else cart.items.push({ ...item, qty: Math.min(10, qty) });',
+      '  return cart;',
+      '}',
+      '',
+    ].join('\n')));
+  edit(dir, 'src/checkout.js', () => [
+    "import { cartTotal } from './cart.js';",
+    '',
+    'const CODES = { SPRING10: { rate: 0.1 }, WELCOME5: { off: 5 } };',
+    '',
+    'export function amountToPay(cart, discount) {',
+    '  const total = cartTotal(cart);',
+    '  const count = cart.items.reduce((n, i) => n + i.qty, 0);',
+    '  let plants = count >= 5 ? total * 0.9 : total;',
+    "  const code = CODES[(discount?.code ?? '').toUpperCase()];",
+    '  if (code?.rate) plants *= 1 - code.rate;',
+    '  if (code?.off) plants -= code.off;',
+    '  return Math.round((plants + (total >= 50 ? 0 : 6)) * 100) / 100;',
+    '}',
+    '',
+  ].join('\n'));
+  edit(dir, 'tests/checkout.test.mjs', (t) => t.replace('31.5', '37.5'));
+};
+
+test('bench: two-sessions fails on day one done, passes all five, names what is missing', async () => {
+  const dayOneOnly = await grade('outcome-two-sessions', 'base', (dir) => edit(dir, 'src/checkout.js', (t) => t.replace(
+    'return Math.round(total * (1 - rate) * 100) / 100;',
+    'return Math.round((total * (1 - rate) + (total >= 50 ? 0 : 6)) * 100) / 100;')));
+  someFail('only the first change', dayOneOnly);
+  assert(dayOneOnly.find((c) => c.name === '1. shipping')?.passed,
+    'the shipping check must pass when shipping is done, or the report blames the wrong change');
+  allPass('all five', await grade('outcome-two-sessions', 'base', allFive));
+});
+
+// Day two runs in parallel, and each run must start from its own day one.
+test('bench: each day-two run claims a different day-one project, and a spare run fails loudly', async () => {
+  const plugin = mkdtempSync(join(tmpdir(), 'easyclaude-seedtest-'));
+  try {
+    const setup = join(plugin, 'evals', 'outcomes', 'outcome-two-sessions', 'setup.sh');
+    const seeds = join(plugin, 'evals', 'results', 'seeds', 'outcome-two-sessions');
+    for (const n of ['1', '2']) {
+      mkdirSync(join(seeds, n), { recursive: true });
+      writeFileSync(join(seeds, n, 'day-one.txt'), n);
+    }
+    mkdirSync(dirname(setup), { recursive: true });
+    writeFileSync(setup, readFileSync(join(caseDir('outcome-two-sessions'), 'setup.sh')));
+    const claim = () => {
+      const cwd = mkdtempSync(join(tmpdir(), 'easyclaude-dayt-'));
+      const r = spawnSync('bash', [setup], { cwd, encoding: 'utf8' });
+      const got = existsSync(join(cwd, 'day-one.txt')) ? readFileSync(join(cwd, 'day-one.txt'), 'utf8') : null;
+      rmSync(cwd, { recursive: true, force: true });
+      return { code: r.status, got };
+    };
+    const a = claim();
+    const b = claim();
+    const c = claim();
+    assert(a.code === 0 && b.code === 0 && a.got && b.got && a.got !== b.got,
+      `two runs must start from two different day ones: ${JSON.stringify([a, b])}`);
+    assert(c.code !== 0, 'a run with no day one left must fail, not start from an empty folder');
+  } finally {
+    rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('bench: --case picks two-session tasks by the same glob the runner uses', async () => {
+  const { globToRegex } = await import('../scripts/bench.mjs');
+  assert(globToRegex('outcome-two*').test('outcome-two-sessions'), 'a prefix glob');
+  assert(!globToRegex('outcome-fix*').test('outcome-two-sessions'), 'another task');
+  assert(globToRegex('outcome-two-sessions').test('outcome-two-sessions'), 'an exact name');
 });

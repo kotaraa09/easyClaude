@@ -6,11 +6,11 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
 
 # Build the next task
 
-## 1. Pick exactly one
+## 1. Pick what the user asked for
 
-Read `docs/STATE.md`. Take the first unchecked task under `## Now`, or promote the first from `## Next`. Move it to `## Now` before starting.
+Read `docs/STATE.md`. If the user said which work they mean — "the rest of what I asked yesterday", "the discount one" — take those tasks, wherever they sit in the list. A task ending in `(asked <date>)` is one the user asked for on that date. Otherwise take the first unchecked task under `## Now`, or promote the first from `## Next`. Move it to `## Now` before starting.
 
-**One task per turn.** Finishing three tasks in one pass produces a change nobody can review and a session that can't be resumed cleanly if it goes wrong.
+**One task at a time.** Build it, verify it, tick it off, and only then start the next. When the user asked for one task, stop after it: three tasks in one pass is a change nobody can review. When they asked you to finish several, go on to the next in the same turn, and stop at the first one that fails. In the outcome benchmark a beginner said "finish the rest of what I asked for yesterday", and got one unrelated task from the top of the list.
 
 ## 2. Build it as a slice
 

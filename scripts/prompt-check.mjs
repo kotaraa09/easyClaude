@@ -70,6 +70,34 @@ const BUG_NUDGE = 'easyClaude: this reads like a bug report. Use the debug skill
   'cause before you edit, and add a test that fails without the fix. A one-line fix gets ' +
   'its test too.';
 
+// Work left for later. The next session sees only the project, so anything not written to
+// docs/STATE.md is gone. In the two-session benchmark a beginner asked for five changes
+// and "just the first one today"; one run of three wrote the other four nowhere, and the
+// two that did put them below older tasks, where the next session never reached them.
+const LATER = new RegExp([
+  /(?<![a-z])(tomorrow|later|next time|another day|next week|some other time)(?![a-z])/.source,
+  'พรุ่งนี้', 'ทีหลัง', 'ไว้ก่อน', 'คราวหน้า', 'วันหลัง', 'ครั้งหน้า',
+].join('|'), 'i');
+export const leavesWorkForLater = (prompt) => !/^\s*\//.test(prompt) && LATER.test(prompt);
+const laterNudge = (date) => 'easyClaude: the user is leaving part of this for another ' +
+  'session, and that session will not see this conversation - only docs/STATE.md carries ' +
+  'over. Before you end this turn, put every item they asked for and you did not finish at ' +
+  `the top of ## Next, in their words, each ending with "(asked ${date})".`;
+
+// "Finish the rest." build-task says to go on to the next task when the user asked for
+// several, and on day two of the benchmark Claude still built one and asked "want me to
+// continue?" in two runs of three. The same line, arriving with the message, is what
+// worked for bug fixes.
+const FINISH = new RegExp([
+  /(?<![a-z])(finish|complete|do|build)(?![a-z])[^.?!]{0,30}(the rest|everything|all of (it|them)|them all|remaining)/.source,
+  /(?<![a-z])the rest of (it|them|what|the)(?![a-z])/.source,
+  'ที่เหลือ', 'ให้เสร็จ', 'ให้ครบ',
+].join('|'), 'i');
+export const asksToFinishSeveral = (prompt) => !/^\s*\//.test(prompt) && FINISH.test(prompt);
+const FINISH_NUDGE = 'easyClaude: the user asked you to finish several tasks. Do them one ' +
+  'after another in this turn, each checked and ticked off before the next. Do not stop to ' +
+  'ask whether to go on; stop when all are done, or at the first one that fails.';
+
 function say(context) {
   if (context) {
     process.stdout.write(JSON.stringify({
@@ -85,13 +113,21 @@ function main() {
   const prompt = String(payload.prompt ?? '');
   const cheap = CHEAP_COMMAND.test(prompt) || existsSync(join(root, '.claude', 'cheap-session'));
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
-  const bug = !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null;
+  const nudges = [
+    !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null,
+    // Only where there is a state file to write to. In cheap mode too: forgetting the rest
+    // of the request is not a saving.
+    leavesWorkForLater(prompt) && existsSync(join(root, 'docs', 'STATE.md'))
+      ? laterNudge(new Date().toLocaleDateString('en-CA')) : null,
+    // Not in cheap mode, which does one thing per turn on purpose.
+    !cheap && asksToFinishSeveral(prompt) ? FINISH_NUDGE : null,
+  ].filter(Boolean).join('\n\n') || null;
   // Nothing left to say this session, so the transcript - which can run to megabytes - is
   // not read on every prompt.
-  if (!cheap && alreadyAdvised(payload.session_id)) return say(bug);
+  if (!cheap && alreadyAdvised(payload.session_id)) return say(nudges);
 
   const history = payload.transcript_path ? historyTokens(payload.transcript_path) : null;
-  if (history === null) return say(bug);
+  if (history === null) return say(nudges);
   const k = `about ${Math.round(history / 1000)}k tokens`;
 
   let context = null;
@@ -113,7 +149,7 @@ function main() {
     markAdvised(payload.session_id);
   }
 
-  say([bug, context].filter(Boolean).join('\n\n'));
+  say([nudges, context].filter(Boolean).join('\n\n'));
 }
 
 // Once per session: advice repeated on every prompt is noise, and costs tokens each time.
