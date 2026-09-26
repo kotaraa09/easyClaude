@@ -169,10 +169,30 @@ function hashTree(dir, h) {
 // because every check looked at files. A beginner who cannot read the answer did not get
 // one. Common English words make up a fifth or more of English prose and almost none of
 // those languages; "a" is left out because Hungarian uses it too.
-const ENGLISH = new Set(['the', 'and', 'to', 'is', 'it', 'you', 'of', 'in', 'that', 'now', 'was', 'this', 'with', 'for']);
+//
+// A share of common English words alone failed a short, correct English reply ("Updated
+// `index.html` - page title, header, footer copyright...") that is mostly nouns. So it
+// asks two questions instead. Does the text use letters English does not - accents, or
+// another script? And does it use more small words of another language than of English?
+const ENGLISH = new Set(['the', 'and', 'to', 'is', 'it', 'you', 'of', 'in', 'that', 'now', 'was',
+  'this', 'with', 'for', 'if', 'are', 'not', 'all', 'so', 'your', 'be', 'on', 'or', 'but']);
+const FOREIGN = new Set([
+  'el', 'la', 'los', 'las', 'que', 'del', 'una', 'por', 'para', 'con', 'pero', // es
+  'az', 'egy', 'hogy', 'nem', 'és', 'is', // hu - "is" counts for English too, and cancels out
+  'som', 'na', 'je', 'sa', 'pre', 'ako', 'aby', // sk, cs
+  'der', 'die', 'das', 'und', 'ist', 'nicht', 'ein', // de
+  'les', 'des', 'est', 'pas', 'une', 'avec', // fr
+  'che', 'non', 'della', 'uma', 'não', 'os', // it, pt
+]);
 export function isEnglish(text) {
+  const letters = text.match(/\p{L}/gu) ?? [];
+  if (!letters.length) return false;
+  const unusual = letters.filter((l) => !/[a-z]/i.test(l)).length;
+  if (unusual / letters.length > 0.02) return false;
   const words = text.toLowerCase().match(/[\p{L}']+/gu) ?? [];
-  return words.length > 0 && words.filter((w) => ENGLISH.has(w)).length / words.length >= 0.08;
+  const en = words.filter((w) => ENGLISH.has(w)).length;
+  const other = words.filter((w) => FOREIGN.has(w) && !ENGLISH.has(w)).length;
+  return en > 0 && en >= other;
 }
 const LANGUAGE_CHECK = 'the reply is in English, like the request';
 // Applied at report time, to fresh and cached runs alike, so a baseline cached before this
@@ -206,19 +226,67 @@ function lastReply(trace) {
 // One arm: run the eval, then grade every run it kept, then delete what it kept. The
 // trace and the files Claude changed are saved first, under evals/results/, because a
 // failed run with nothing left to read cannot be told apart from a broken check.
-async function runArm(label, pluginDir, opts) {
-  const out = join(mkdtempSync(join(tmpdir(), 'easyclaude-bench-')), `${label}.json`);
+function runEval(label, pluginDir, tag, caseGlob, opts) {
+  const out = join(mkdtempSync(join(tmpdir(), 'easyclaude-bench-')), 'result.json');
   const args = [
-    'plugin', 'eval', pluginDir, '--tag', 'outcome', '--ablation', 'none', '--scaffold', '--keep-temp',
+    'plugin', 'eval', pluginDir, '--tag', tag, '--ablation', 'none', '--scaffold', '--keep-temp',
     '--trust-plugin', '--no-publish', '--model', opts.model, '--runs', String(opts.runs),
     '--max-cost-usd', String(opts.maxCost), '--json', out, '-j', String(opts.concurrency),
     '--allow-tools', 'Edit', 'Write', ...(opts.shell ? ['Bash'] : []),
-    ...(opts.case ? ['--case', opts.case] : []),
+    ...(caseGlob ? ['--case', caseGlob] : []),
   ];
   console.log(`\n${label}: claude ${args.join(' ')}`);
   const r = claude(args, { stdio: ['ignore', 'inherit', 'inherit'] });
   if (!existsSync(out)) throw new Error(`${label}: the runner wrote no result (exit ${r.status})`);
-  const result = JSON.parse(readFileSync(out, 'utf8'));
+  return JSON.parse(readFileSync(out, 'utf8'));
+}
+
+export const globToRegex = (glob) =>
+  new RegExp(`^${glob.split('*').map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+
+// A case with a "<name>-day1" sibling runs over two sessions. Day one runs first, tagged
+// outcome-seed so no normal run picks it up, and each run's project - git history and all
+// - is saved where the day-two case's setup.sh claims one per run. Nothing else carries
+// over: not the conversation, not any memory outside the project. Returns what day one
+// cost per case, so the table charges it to the task it belongs to.
+async function runSeeds(label, pluginDir, seedsRoot, opts) {
+  const dependents = readdirSync(OUTCOMES)
+    .filter((n) => existsSync(join(OUTCOMES, `${n}-day1`)))
+    .filter((n) => !opts.case || globToRegex(opts.case).test(n));
+  const cost = {};
+  for (const name of dependents) {
+    const result = runEval(`${label}, day one of ${name}`, pluginDir, 'outcome-seed', `${name}-day1`, opts);
+    cost[name] = result.costUsd ?? 0;
+    const runs = result.cases.find((c) => c.name === `${name}-day1`)?.arms?.with ?? [];
+    runs.forEach((run, i) => {
+      const kept = run.tracePath ? dirname(dirname(run.tracePath)) : null;
+      try {
+        const workspace = kept && join(kept, 'home', 'cwd');
+        if (workspace && existsSync(workspace)) cpSync(workspace, join(seedsRoot, name, String(i + 1)), { recursive: true });
+        const saved = join(opts.saveDir, `${label.replace(/\W+/g, '-')}-${name}-day1-${i + 1}`);
+        if (run.tracePath && existsSync(run.tracePath)) {
+          mkdirSync(saved, { recursive: true });
+          cpSync(run.tracePath, join(saved, 'trace.jsonl'));
+        }
+      } finally {
+        if (kept) rmSync(kept, { recursive: true, force: true });
+      }
+    });
+  }
+  return cost;
+}
+
+async function runArm(label, pluginDir, opts) {
+  const seedsRoot = join(pluginDir, 'evals', 'results', 'seeds');
+  rmSync(seedsRoot, { recursive: true, force: true });
+  let result;
+  let dayOne;
+  try {
+    dayOne = await runSeeds(label, pluginDir, seedsRoot, opts);
+    result = runEval(label, pluginDir, 'outcome', opts.case, opts);
+  } finally {
+    rmSync(seedsRoot, { recursive: true, force: true });
+  }
   const cases = [];
   for (const c of result.cases) {
     const caseDir = join(OUTCOMES, c.name);
@@ -245,12 +313,37 @@ async function runArm(label, pluginDir, opts) {
         success: checks.every((k) => k.passed), checks,
         reply: existsSync(trace) ? lastReply(readFileSync(trace, 'utf8')) : '',
         saved: relative(root, saved),
-        costUsd: run.costUsd ?? 0, turns: run.turns ?? 0, error: run.error ?? null,
+        // Day one's cost, spread over the day-two runs it seeded.
+        costUsd: (run.costUsd ?? 0) + (dayOne[c.name] ?? 0) / Math.max(1, c.arms.with.length),
+        turns: run.turns ?? 0, error: run.error ?? null,
       });
     }
     cases.push({ name: c.name, runs });
   }
-  return { claudeVersion: result.claudeVersion, costUsd: result.costUsd ?? 0, partial: result.partial, cases };
+  const seedCost = Object.values(dayOne).reduce((s, n) => s + n, 0);
+  return { claudeVersion: result.claudeVersion, costUsd: (result.costUsd ?? 0) + seedCost, partial: result.partial, cases };
+}
+
+// What a task's no-easyClaude result depends on: the Claude Code version, the run
+// settings, the task's own files, its day one if it has one, and the shared sample
+// project. Nothing about easyClaude, which that arm never loads.
+export function caseKey(name, version, opts) {
+  const h = createHash('sha256');
+  h.update(JSON.stringify({ version, model: opts.model, runs: opts.runs, shell: Boolean(opts.shell) }));
+  for (const dir of [name, `${name}-day1`]) {
+    if (existsSync(join(OUTCOMES, dir))) { h.update(dir); hashTree(join(OUTCOMES, dir), h); }
+  }
+  hashTree(join(root, 'evals', '_fixture'), h);
+  return h.digest('hex').slice(0, 16);
+}
+
+// { <task>: { key, date, runs } }. A file in the old one-key format is read as empty,
+// which costs one re-run of that arm and nothing else.
+function readBaselineCache() {
+  try {
+    const c = JSON.parse(readFileSync(BASELINE_CACHE, 'utf8'));
+    return c.format === 2 ? c.cases : {};
+  } catch { return {}; }
 }
 
 // A copy of the suite beside an empty plugin: same cases, same fixture, nothing loaded.
@@ -299,37 +392,44 @@ async function main() {
   }
 
   const version = claude(['--version']).stdout?.trim() ?? 'unknown';
-  const h = createHash('sha256');
-  // No --case in the key: the cache holds every case it has run, and a run of one case
-  // takes that case from it rather than paying for the other arm again.
-  h.update(JSON.stringify({ version, model: opts.model, runs: opts.runs, shell: opts.shell }));
-  hashTree(OUTCOMES, h);
-  hashTree(join(root, 'evals', '_fixture'), h);
-  const key = h.digest('hex').slice(0, 16);
-
   const withArm = await runArm('with easyClaude', root, opts);
 
   let without = null;
   if (!flag('--with-only')) {
-    const cached = existsSync(BASELINE_CACHE) ? JSON.parse(readFileSync(BASELINE_CACHE, 'utf8')) : null;
+    // Cached per task. One key over every task meant that rewording one prompt re-ran the
+    // no-easyClaude arm of all of them, which is most of what a run costs.
+    const cache = readBaselineCache();
     const wanted = withArm.cases.map((c) => c.name);
-    const hit = cached?.key === key && !cached.arm.partial && !flag('--fresh-baseline') &&
-      wanted.every((n) => cached.arm.cases.some((c) => c.name === n));
-    if (hit) {
-      without = { ...cached.arm, costUsd: 0, cases: cached.arm.cases.filter((c) => wanted.includes(c.name)) };
-      console.log(`\nwithout easyClaude: reusing the result from ${cached.date} (nothing it depends on changed)`);
-    } else {
+    const keys = Object.fromEntries(wanted.map((n) => [n, caseKey(n, version, opts)]));
+    const stale = wanted.filter((n) => flag('--fresh-baseline') || cache[n]?.key !== keys[n]);
+    const fresh = [];
+    let spent = 0;
+    let partial = false;
+    if (stale.length) {
       const dir = baselinePlugin();
-      try { without = await runArm('without easyClaude', dir, opts); } finally { rmSync(dir, { recursive: true, force: true }); }
-      if (!without.partial) {
-        // Keep the cases this run did not cover, while the key still matches.
-        const others = cached?.key === key ? cached.arm.cases.filter((c) => !wanted.includes(c.name)) : [];
+      try {
+        for (const name of stale) {
+          const arm = await runArm('without easyClaude', dir, { ...opts, case: name });
+          spent += arm.costUsd;
+          partial ||= Boolean(arm.partial);
+          fresh.push(...arm.cases);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+      if (!partial) {
+        const date = new Date().toISOString();
+        for (const c of fresh) cache[c.name] = { key: keys[c.name], date, runs: c.runs };
         mkdirSync(RESULTS, { recursive: true });
-        writeFileSync(BASELINE_CACHE, JSON.stringify({
-          key, date: new Date().toISOString(), arm: { ...without, cases: [...others, ...without.cases] },
-        }, null, 2));
+        writeFileSync(BASELINE_CACHE, JSON.stringify({ format: 2, cases: cache }, null, 2));
       }
     }
+    const reused = wanted.filter((n) => !stale.includes(n));
+    if (reused.length) console.log(`\nwithout easyClaude: reusing ${reused.join(', ')} (nothing they depend on changed)`);
+    without = {
+      costUsd: spent, partial,
+      cases: wanted.map((n) => fresh.find((c) => c.name === n) ?? { name: n, runs: cache[n]?.runs ?? [] }),
+    };
   }
 
   withLanguageCheck(withArm);
@@ -369,7 +469,7 @@ async function main() {
   }
   mkdirSync(opts.saveDir, { recursive: true });
   const file = join(opts.saveDir, 'result.json');
-  writeFileSync(file, JSON.stringify({ version, opts, key, with: withArm, without }, null, 2));
+  writeFileSync(file, JSON.stringify({ version, opts, with: withArm, without }, null, 2));
   console.log(`\nSaved: ${relative(root, file)}`);
 }
 

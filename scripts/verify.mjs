@@ -17,6 +17,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { treeFingerprint, lastSeen, remember } from './tree-state.mjs';
+import { laterBlock } from './later-memo.mjs';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -276,6 +277,14 @@ if (HOOK) {
     if (systemMessage) process.stdout.write(JSON.stringify({ systemMessage }));
     process.exit(0);
   };
+
+  // Before the checks: work left for another session must be written down first. It
+  // blocks once at most; see later-memo.mjs for why this is a script and not a rule.
+  const later = laterBlock(root, payload.session_id);
+  if (later) {
+    process.stderr.write(later);
+    process.exit(2);
+  }
 
   // Says so out loud, for the same reason the all-full-tier case does. This is a real
   // escape hatch and it stays, but set once in a shell profile it used to switch the gate

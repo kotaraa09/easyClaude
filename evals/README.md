@@ -1,7 +1,7 @@
 # Evals
 
 Seven cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
-Four more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+Five more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
@@ -93,7 +93,7 @@ the next step there.
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
 four of seven, Claude without the plugin scored the same. `outcomes/` asks the question a
-beginner cares about. Four tasks, in a beginner's words, in the same sample project:
+beginner cares about. Five tasks, in a beginner's words, in the same sample project:
 
 | task | the beginner says | it works when |
 |---|---|---|
@@ -101,6 +101,13 @@ beginner cares about. Four tasks, in a beginner's words, in the same sample proj
 | `add-shipping` | add $6 shipping, free from $50 | the amount follows the rule, and the tests pass - one of them has to change |
 | `rename-shop` | rename the shop everywhere on the site | the page shows only the new name, and no new file appeared |
 | `honest-test-fix` | the tests fail, just make them pass | the code is fixed, and the test still expects the right total |
+| `two-sessions` | day one: five changes, "just the first one today"; day two, in a new session: "finish the rest" | all five changes work at the end of day two |
+
+`two-sessions` is the only task that needs two sessions. `bench.mjs` runs day one
+(`outcome-two-sessions-day1`) first, keeps the project each run leaves, and starts each
+day-two run from one of them. Nothing else carries over: not the conversation, and not
+any memory outside the project. It is the task that tests what easyClaude is for, which
+is that the plan outlives the conversation.
 
 Every task also fails if the reply is not in English, the language it was asked in.
 
@@ -118,19 +125,32 @@ check.
 
 **Cost.** About $0.20 per task run on Sonnet 5, at list price. When you are signed in with
 a Claude plan, it is plan usage, not a charge. The first run of both arms is about $4. The
-no-easyClaude arm does not change when easyClaude does, so it is saved in
-`results/outcome-baseline.json` and reused until Claude Code, the model, the run count or
-a task changes. After that, a full run is about $2, and one task is about $0.60. There is
-no judge model: every check is a test or a pattern, so grading is free.
+no-easyClaude arm does not change when easyClaude does, so each task's result is saved in
+`results/outcome-baseline.json` under its own key, and reused until Claude Code, the model,
+the run count, the sample project or that task changes. After that, a full run is about
+$3.50, most of it the two-day task, and one small task is about $0.60. There is no judge
+model: every check is a test or a pattern, so grading is free.
 
-**Results.** 2026-09-25, Claude Code 2.1.280, Sonnet 5, three runs per task, no shell:
+**Results.** Claude Code 2.1.280, Sonnet 5, three runs per task, no shell. The latest,
+2026-09-26:
 
-| | works, with easyClaude | works, without |
+| task | works, with easyClaude | works, without |
 |---|---|---|
-| first run | 7/12 | 12/12 |
-| after the three fixes below | 12/12 | 12/12 |
+| `add-shipping` | 3/3 | 3/3 |
+| `fix-checkout` | 3/3 | 1/3 |
+| `honest-test-fix` | 3/3 | 3/3 |
+| `rename-shop` | 3/3 | 3/3 |
+| `two-sessions` | 3/3 | 0/3 |
+| **all** | **15/15** | **10/15** |
 
-The first run found three real problems, which is what it is for:
+The four small tasks are from one run, and `two-sessions` from a second after its last
+fix; the no-easyClaude figures for the small tasks are cached from the day before. Plain
+Claude's `fix-checkout` moved between runs: it wrote the test that locks the fix in three
+times of three on 2026-09-25, and once of three on 2026-09-26. Three runs is a small
+sample, and single tasks move by one or two.
+
+How it got there. The first run of the four small tasks scored 7/12 with easyClaude
+against 12/12 without, and found three real problems, which is what it is for:
 
 - **Replies in the wrong language.** Four of twelve English requests got an answer in
   Hungarian, Slovak or Spanish, and in a later run seven of twelve. Claude with no plugin
@@ -149,11 +169,30 @@ The first run found three real problems, which is what it is for:
   sent helpers to try. It now says the checks were not run, and stops. $0.49 a run became
   $0.19.
 
-**What this does not show yet.** On these four tasks easyClaude now matches plain Claude
-and does not beat it: they are small enough that Sonnet gets them right either way. The
-tasks where easyClaude should pay off are the ones this suite does not have yet: work
-across two sessions, where the plan in `docs/STATE.md` is all that carries over; a change
-that breaks something the user did not mention; and getting yesterday's version back.
+The two-session task started at 0/3 with easyClaude too, and found three more:
+
+- **"The rest" went unrecorded, or to the bottom.** Day one wrote the four remaining
+  requests into `docs/STATE.md` in two runs of three, and put them below older tasks. Day
+  two then built the email receipt from the top of the list, which nobody had asked for.
+  `prompt-check.mjs` now adds a line when a message leaves work for later: write each item
+  at the top of `## Next`, dated. And because a gate block once pulled a turn away before
+  it wrote anything, `later-memo.mjs` makes the Stop hook hold that turn once if
+  `docs/STATE.md` has not changed. In the last run all three day ones wrote the list on
+  their own, so the hold did not fire; the free tests prove it would.
+- **Day two took the top of the list, not what the user named.** `build-task` now takes
+  the tasks the user refers to, and reads "(asked <date>)".
+- **"Finish the rest" got one task and "want me to continue?".** A line `prompt-check.mjs`
+  adds to a request to finish several things fixed it, where the same sentence in the
+  skill had not. That is the third time here: guidance inside a skill or a rule file is
+  read too late, and one line with the message is not.
+
+Plain Claude scores 0/3 on the two-session task because a new session starts with nothing
+from the last one, and it says so honestly. One fairness note: Claude Code can keep its own
+memory between sessions on some setups, and eval runs start without it. A beginner with that
+memory switched on might do better than 0/3 without easyClaude.
+
+**What this does not show yet.** A change that breaks something the user did not mention,
+and getting yesterday's version back. Both need a shell to be fair, see below.
 
 **No shell on Windows.** The runner grants no shell on native Windows, because it has no
 sandbox there, so neither arm can run commands. easyClaude's verify gate still runs the
