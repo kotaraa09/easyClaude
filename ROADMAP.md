@@ -129,5 +129,5 @@ words, and a desktop-app path in the README. **Effort:** 3-5 days.
 - **0.1.10** - The outcome benchmark. English replies stay English; a bug fix gets a test.
 - **0.1.11** - Work left for later survives to the next session, and "finish the rest"
   finishes it. Two-session task: 3/3 with easyClaude, 0/3 without.
-- **Not released yet** - Two tasks in Thai. They found English notes between steps for a
+- **0.2.0** - Two tasks in Thai. They found English notes between steps for a
   Thai user in the bug-fix task, now fixed: 3/3 with easyClaude, 1/3 without.

@@ -218,7 +218,7 @@ export function isThai(text) {
 }
 
 // A task asks in English unless its check.mjs exports `language`. Every task was English
-// until 0.1.12, so a bug that showed only in Thai - the language most users write in -
+// until 0.2.0, so a bug that showed only in Thai - the language most users write in -
 // would have passed unseen.
 const LANGUAGES = {
   en: { name: 'the reply is in English, like the request', test: isEnglish },
