@@ -183,8 +183,8 @@ The two-session task started at 0/3 with easyClaude too, and found three more:
   the tasks the user refers to, and reads "(asked <date>)".
 - **"Finish the rest" got one task and "want me to continue?".** A line `prompt-check.mjs`
   adds to a request to finish several things fixed it, where the same sentence in the
-  skill had not. That is the third time here: guidance inside a skill or a rule file is
-  read too late, and one line with the message is not.
+  skill had not. That is the second time here, after the bug-fix test: guidance inside a
+  skill or a rule file is read too late, and one line with the message is not.
 
 Plain Claude scores 0/3 on the two-session task because a new session starts with nothing
 from the last one, and it says so honestly. One fairness note: Claude Code can keep its own
