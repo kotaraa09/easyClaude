@@ -1,7 +1,7 @@
 # Evals
 
 Seven cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
-Five more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
@@ -93,7 +93,7 @@ the next step there.
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
 four of seven, Claude without the plugin scored the same. `outcomes/` asks the question a
-beginner cares about. Five tasks, in a beginner's words, in the same sample project:
+beginner cares about. Seven tasks, in a beginner's words, in the same sample project:
 
 | task | the beginner says | it works when |
 |---|---|---|
@@ -109,7 +109,12 @@ day-two run from one of them. Nothing else carries over: not the conversation, a
 any memory outside the project. It is the task that tests what easyClaude is for, which
 is that the plan outlives the conversation.
 
-Every task also fails if the reply is not in English, the language it was asked in.
+`fix-checkout-th` and `rename-shop-th` are the first two, asked in Thai. Most people
+easyClaude is for write in Thai. They run in the shop set up for a Thai owner (`setup.sh
+thai`): `CLAUDE.md` names Thai, and `docs/STATE.md` is written in it, as kickoff leaves it.
+
+Every task also fails if the reply is not in the language it was asked in. For Thai, that
+means at least 30% of the reply outside code is Thai, and no paragraph almost all English.
 
 ```bash
 node scripts/bench.mjs
@@ -190,6 +195,29 @@ Plain Claude scores 0/3 on the two-session task because a new session starts wit
 from the last one, and it says so honestly. One fairness note: Claude Code can keep its own
 memory between sessions on some setups, and eval runs start without it. A beginner with that
 memory switched on might do better than 0/3 without easyClaude.
+
+**The tasks in Thai.** 2026-09-26, same settings, three runs per task:
+
+| task | works, with easyClaude | works, without |
+|---|---|---|
+| `fix-checkout-th` | 3/3 | 1/3 |
+| `rename-shop-th` | 3/3 | 3/3 |
+
+Plain Claude's two misses are the same as in English: the fix came with no test. The first
+two runs found three problems:
+
+- **English notes to a Thai user.** In the bug-fix task, two easyClaude runs of three wrote
+  English between steps ("Root cause found: ...", "no new Debt entry is needed"), and one
+  opened its final reply with an English paragraph. The rename task, which gets no line from
+  `prompt-check.mjs`, had none. So the English line sent with a bug report pulled Claude
+  into English. When a message is mostly in another script, `prompt-check.mjs` now adds one
+  more line to whatever it sends: notes go in the language of the user's message. English
+  messages never get it. In the next run, no easyClaude run wrote English.
+- **The sample project said "the user writes in English".** The first run used it for the
+  Thai tasks too. That is not the project a Thai user has, so the `thai` variant exists.
+- **A usage limit counted as a result.** The account hit its limit during a run, and the
+  no-easyClaude arm was cached as 0/3 with "You've hit your monthly spend limit" as each
+  reply. `bench.mjs` now treats such a run as partial: it says so, and caches nothing.
 
 **What this does not show yet.** A change that breaks something the user did not mention,
 and getting yesterday's version back. Both need a shell to be fair, see below.

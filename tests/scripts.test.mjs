@@ -481,6 +481,24 @@ test('prompt hook: the debug line rides with the long-conversation advice', asyn
     `both lines must arrive together:\n${context}`);
 });
 
+// The Thai bug-fix task in the outcome benchmark: with the English debug line added, two
+// runs of three wrote English notes to a Thai user between steps.
+test('prompt hook: a Thai bug report gets the language line, an English one does not', async () => {
+  const { dir, file } = transcript([30_000, 31_000]);
+  const th = await promptHook(dir, file, 'ถ้าไม่ใส่โค้ดส่วนลด หน้าชำระเงินจะพัง ช่วยแก้ให้หน่อย');
+  const thContext = JSON.parse(th.out).hookSpecificOutput.additionalContext;
+  assert(/debug skill/.test(thContext) && /language of the user's message/.test(thContext),
+    `a Thai bug report needs both lines:\n${thContext}`);
+  const en = await promptHook(dir, file, 'the checkout breaks when there is no code');
+  assert(!/language of the user's message/.test(en.out),
+    `an English message must get no language line, which once read as "reply in another language":\n${en.out}`);
+  const plain = await promptHook(dir, file, 'เปลี่ยนชื่อร้านเป็น Green Corner');
+  assert(!plain.out.trim(), `a message with no other line stays silent, and costs nothing:\n${plain.out}`);
+  const { writesNonLatin } = await import('../scripts/prompt-check.mjs');
+  assert(writesNonLatin('เปลี่ยนชื่อร้านจาก Plant Corner เป็น Green Corner'), 'Thai naming English words');
+  assert(!writesNonLatin('Megjavítottam a hibát a pénztárban'), 'accented Latin is still Latin');
+});
+
 test('prompt hook: cheap mode gets no debug line', async () => {
   const { dir, file } = transcript([30_000, 31_000]);
   const r = await promptHook(dir, file, '/easyclaude:cheap the checkout breaks');

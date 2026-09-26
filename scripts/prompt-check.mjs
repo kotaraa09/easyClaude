@@ -99,6 +99,22 @@ const FINISH_NUDGE = 'easyClaude: the user asked you to finish several tasks. Do
   'after another in this turn, each checked and ticked off before the next. Do not stop to ' +
   'ask whether to go on; stop when all are done, or at the first one that fails.';
 
+// The lines above are English, and a user who writes in Thai got English with them. In the
+// Thai bug-fix task, two runs of three wrote English notes between steps ("Root cause
+// found: ...", "no new Debt entry is needed"), where the rename task, with no line added,
+// wrote none. Only for a message mostly in a script other than Latin: a line naming the
+// user's language on English messages is what once got English requests Hungarian replies.
+// Letters and marks both: Thai writes most vowels as marks, and letters alone undercounted
+// "เปลี่ยนชื่อร้านจาก Plant Corner เป็น Green Corner" as mostly Latin. Even counted right,
+// that line is half Latin, so the bar is under half: English has next to none of another script.
+export const writesNonLatin = (prompt) => {
+  const chars = prompt.match(/[\p{L}\p{M}]/gu) ?? [];
+  const other = chars.filter((c) => !/[\p{Script=Latin}\p{Script=Inherited}]/u.test(c)).length;
+  return chars.length > 0 && other >= 0.3 * chars.length;
+};
+const LANGUAGE_NUDGE = "Every note the user sees, between steps included, goes in the language of the user's " +
+  'message, not in the language of these lines.';
+
 function say(context) {
   if (context) {
     process.stdout.write(JSON.stringify({
@@ -124,13 +140,15 @@ function main() {
     later ? laterNudge(new Date().toLocaleDateString('en-CA')) : null,
     // Not in cheap mode, which does one thing per turn on purpose.
     !cheap && asksToFinishSeveral(prompt) ? FINISH_NUDGE : null,
-  ].filter(Boolean).join('\n\n') || null;
+  ].filter(Boolean);
+  if (nudges.length && writesNonLatin(prompt)) nudges.push(LANGUAGE_NUDGE);
+  const nudgeText = nudges.join('\n\n') || null;
   // Nothing left to say this session, so the transcript - which can run to megabytes - is
   // not read on every prompt.
-  if (!cheap && alreadyAdvised(payload.session_id)) return say(nudges);
+  if (!cheap && alreadyAdvised(payload.session_id)) return say(nudgeText);
 
   const history = payload.transcript_path ? historyTokens(payload.transcript_path) : null;
-  if (history === null) return say(nudges);
+  if (history === null) return say(nudgeText);
   const k = `about ${Math.round(history / 1000)}k tokens`;
 
   let context = null;
@@ -152,7 +170,7 @@ function main() {
     markAdvised(payload.session_id);
   }
 
-  say([nudges, context].filter(Boolean).join('\n\n'));
+  say([nudgeText, context].filter(Boolean).join('\n\n'));
 }
 
 // Once per session: advice repeated on every prompt is noise, and costs tokens each time.

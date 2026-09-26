@@ -121,6 +121,54 @@ test('bench: a reply in another language is caught, and English passes', async (
   ]) assert(!isEnglish(t), `not English, but passed: ${t}`);
 });
 
+// --- tasks in Thai -----------------------------------------------------------------
+
+test('bench: the Thai tasks grade like their English ones', async () => {
+  const fix = (dir) => edit(dir, 'src/checkout.js',
+    (t) => t.replace('discount.code.toUpperCase()', "(discount?.code ?? '').toUpperCase()"));
+  someFail('the untouched shop', await grade('outcome-fix-checkout-th', 'thai'));
+  allPass('a fix with a test', await grade('outcome-fix-checkout-th', 'thai', (dir) => {
+    fix(dir);
+    addTest(dir, 'tests/checkout.test.mjs', "test('no code', () => assert.equal(amountToPay(addItem(createCart(), { id: 'a', price: 35 })), 35));");
+  }));
+  someFail('a fix with no test', await grade('outcome-fix-checkout-th', 'thai', fix));
+  someFail('the untouched shop', await grade('outcome-rename-shop-th', 'thai'));
+  allPass('a full rename', await grade('outcome-rename-shop-th', 'thai',
+    (dir) => edit(dir, 'index.html', (t) => t.replaceAll('Plant Corner', 'Green Corner'))));
+});
+
+test('bench: a Thai task wants a Thai reply, and file names in it do not count against it', async () => {
+  const { isThai, caseLanguage } = await import('../scripts/bench.mjs');
+  assert((await caseLanguage('outcome-fix-checkout-th')).test === isThai, 'the Thai task must use the Thai check');
+  assert((await caseLanguage('outcome-fix-checkout')).name.includes('English'), 'the English task keeps the English check');
+  assert(isThai('แก้แล้วครับ ตอนนี้จ่ายเงินได้แม้ไม่มีโค้ดส่วนลด'), 'plain Thai');
+  assert(isThai('แก้แล้ว ปัญหาอยู่ที่ `amountToPay` ใน `src/checkout.js` ซึ่งอ่าน `discount.code` โดยไม่ตรวจก่อน'), 'Thai with code names');
+  assert(isThai('เปลี่ยนชื่อร้านเป็น Green Corner แล้วครับ ทั้งหัวเว็บ ชื่อแท็บ และท้ายหน้า'), 'Thai with the shop name');
+  // A real reply the first paragraph rule failed: Thai, naming page parts and both names.
+  assert(isThai('แก้ไข `index.html` เสร็จแล้ว 3 จุด (title, header, footer) เปลี่ยนจาก Plant Corner เป็น Green Corner ทั้งหมด\n\n' +
+    '**ข้อสังเกต:** ในหน้าเว็บยังมีอีเมล `hello@plantcorner.example` ซึ่งลูกค้าเห็นเช่นกัน ถ้าต้องการเปลี่ยนด้วย บอกได้เลยครับ'), 'Thai naming English words');
+  // Real replies the half-Thai rule failed: Thai, with two email addresses unquoted.
+  assert(isThai('เปลี่ยนชื่อร้านจาก "Plant Corner" เป็น "Green Corner" เรียบร้อยแล้วใน `index.html` — title, header, footer ' +
+    'copyright, และปรับอีเมลติดต่อจาก hello@plantcorner.example เป็น hello@greencorner.example ให้สอดคล้องกันด้วยครับ'), 'Thai with emails');
+  for (const t of [
+    'Fixed. When no discount code is entered, the checkout now charges the full price.',
+    'Done - the shop is now called Green Corner in the title, the heading and the footer. Tests pass. เสร็จแล้ว',
+    'Megjavítottam a hibát. A `src/checkout.js`-ben az `amountToPay` függvény feltétel nélkül olvasta a kódot.',
+    '',
+    // A real reply from the first Thai run: mostly Thai, and it opens in English.
+    'This fix handles both cases: `discount` being `undefined`/`null` (no code entered at all) and ' +
+      '`discount.code` being an empty string, so the shopper is simply charged the full total.\n\n' +
+      '**สรุปสิ่งที่แก้:**\n- ต้นเหตุ: `src/checkout.js:8` เรียก `discount.code.toUpperCase()` โดยตรง ถ้าไม่ได้ใส่โค้ดส่วนลดโค้ดจะพัง\n' +
+      '- แก้โดยใส่ `discount?.code ?? \'\'` เพื่อรองรับกรณีไม่มีโค้ดส่วนลด\n- เพิ่มเทสต์ใหม่ที่จำลองการจ่ายเงินโดยไม่ใส่โค้ด ซึ่งจะพังก่อนแก้ และผ่านหลังแก้',
+  ]) assert(!isThai(t), `not Thai, but passed: ${t}`);
+});
+
+test('bench: a run stopped by a usage limit is recognised, and a normal reply is not', async () => {
+  const { USAGE_LIMIT } = await import('../scripts/bench.mjs');
+  assert(USAGE_LIMIT.test("You've hit your monthly spend limit · raise it at claude.ai/settings/usage"), 'the real message');
+  assert(!USAGE_LIMIT.test('Done - the shop is now called Green Corner. There is no limit on how many plants a cart holds.'), 'a normal reply');
+});
+
 // --- the two-session task --------------------------------------------------------
 
 // All five changes, the way a good day two would leave them.
