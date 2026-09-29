@@ -57,19 +57,7 @@ reply asked before overwriting.
 
 ## Next
 
-### 4. Replies in plain words
-
-**Why.** Claude's replies still name files, functions and error text. A beginner cannot
-act on "`amountToPay` in `src/checkout.js` read `discount.code` unguarded". Claude Code
-plugins can ship an output style.
-
-**What.** An easyClaude output style: result first, plain words, file names only when the
-user must type them. Offered at kickoff, never forced.
-
-**Done when.** A benchmark check on the reply (length, file names per sentence) improves
-without any task scoring lower. **Effort:** 1-2 days.
-
-### 5. Fewer permission prompts a beginner cannot answer
+### 4. Fewer permission prompts a beginner cannot answer
 
 **Why.** Claude Code asks "allow this command?" often. A beginner says yes to everything
 or stops. The deny rules are not a security boundary, and the Claude Code docs say so.
@@ -80,7 +68,7 @@ each, with the deny rules kept as a second layer.
 **Done when.** A setup check confirms both are on, and the benchmark scores do not drop
 with them on. **Effort:** 3-5 days.
 
-### 6. "Done" means the user could see it work
+### 5. "Done" means the user could see it work
 
 **Why.** The gate checks exit codes. For a website, a beginner's "done" is "I opened it and
 it works", and nothing checks that yet.
@@ -91,7 +79,7 @@ and check it against the task. Only where a browser tool is available.
 **Done when.** A benchmark task with a visible bug (a button that does nothing) passes with
 easyClaude and is measured without it. **Effort:** 1-2 weeks.
 
-### 7. Start from nothing installed
+### 6. Start from nothing installed
 
 **Why.** Installing means a terminal, Node, git and a GitHub account. A true beginner fails
 before the first message.
@@ -113,6 +101,9 @@ words, and a desktop-app path in the README. **Effort:** 3-5 days.
 - **Re-measure the per-turn cost.** `docs/cost.json` is out of date since 0.1.9. The words
   sent each turn barely changed, but the figure should be measured, not assumed. About
   $0.50-1.
+- **English notes to a Thai user, without plain answers.** 0.2.0 made them rarer, not gone:
+  one Thai bug-fix run of three on 2026-09-26 still opened with an English note. With the
+  plain style on, none did. Five runs would show whether the language line needs more.
 
 ## Not planned
 
@@ -131,3 +122,6 @@ words, and a desktop-app path in the README. **Effort:** 3-5 days.
   finishes it. Two-session task: 3/3 with easyClaude, 0/3 without.
 - **0.2.0** - Two tasks in Thai. They found English notes between steps for a
   Thai user in the bug-fix task, now fixed: 3/3 with easyClaude, 1/3 without.
+- **Not released yet** - Plain answers: an output style kickoff offers, and
+  `/easyclaude:plain` turns on. Every task still works; code terms in replies fell from 42.6
+  to 5.6, and replies are 11% shorter.

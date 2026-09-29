@@ -35,6 +35,11 @@ Code will ask a few times to save settings files, those hold the working rules, 
 blocks and the list of checks, and saying yes is safe. In adopt mode with nothing to ask, say
 it in your first message instead.
 
+**In the same message, offer plain answers.** One yes-or-no line: should your answers be short
+and in plain words, without file names or code terms? Say they can switch it later with
+`/easyclaude:plain`. Only a clear yes turns it on in step 6; no answer means off. It is offered,
+never assumed: a user who reads code loses detail they want.
+
 A beginner who meets five unexplained prompts about `settings.json` either refuses them all or
 learns to click yes on anything - and the second habit is the one that hurts them later. The
 warning is here, in a turn that is only text, because an instruction to say it just before
@@ -108,6 +113,8 @@ Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 - `docs/DECISIONS.md` — seed with the choices you made for them, each with a one-line reason.
 - `docs/STATE.md` — from the template below.
 - `design/tokens.md` — colors, type scale, spacing, radii. Only if the project has a UI.
+- `.claude/settings.local.json` with `{ "outputStyle": "easyclaude:plain" }` — only if they said
+  yes to plain answers. Add `.claude/settings.local.json` to `.gitignore`: it is one person's choice.
 
 `docs/STATE.md` starts as:
 

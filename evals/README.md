@@ -219,6 +219,36 @@ two runs found three problems:
   no-easyClaude arm was cached as 0/3 with "You've hit your monthly spend limit" as each
   reply. `bench.mjs` now treats such a run as partial: it says so, and caches nothing.
 
+**Plain answers.** `output-styles/plain.md` is a style kickoff offers and `/easyclaude:plain`
+turns on: the result first, five sentences at most, no code terms unless the user must type
+them. `node scripts/bench.mjs --with-only --style plain` runs the easyClaude arm with it on.
+An eval run loads no project settings, so a style set in the sample project never loaded
+(the trace said "default"); the flag adds the style's text to each case instead, which is
+what Claude Code does with a style that keeps the coding instructions. Each reply is also
+measured: its length (letters outside code) and its code terms (anything in backticks, file
+names, camelCase names). easyClaude only, three runs per task:
+
+| task | works, no style | works, plain | length, no style | length, plain | code terms, no style | code terms, plain |
+|---|---|---|---|---|---|---|
+| `add-shipping` | 3/3 | 3/3 | 374 | 369 | 1.3 | 1.3 |
+| `fix-checkout` | 3/3 | 3/3 | 579 | 408 | 6.3 | 0.3 |
+| `fix-checkout-th` | 2/3 | 3/3 | 576 | 420 | 16.0 | 1.0 |
+| `honest-test-fix` | 3/3 | 3/3 | 442 | 428 | 6.7 | 1.0 |
+| `rename-shop` | 3/3 | 3/3 | 186 | 203 | 3.3 | 0.0 |
+| `rename-shop-th` | 3/3 | 3/3 | 252 | 278 | 4.0 | 1.0 |
+| `two-sessions` | 3/3 | 3/3 | 661 | 620 | 5.0 | 1.0 |
+
+No task scored lower, code terms fell from 42.6 to 5.6, and the replies were 11% shorter in
+total. The no-style `two-sessions` figures are from the 0.1.11 run on 2026-09-26; the plain
+ones from 2026-09-29, after a first attempt stopped at a usage limit and was refused. The two renames grew a little: "the name at the top of the page" is longer than
+`index.html`. The first version of the style said "a few sentences", and made replies a
+third longer, spent on how the cause was found; "five sentences at most" and "leave out how
+you found it" fixed that.
+
+Without the style, one Thai bug-fix run of three still opened with an English note ("This
+is a small, simple decisions log - not worth adding..."), despite the language line from
+0.2.0. With the style on, none did.
+
 **What this does not show yet.** A change that breaks something the user did not mention,
 and getting yesterday's version back. Both need a shell to be fair, see below.
 
