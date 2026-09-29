@@ -1,6 +1,6 @@
 # Evals
 
-Nine cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Thirteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -27,6 +27,10 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `quiet-on-a-security-question` | *"is this safe to make public?"* | `security-check` does **not** fire |
 | `quiet-on-how-to-ship` | *"how do I ship this?"* | `ship` does **not** fire |
 | `kickoff-on-an-empty-folder` | *"I want to make a website for my bakery"* | `kickoff` fires, in an empty folder |
+| `explore-code-on-where-is-it` | *"where do discount codes get checked?"* | `explore-code` fires |
+| `quiet-explore-on-what-next` | *"what should I work on next?"* | `explore-code` does **not** fire |
+| `slopmonster-on-sounds-like-ai` | *"does this sound like AI? ..."* | `slopmonster` fires |
+| `quiet-slopmonster-on-write-copy` | *"write a one-line welcome for the top of the home page"* | `slopmonster` does **not** fire |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
 reply help). Under the default ablation the first is an indicator, not part of the score,
@@ -65,7 +69,7 @@ claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish
   sandbox there. So `ship` and `debug` cannot run the checks, and their graders accept a
   reply that says so and stops.
 - `--case` takes one glob. A second `--case` replaces the first.
-- A full run is 54 agent runs: about 6 minutes with `-j 4`, and 4 to 6 US dollars.
+- A full run is 78 agent runs: about 9 minutes with `-j 4`, and 6 to 8 US dollars.
 
 CI does not run this: it costs money and needs a login. Check 16 in `validate.mjs` checks
 the shape of every case on each push instead.
@@ -103,6 +107,25 @@ question as an order, and stopped only because the case has no shell. On a real 
 would have gone on. The judges passed those replies, so the grader now also fails a reply
 that started the release and stopped. The `ship` description now ends "not when asked how to
 ship". After that: `ship` fired 0 times of 3 on the question, and still 3 of 3 on `ship it`.
+
+**The explore-code and slopmonster pairs**, same day and settings:
+
+| case | skill fired correctly | with plugin | without plugin |
+|---|---|---|---|
+| explore-code-on-where-is-it | 0/3 | 3/3 | 3/3 |
+| quiet-explore-on-what-next | 3/3 | 3/3 | 3/3 |
+| slopmonster-on-sounds-like-ai | 3/3 | 3/3 | 3/3 |
+| quiet-slopmonster-on-write-copy | 3/3 | 3/3 | 3/3 |
+
+`explore-code` never fired on *"where do discount codes get checked?"*. The sample project has
+two source files, and Claude found the answer with one search, correctly each time. The
+skill says it is for a large or unfamiliar codebase, so this is not a failure, but the case
+cannot show the skill firing until the sample project is bigger. The answer is still graded.
+
+The first run of `quiet-explore-on-what-next` scored 0/3 with easyClaude, and the grader was
+wrong, not easyClaude. Every reply recommended fixing a real problem first: the fake-discount
+risk from the project notes, or the real crash with no discount code. The grader read those
+as invented tasks. It now names both as real, and the rerun passed 3/3.
 
 On `plan-feature`, `ship`, `debug` and the typo case the baseline scores the same, so those
 graders show the skill fires but not yet that it adds anything. Sharper outcome criteria are
@@ -294,5 +317,8 @@ tests, because it is a hook and not a tool. That favours easyClaude. Under Linux
 
 ## The next cases to write
 
-- `explore-code` and `slopmonster` can fire on their own, and no case covers either. Each
-  needs a sentence that should reach it and one that should not.
+- A sample project large enough that finding a name takes more than one search, so
+  `explore-code-on-where-is-it` can show the skill firing. Every skill that fires on its own
+  now has a case that should reach it.
+- A sentence that should not reach `build-task`, `debug`, `rescue` or `kickoff`. Only `ship`, `plan-feature`,
+  `security-check`, `explore-code` and `slopmonster` have one.
