@@ -322,6 +322,58 @@ test('session-start: the hook form is the JSON Claude Code reads', async () => {
   assertMatch(j.hookSpecificOutput.additionalContext, /kickoff/, 'the context must carry the decision.');
 });
 
+// --- the tools check before setup ---------------------------------------------
+// A beginner may have Claude Code and nothing else. The opener says what is missing before
+// setup, and says nothing once the project is set up, where it would cost every session.
+import { missingTools } from '../scripts/first-run.mjs';
+
+const fakeGit = (answers) => (bin, args) => {
+  const a = answers[args.join(' ')];
+  if (a === 'ENOENT') return { error: Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' }) };
+  return a ?? { status: 0, stdout: 'x\n', stderr: '' };
+};
+
+test('first-run: no git is one line, with the fix for this platform', () => {
+  const spawn = fakeGit({ '--version': 'ENOENT' });
+  const win = missingTools('.', { spawn, platform: 'win32' });
+  assert(win.length === 1, `with no git, the rest cannot be checked, so one line:\n${win.join('\n')}`);
+  assertMatch(win[0], /git-scm\.com\/download\/win/, 'Windows must get the Windows download.');
+  assertMatch(missingTools('.', { spawn, platform: 'darwin' })[0], /xcode-select --install/,
+    'a Mac must get the command that installs git there.');
+});
+
+test('first-run: git with no name or email says saving fails, and not to guess them', () => {
+  const r = missingTools('.', { spawn: fakeGit({ 'config user.email': { status: 1, stdout: '' } }) });
+  assert(r.length === 1, `expected the identity line only:\n${r.join('\n')}`);
+  assertMatch(r[0], /Do not guess/, 'Claude must ask for the name and email, not invent them.');
+});
+
+test('first-run: a complete computer is missing nothing', () => {
+  assert(missingTools('.', { spawn: fakeGit({}) }).length === 0, 'nothing is missing here.');
+});
+
+test('session-start: before setup, a computer with no git hears it; after setup, nothing', async () => {
+  // An empty folder as the whole PATH. Windows spells it Path, and either may win.
+  const noGit = projectDir();
+  const env = (dir) => ({ CLAUDE_PROJECT_DIR: dir, PATH: noGit, Path: noGit });
+  const fresh = projectDir();
+  const before = await run(script('session-start.mjs'), { cwd: fresh, args: ['--text'], env: env(fresh) });
+  assert(before.code === 0, `it exited ${before.code}:\n${before.out}`);
+  assertMatch(before.out, /Tools check: this computer is missing[\s\S]*Git is not installed/,
+    'with git off the PATH, the opener must say git is missing.');
+
+  const setUpDir = projectDir();
+  mkdirSync(join(setUpDir, 'docs'), { recursive: true });
+  writeFileSync(join(setUpDir, 'docs', 'STATE.md'), STATE);
+  const after = await run(script('session-start.mjs'), { cwd: setUpDir, args: ['--text'], env: env(setUpDir) });
+  assert(!/Tools check/.test(after.out), `a set-up project must not pay for the check:\n${after.out}`);
+});
+
+test('session-start: with everything installed, the check says so, for kickoff to read', async () => {
+  const r = await opener({});
+  assertMatch(r.out, /Tools check:/, 'kickoff reads this line as proof that Node.js runs.');
+});
+
 // --- the cost fingerprint -----------------------------------------------------
 // It warns that docs/cost.json is stale. A skill's body loads only when the skill runs, so
 // an edit there must not trip it - it did, on the first edit to the deploy skill - and an

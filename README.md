@@ -51,13 +51,25 @@ It's probably not worth it if you mostly use Claude Code for one-off questions a
 
 ## Install
 
-Open a terminal in any project:
+**You need three things first.** Install any that are missing, then close and reopen Claude:
+
+- **Claude Code**, in the [Claude desktop app](https://claude.ai/download) (the Code tab) or in a terminal.
+- **[Node.js](https://nodejs.org)**, the LTS version. easyClaude's memory and its checks after each change run on it, and neither the desktop app nor Claude Code includes it.
+- **[Git](https://git-scm.com/downloads)**, which keeps the saved versions you can go back to. On a Mac, `xcode-select --install` installs it.
+
+You do not need a GitHub account to install. You need one only to publish your project there.
+
+Missed one? The first time you open a project, easyClaude checks for Git and says what is missing, in plain words. It cannot check for Node.js, because the check runs on Node.js. If setup never starts on its own, that is almost always the reason.
+
+**In the desktop app:** open the Code tab, choose your project folder, and type the two lines below into the message box.
+
+**In a terminal:** open one in any project and start Claude Code:
 
 ```bash
 claude
 ```
 
-Then type these two lines into Claude Code:
+Then type these two lines, in the desktop app or in the terminal:
 
 ```
 /plugin marketplace add kotaraa09/easyClaude
@@ -340,6 +352,15 @@ Only if you turn that on yourself with `/easyclaude:autoship`. When it's on, eve
 That depends on your stack, and it will tell you which case you're in.
 
 Web, Python, Go, Rust and command-line projects can be checked properly. Unity, Unreal, Android Studio and iOS usually can't be checked without a GUI, so on those it can prove your code compiles but not that it runs correctly. It tells you that instead of implying a guarantee it can't give you.
+
+</details>
+
+<details>
+<summary><b>I installed it, but nothing happens when I open a project</b></summary>
+
+<br>
+
+Node.js is almost certainly missing. easyClaude runs on it, and a session opens as plain Claude Code without it. You may see an error that mentions `node`. Install the LTS version from [nodejs.org](https://nodejs.org), then close and reopen Claude. Type `/easyclaude:start` if setup still does not begin; it checks for Node.js and Git and says what to do.
 
 </details>
 

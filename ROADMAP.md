@@ -68,6 +68,9 @@ each, with the deny rules kept as a second layer.
 **Done when.** A setup check confirms both are on, and the benchmark scores do not drop
 with them on. **Effort:** 3-5 days.
 
+**Waits for item 1.** Claude Code's sandbox is not available on native Windows, so neither the
+setup check nor the benchmark run can be tested on the current test machine.
+
 ### 5. "Done" means the user could see it work
 
 **Why.** The gate checks exit codes. For a website, a beginner's "done" is "I opened it and
@@ -86,6 +89,13 @@ before the first message.
 
 **What.** A first-run check that finds what is missing and explains each fix in plain
 words, and a desktop-app path in the README. **Effort:** 3-5 days.
+
+**Built, not yet released (2026-09-29).** Before setup, the session opener checks for git and
+for a git name and email, and Claude explains each gap in the user's language. Node.js cannot
+be checked that way, because the check runs on it, so kickoff checks it when the opener never
+ran. Setup now starts a git history when there is none. The README lists the three things to
+install and has a desktop-app path. The benchmark cannot measure this: every task starts in a
+set-up project on a complete machine. Tests with git off the PATH stand in for it.
 
 ## Later
 

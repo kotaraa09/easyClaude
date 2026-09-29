@@ -15,6 +15,17 @@ Sets up the project so every later session starts oriented. Runs once.
 - **Greenfield** — no source files. Interview, then scaffold.
 - **Adopt** — source files already exist. Skip the scaffold. Detect everything you can, and ask only what the code cannot tell you (who it's for, what's next).
 
+**Check the tools.** The session opener sends a line that starts "Tools check:", and says there
+what this computer is missing. If it sent none, the opener never ran, which almost always means
+Node.js is not installed. Then run `node --version` and `git --version`. For each that fails, tell
+the user in plain words what they lose and the fix, in their language:
+
+- Node.js runs easyClaude's memory between sessions and its checks after each change. Without it,
+  neither happens. The fix: install the LTS version from https://nodejs.org, then reopen Claude.
+- Git keeps the saved versions that "go back to yesterday" needs. The fix: https://git-scm.com.
+
+Then carry on with setup. The files it writes start working once the tool is installed.
+
 ## 2. Interview — maximum four questions
 
 Ask these one message at a time, not as a wall. Do not number or label them in your reply -
@@ -115,6 +126,11 @@ Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 - `design/tokens.md` — colors, type scale, spacing, radii. Only if the project has a UI.
 - `.claude/settings.local.json` with `{ "outputStyle": "easyclaude:plain" }` — only if they said
   yes to plain answers. Add `.claude/settings.local.json` to `.gitignore`: it is one person's choice.
+
+If git works and the folder is not a git repository yet, run `git init`: without history there
+is no version to go back to. In greenfield, when git has a name and email, also commit what setup
+wrote as the first saved version, once `git status` shows no installed packages and no `.env`. In adopt mode, commit nothing: their folder may hold files
+that do not belong in history. Say it in one plain line at the close.
 
 `docs/STATE.md` starts as:
 

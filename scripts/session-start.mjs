@@ -15,6 +15,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { treeFingerprint, remember } from './tree-state.mjs';
 import { resumeNotice } from './cost-notice.mjs';
+import { missingTools } from './first-run.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -117,6 +118,19 @@ if (COMPACT) {
     'remember the project between sessions, and run its checks after each change. Do not name ' +
     'the skill. If they say yes, run the `kickoff` skill in adopt mode. Do not start its ' +
     'interview unless the user says yes. Then answer whatever they asked.');
+}
+
+// Before setup only, so a set-up project pays nothing for it. kickoff reads the first line
+// as proof that Node.js runs: with no Node.js, this script never ran, and kickoff checks.
+if (!COMPACT && !setUp) {
+  const missing = missingTools(root);
+  parts.push(missing.length
+    ? 'Tools check: this computer is missing something easyClaude needs. In your first reply, ' +
+      "tell the user each one in plain words and in the user's language: what they lose, and " +
+      'how to fix it, in a sentence or two, with no jargon. Offer to run a fix that is a ' +
+      'command, and run nothing without a clear yes. Then carry on:\n\n' +
+      missing.map((m) => `- ${m}`).join('\n')
+    : 'Tools check: Node.js and git are installed, and git has a name and email. Say nothing about it.');
 }
 
 if (existsSync(join(root, '.claude', 'cheap-session'))) {
