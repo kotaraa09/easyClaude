@@ -18,6 +18,7 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { treeFingerprint, lastSeen, remember } from './tree-state.mjs';
 import { laterBlock } from './later-memo.mjs';
+import { lookBlock } from './look-check.mjs';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -144,6 +145,9 @@ function loadConfig() {
       timeoutMs: Number(s.timeoutMs) > 0 ? Number(s.timeoutMs) : fallback,
     })),
     docsOnly: Array.isArray(raw.docsOnly) ? raw.docsOnly : DEFAULT_DOCS_ONLY,
+    // "look": false turns off the page check in look-check.mjs, for a project whose pages
+    // nobody needs to see after each change.
+    look: raw.look !== false,
   };
 }
 
@@ -277,6 +281,18 @@ if (HOOK) {
     if (systemMessage) process.stdout.write(JSON.stringify({ systemMessage }));
     process.exit(0);
   };
+  // Where a turn would end with nothing failing: a web page it changed must have been
+  // looked at first. Once per message; see look-check.mjs. Also where there is no
+  // contract at all, because a plain website often has none, and that is exactly where
+  // nothing else checks the page.
+  const allowAfterLook = (systemMessage, cfg) => {
+    const look = lookBlock(root, payload, { lookSetting: cfg?.look });
+    if (look) {
+      process.stderr.write(look);
+      process.exit(2);
+    }
+    allow(systemMessage);
+  };
 
   // Before the checks: work left for another session must be written down first. It
   // blocks once at most; see later-memo.mjs for why this is a script and not a rule.
@@ -297,9 +313,9 @@ if (HOOK) {
   }
 
   const cfg = loadConfig();
-  if (!cfg) allow('No verify contract in this project - run the kickoff skill to add one.');
+  if (!cfg) allowAfterLook('No verify contract in this project - run the kickoff skill to add one.');
   if (cfg.error) allow(`easyClaude: ${cfg.error}`);
-  if (!cfg.steps.length) allow('.claude/verify.json has no steps - nothing to verify against.');
+  if (!cfg.steps.length) allowAfterLook('.claude/verify.json has no steps - nothing to verify against.', cfg);
 
   const changed = changedPaths();
   if (changed && (changed.length === 0 || changed.every((p) => matchesAny(p, cfg.docsOnly)))) {
@@ -331,10 +347,10 @@ if (HOOK) {
   // the other route. It cannot block on it (there is nothing to fail), so it says so out
   // loud instead. A gate that stops checking silently is the one nobody notices.
   if (!due.length) {
-    allow(`Every step in .claude/verify.json is tier "full", so the per-turn gate is checking ` +
+    allowAfterLook(`Every step in .claude/verify.json is tier "full", so the per-turn gate is checking ` +
       'nothing. At least one step should be fast, or the contract only runs when someone ' +
       'remembers to run it. Verify this work yourself before calling it done: ' +
-      `node "${process.argv[1]}"`);
+      `node "${process.argv[1]}"`, cfg);
   }
 
   const results = due.map(runStep);
@@ -354,10 +370,10 @@ if (HOOK) {
   remember(root, { session, tree, failed: failedNames });
 
   if (!failed.length) {
-    allow(unrunnable.length
+    allowAfterLook(unrunnable.length
       ? `Verify step(s) could not run: ${unrunnable.map((r) => `${r.name} (${r.why})`).join(', ')}. ` +
         'Everything else passed. Fix the contract or install the toolchain.'
-      : undefined);
+      : undefined, cfg);
   }
 
   const heldBack = cfg.steps.length - due.length;

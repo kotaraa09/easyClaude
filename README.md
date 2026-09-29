@@ -118,7 +118,7 @@ The fourth line only shows up when something was deliberately skipped, and it na
 <td width="33%" valign="top">
 <img src="docs/assets/icon-verify.svg" width="44" alt="">
 <h3>"Done" means checked</h3>
-<p>Setup works out which commands have to pass for your project. From then on Claude can't end its turn while any of them fail. It gets sent back to fix them. That check is a script reading exit codes, not Claude marking its own homework.</p>
+<p>Setup works out which commands have to pass for your project. From then on Claude can't end its turn while any of them fail. It gets sent back to fix them. That check is a script reading exit codes, not Claude marking its own homework. On a website, passing checks are not enough: if a change touched the page and nothing looked at it, Claude is sent back once to open it in a browser, or to tell you what to click to see it work.</p>
 </td>
 <td width="33%" valign="top">
 <img src="docs/assets/icon-guardrails.svg" width="44" alt="">
@@ -316,7 +316,7 @@ No. Everything in the table above triggers on plain English, and you'll be told 
 
 <br>
 
-It can't trap you. A failing check sends Claude back to fix it, as often as Claude keeps changing files. If Claude changes nothing after a block, because the fix is not its to make, the gate lets the turn end and says the work is not verified. It used to block that too, and Claude repeated the same report eight times before Claude Code's own cap stopped it.
+It can't trap you. The page check on a website holds a turn once per message at most, and `"look": false` in `.claude/verify.json` turns it off. A failing check sends Claude back to fix it, as often as Claude keeps changing files. If Claude changes nothing after a block, because the fix is not its to make, the gate lets the turn end and says the work is not verified. It used to block that too, and Claude repeated the same report eight times before Claude Code's own cap stopped it.
 
 A check that can't run at all, because there's no compiler on this machine, warns instead of blocking. Wedging every session on a missing toolchain isn't a safety feature.
 

@@ -6,7 +6,7 @@
 
 **Verification strength:** **none.** This is the honest answer and the user deserves to hear it.
 
-There is no toolchain, so there is nothing that can exit non-zero. Do not invent a gate — a verify contract that always passes is worse than none, because it teaches everyone to ignore the gate. Tell the user directly: *"There's no test runner here, so I can check that the files are well-formed, but only you can confirm it looks and behaves right in a browser."*
+There is no toolchain, so there is nothing that can exit non-zero. Do not invent a gate — a verify contract that always passes is worse than none, because it teaches everyone to ignore the gate. Tell the user directly: *"There's no test runner here, so I can check that the files are well-formed, but only you can confirm it looks and behaves right in a browser."* When this session has a browser tool, the Stop hook asks for a look after each change to the page anyway, so use it and say what you saw.
 
 If the project grows enough to deserve verification, that's the moment to add a build step — not before.
 

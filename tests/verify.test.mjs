@@ -305,3 +305,89 @@ test('gate: work left for later that STATE.md records is not held', async () => 
   const r = await stop(dir, session);
   assert(r.code === ALLOW, `the plan was written, so nothing to hold:\n${r.out}`);
 });
+
+// --- a web page that changed must be looked at --------------------------------
+// For a website, a beginner's "done" is "I opened it and it works". The gate holds a turn
+// that changed a page and never looked at it, once per message. See look-check.mjs.
+const prompt = (text, id = 'p1') => ({ type: 'user', promptId: id, message: { role: 'user', content: text } });
+const used = (name, input = {}) => ({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', name, input }] } });
+const feedback = { type: 'user', promptId: 'p1', message: { role: 'user', content: 'Stop hook feedback:\nVerification failed.' } };
+
+const lookProject = (contract, { web = true, files = {} } = {}) => {
+  const dir = projectDir(contract);
+  if (web) writeFileSync(join(dir, 'index.html'), '<button id="pay">Pay</button>\n');
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(join(dir, rel, '..'), { recursive: true });
+    writeFileSync(join(dir, rel), body);
+  }
+  return dir;
+};
+const lookStop = (dir, entries, session = `look-${Date.now()}-${Math.random()}`) => {
+  const transcript = join(dir, '..', `${session}.jsonl`);
+  writeFileSync(transcript, entries.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  return run(join(repoRoot, 'scripts', 'verify.mjs'), {
+    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+    input: JSON.stringify({ session_id: session, transcript_path: transcript, stop_hook_active: false }),
+  });
+};
+const PASSING = { steps: [{ name: 'test', cmd: PASSES }] };
+
+test('look: a changed page nobody looked at is held once, then let go', async () => {
+  const dir = lookProject(PASSING);
+  const session = `look-${Date.now()}-${Math.random()}`;
+  const turn = [prompt('the pay button does nothing'), used('Edit', { file_path: join(dir, 'src', 'checkout.js') })];
+  const first = await lookStop(dir, turn, session);
+  assert(first.code === BLOCK, `a changed page must be looked at before the turn ends:\n${first.out}`);
+  assertMatch(first.stderr, /browser tool/, 'the hold must say how to look.');
+  assertMatch(first.stderr, /no browser tool, do not search for one/, 'with no browser, it must not send Claude hunting.');
+  assertMatch(first.stderr, /the page is index\.html/, 'the real page must be named: one run sent a beginner to a checkout.html that does not exist.');
+  const second = await lookStop(dir, turn, session);
+  assert(second.code === ALLOW, `once per message - a turn that cannot look must not loop:\n${second.out}`);
+});
+
+test('look: a turn that used a browser tool is not held', async () => {
+  const dir = lookProject(PASSING);
+  for (const tool of ['mcp__Claude_Browser__computer', 'mcp__playwright__browser_take_screenshot', 'mcp__claude-in-chrome__navigate']) {
+    const r = await lookStop(dir, [prompt('fix the button'), used('Edit', { file_path: join(dir, 'index.html') }), used(tool)]);
+    assert(r.code === ALLOW, `${tool} looked at the page, so nothing to hold:\n${r.out}`);
+  }
+});
+
+test('look: gate feedback is not the user, so an edit before it still counts', async () => {
+  const dir = lookProject(PASSING);
+  const r = await lookStop(dir, [prompt('make the title green'), used('Edit', { file_path: join(dir, 'style.css') }),
+    feedback, used('Edit', { file_path: join(dir, 'tests', 'page.test.mjs') })]);
+  assert(r.code === BLOCK, `the page changed in this turn, before the gate spoke:\n${r.out}`);
+});
+
+test('look: no hold for a test-only edit, a project with no page, "look": false, or cheap mode', async () => {
+  const cases = [
+    ['a test-only edit', lookProject(PASSING), 'tests/cart.test.mjs'],
+    ['a project with no page', lookProject(PASSING, { web: false }), 'src/cart.js'],
+    ['"look": false', lookProject({ ...PASSING, look: false }), 'index.html'],
+    ['cheap mode', lookProject(PASSING, { files: { '.claude/cheap-session': '2026-09-29' } }), 'index.html'],
+  ];
+  for (const [what, dir, file] of cases) {
+    const r = await lookStop(dir, [prompt('change it'), used('Write', { file_path: join(dir, file) })]);
+    assert(r.code === ALLOW, `${what} must not be held:\n${r.out}`);
+  }
+});
+
+test('look: a React project with no index.html is still a web project', async () => {
+  const dir = lookProject(PASSING, { web: false, files: { 'package.json': JSON.stringify({ dependencies: { react: '^19' }, scripts: { dev: 'vite' } }) } });
+  const r = await lookStop(dir, [prompt('add a footer'), used('Edit', { file_path: join(dir, 'src', 'App.tsx') })]);
+  assert(r.code === BLOCK, `a React app is a page too:\n${r.out}`);
+  assertMatch(r.stderr, /npm run dev/, 'an app with a dev server is opened through it.');
+});
+
+test('look: a plain website with no contract is held too', async () => {
+  const r = await lookStop(lookProject(undefined), [prompt('rename the shop'), used('Edit', { file_path: 'index.html' })]);
+  assert(r.code === BLOCK, `no contract is where nothing else checks the page:\n${r.out}`);
+});
+
+test('look: failing checks report the failure, not the page', async () => {
+  const dir = lookProject({ steps: [{ name: 'test', cmd: FAILS }] });
+  const r = await lookStop(dir, [prompt('fix the button'), used('Edit', { file_path: join(dir, 'index.html') })]);
+  assertMatch(r.stderr, /Verification failed/, 'a broken build comes first.');
+  assert(!/nothing looked at the page/.test(r.stderr), `do not ask to look at a page that fails its checks:\n${r.out}`);
+});
