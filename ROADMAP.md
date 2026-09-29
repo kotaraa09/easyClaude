@@ -122,6 +122,6 @@ words, and a desktop-app path in the README. **Effort:** 3-5 days.
   finishes it. Two-session task: 3/3 with easyClaude, 0/3 without.
 - **0.2.0** - Two tasks in Thai. They found English notes between steps for a
   Thai user in the bug-fix task, now fixed: 3/3 with easyClaude, 1/3 without.
-- **Not released yet** - Plain answers: an output style kickoff offers, and
+- **0.2.1** - Plain answers: an output style kickoff offers, and
   `/easyclaude:plain` turns on. Every task still works; code terms in replies fell from 42.6
   to 5.6, and replies are 11% shorter.
