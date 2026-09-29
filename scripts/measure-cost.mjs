@@ -84,11 +84,15 @@ const rules = (dir) => {
 };
 
 const { 'docs/STATE.md': state, 'CLAUDE.md': claudeMd, 'index.html': html } = fixture;
+// A set-up project with nothing planned. In a project that was not set up, the plugin case
+// carried text only a new project gets - the setup offer and, since 0.2.2, the tools check -
+// and the opener that replaced it in the next case measured minus 8 tokens.
+const empty = '# State\n\n## Now\n\n## Next\n\n## Blocked\n\n## Debt\n\n## Done\n';
 const CASES = [
   // [name, what it adds, directory, load the plugin]
   ['baseline', 'Claude Code alone', project('baseline', { 'index.html': html }), false],
-  ['plugin', 'skills, agent and hooks', project('plugin', { 'index.html': html }), true],
-  ['state', 'docs/STATE.md read back by the opener', project('state', { 'index.html': html, 'docs/STATE.md': state }), true],
+  ['plugin', 'skills, agent, hooks and an empty opener', project('plugin', { 'index.html': html, 'docs/STATE.md': empty }), true],
+  ['state', 'the entries in docs/STATE.md, read back by the opener', project('state', { 'index.html': html, 'docs/STATE.md': state }), true],
   ['claudeMd', 'the CLAUDE.md kickoff writes', project('claudeMd', { 'index.html': html, 'docs/STATE.md': state, 'CLAUDE.md': claudeMd }), true],
   ['rules', 'the rules kickoff copies in', rules(project('rules', { 'index.html': html, 'docs/STATE.md': state, 'CLAUDE.md': claudeMd })), true],
 ];
