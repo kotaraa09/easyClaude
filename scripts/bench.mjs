@@ -154,7 +154,35 @@ const flag = (name) => process.argv.includes(name);
 function claude(args, opts = {}) {
   const win = process.platform === 'win32';
   const quoted = win ? args.map((a) => `"${String(a).replace(/"/g, '')}"`) : args;
-  return spawnSync('claude', quoted, { encoding: 'utf8', shell: win, maxBuffer: 256 * 1024 * 1024, ...opts });
+  return spawnSync('claude', quoted, {
+    encoding: 'utf8', shell: win, maxBuffer: 256 * 1024 * 1024, env: benchEnv(), ...opts,
+  });
+}
+
+// Every setup.sh runs through `bash`. From a PowerShell terminal on Windows, the first
+// `bash` on PATH is C:\Windows\System32\bash.exe, the WSL launcher, which fails with no
+// readable message when no Linux is installed. The first run from PowerShell built no sample
+// project three times of three, while the same command from Git Bash worked. So Git for
+// Windows' own bash goes first. Its folder is found from git itself, so any install
+// location works.
+export function gitBashDir({ platform = process.platform, spawn = spawnSync, exists = existsSync } = {}) {
+  if (platform !== 'win32') return null;
+  const r = spawn('git', ['--exec-path'], { encoding: 'utf8' });
+  if (r.error || r.status !== 0) return null;
+  // <git>/mingw64/libexec/git-core -> <git>/bin
+  const dir = join(r.stdout.trim(), '..', '..', '..', 'bin');
+  return exists(join(dir, 'bash.exe')) ? dir : null;
+}
+let env = null;
+function benchEnv() {
+  if (env) return env;
+  env = { ...process.env };
+  const dir = gitBashDir();
+  if (dir) {
+    const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'Path';
+    env[key] = `${dir};${env[key] ?? ''}`;
+  }
+  return env;
 }
 
 function hashTree(dir, h) {
@@ -397,7 +425,9 @@ async function runArm(label, pluginDir, opts) {
       const reply = lastReply(traceText);
       // A run the account's usage limit stopped measured nothing. The first Thai run of
       // the no-easyClaude arm stopped this way three times, and was cached as 0/3.
-      if (USAGE_LIMIT.test(reply)) limited++;
+      // A run that never started measured nothing either: no sample project, or no login.
+      // Both reached the table as 0/3 on 2026-09-29, one marked as a full result.
+      if (USAGE_LIMIT.test(reply) || NOT_STARTED.test(`${run.error ?? ''}\n${reply}`)) limited++;
       runs.push({
         success: checks.every((k) => k.passed), checks, reply, ...replyMeasures(reply),
         saved: relative(root, saved),
@@ -409,7 +439,7 @@ async function runArm(label, pluginDir, opts) {
     cases.push({ name: c.name, runs });
   }
   const seedCost = Object.values(dayOne).reduce((s, n) => s + n, 0);
-  if (limited) console.log(`\n${label}: ${limited} run(s) stopped at a usage limit. Nothing from this arm is cached.`);
+  if (limited) console.log(`\n${label}: ${limited} run(s) stopped at a usage limit or never started. Nothing from this arm is cached.`);
   return {
     claudeVersion: result.claudeVersion, costUsd: (result.costUsd ?? 0) + seedCost,
     partial: Boolean(result.partial || limited), cases,
@@ -417,6 +447,7 @@ async function runArm(label, pluginDir, opts) {
 }
 
 export const USAGE_LIMIT = /you'?ve hit your [\w ]*limit|usage limit reached/i;
+export const NOT_STARTED = /scaffold failed|failed to authenticate|oauth [\w ]*expired/i;
 
 // What a task's no-easyClaude result depends on: the Claude Code version, the run
 // settings, the task's own files, its day one if it has one, and the shared sample

@@ -82,6 +82,15 @@ and check it against the task. Only where a browser tool is available.
 **Done when.** A benchmark task with a visible bug (a button that does nothing) passes with
 easyClaude and is measured without it. **Effort:** 1-2 weeks.
 
+**Released in 0.2.4; its own benchmark task is not yet paid for.** `scripts/look-check.mjs`: when checks pass and the
+turn changed a web page, the Stop hook reads the session's transcript. If no browser tool
+looked at the page, it holds the turn once: look with a browser tool, or tell the user in one
+line what to click. Free tests pin it. `fix-checkout`, with easyClaude, three runs: still 3/3,
+about $0.25 a run (was $0.20). Every final reply was the line on how to see it, since the
+eval has no browser. One of three sent the user to a `checkout.html` that does not exist, so
+the hold now names the real page. Not yet paid for: the benchmark task above, and the other
+tasks.
+
 ## Later
 
 - **The desktop-app install path, tried by hand.** 0.2.2 tells desktop users to type the two
@@ -128,3 +137,7 @@ easyClaude and is measured without it. **Effort:** 1-2 weeks.
   firing on the question 3/3, stopped only by the missing shell; now 0/3, and "ship it"
   still 3/3. A case for setup in an empty folder: 3/3 with easyClaude, 0/3 without. The
   per-turn cost is re-measured: ~1,575 tokens.
+- **0.2.4** - A web page that changed must be looked at. When the checks pass and a turn
+  changed a page nobody looked at, the gate holds it once: look with a browser tool, or tell
+  the user how to open the real page and what to click. `fix-checkout` still 3/3. The
+  benchmark now builds its sample project from a PowerShell terminal too.

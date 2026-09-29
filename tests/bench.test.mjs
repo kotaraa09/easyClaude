@@ -209,6 +209,25 @@ test('bench: a run stopped by a usage limit is recognised, and a normal reply is
   assert(!USAGE_LIMIT.test('Done - the shop is now called Green Corner. There is no limit on how many plants a cart holds.'), 'a normal reply');
 });
 
+// Both of these reached the table as 0/3 on 2026-09-29, and the second was saved as a full
+// result: the sample project was never built, so Claude never ran.
+test('bench: a run that never started is recognised, and a normal reply is not', async () => {
+  const { NOT_STARTED } = await import('../scripts/bench.mjs');
+  assert(NOT_STARTED.test('scaffold failed (exit 1): '), 'a sample project that was not built');
+  assert(NOT_STARTED.test('Failed to authenticate. API Error: 401 OAuth access token has expired.'), 'an expired login');
+  assert(!NOT_STARTED.test('Fixed: paying with no discount code works, and a test fails if the bug comes back.'), 'a normal reply');
+});
+
+// From a PowerShell terminal, `bash` was the WSL launcher, and no sample project was built.
+test('bench: on Windows, Git for Windows bash is found from git itself', async () => {
+  const { gitBashDir } = await import('../scripts/bench.mjs');
+  const spawn = () => ({ status: 0, stdout: 'C:/Program Files/Git/mingw64/libexec/git-core\n' });
+  const dir = gitBashDir({ platform: 'win32', spawn, exists: (p) => /bash\.exe$/.test(p) });
+  assert(dir && /Git[\\/]bin$/.test(dir), `expected <git>/bin, got ${dir}`);
+  assert(gitBashDir({ platform: 'linux', spawn }) === null, 'elsewhere, bash on PATH is already right');
+  assert(gitBashDir({ platform: 'win32', spawn: () => ({ error: new Error('ENOENT') }) }) === null, 'no git, no change');
+});
+
 // --- the two-session task --------------------------------------------------------
 
 // All five changes, the way a good day two would leave them.
