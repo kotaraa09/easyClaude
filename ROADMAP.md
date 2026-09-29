@@ -137,3 +137,7 @@ tasks.
   firing on the question 3/3, stopped only by the missing shell; now 0/3, and "ship it"
   still 3/3. A case for setup in an empty folder: 3/3 with easyClaude, 0/3 without. The
   per-turn cost is re-measured: ~1,575 tokens.
+- **0.2.4** - A web page that changed must be looked at. When the checks pass and a turn
+  changed a page nobody looked at, the gate holds it once: look with a browser tool, or tell
+  the user how to open the real page and what to click. `fix-checkout` still 3/3. The
+  benchmark now builds its sample project from a PowerShell terminal too.
