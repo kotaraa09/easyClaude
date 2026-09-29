@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Commit finished work on a branch, update state and decisions, and open a pull request. Use when the user says ship it, commit, push, open a PR, or that a feature is finished.
+description: Commit finished work on a branch, update state and decisions, and open a pull request. Use when told to ship it, commit, push, open a PR, or that a feature is finished - not when asked how to ship.
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
 ---
 

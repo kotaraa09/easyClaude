@@ -414,7 +414,7 @@ To see what every installed skill costs you, easyClaude's and everyone else's, a
 
 Until 0.1.3 this page said ~958 tokens per turn. Measured, a set-up project with a Thai plan cost ~2,190. The old figure was an estimate: it counted four characters as one token, which is optimistic, and it left out the `CLAUDE.md` kickoff writes. Cutting duplicated rules and shortening that `CLAUDE.md` brought it to today's figure.
 
-CI still makes the estimate, because it can do that on every push: <!--cost:747,211,479,57-->**~747 tokens per turn**: ~211 of rules, ~479 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
+CI still makes the estimate, because it can do that on every push: <!--cost:752,211,484,57-->**~752 tokens per turn**: ~211 of rules, ~484 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
 
 </details>
 
