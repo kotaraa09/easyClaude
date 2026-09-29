@@ -82,7 +82,7 @@ and check it against the task. Only where a browser tool is available.
 **Done when.** A benchmark task with a visible bug (a button that does nothing) passes with
 easyClaude and is measured without it. **Effort:** 1-2 weeks.
 
-**Built, not yet measured (2026-09-29).** `scripts/look-check.mjs`: when checks pass and the
+**Released in 0.2.4; its own benchmark task is not yet paid for.** `scripts/look-check.mjs`: when checks pass and the
 turn changed a web page, the Stop hook reads the session's transcript. If no browser tool
 looked at the page, it holds the turn once: look with a browser tool, or tell the user in one
 line what to click. Free tests pin it. `fix-checkout`, with easyClaude, three runs: still 3/3,
