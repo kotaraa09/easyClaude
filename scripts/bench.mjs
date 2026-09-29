@@ -247,6 +247,51 @@ async function withLanguageCheck(arm) {
   return arm;
 }
 
+// How readable the final reply is to someone who does not read code. Two plain counts, not
+// a verdict: they are compared between two runs of the same tasks, such as with and without
+// an output style, and a task that scores lower matters more than either count.
+//   length     letters and digits outside code, so a long code block does not hide as prose
+//   code terms things a beginner cannot act on: anything in backticks, and outside them file
+//              names, camelCase names and a.b.c property paths
+export function replyMeasures(text) {
+  const ticks = (text.match(/```[\s\S]*?```|`[^`\n]+`/g) ?? []).length;
+  const prose = text.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]+`/g, ' ');
+  const bare = (prose.match(/\b[\w-]+(?:\/[\w.-]+)*\.(?:m?js|cjs|ts|tsx|jsx|html|css|json|md|py)\b/g) ?? []).length +
+    (prose.match(/\b[a-z]+[A-Z]\w*\b/g) ?? []).length +
+    (prose.match(/\b[a-z_]\w*\.[a-z_]\w*\.[a-z_]\w*\b/gi) ?? []).length;
+  return { length: (prose.match(/[\p{L}\p{M}\p{N}]/gu) ?? []).length, codeTerms: ticks + bare };
+}
+
+// --style <name>: the easyClaude arm with one of its output styles on, as kickoff sets it
+// when the user says yes. An eval run loads no project settings, so an outputStyle written
+// into the sample project was ignored, and the trace said "default". A style that keeps the
+// coding instructions is Claude Code's instructions plus the style's text, so this adds the
+// text the same way, with the case field the runner does honour. It runs a copy of the
+// plugin, so the case files in the repo are never touched.
+export function stylePlugin(style) {
+  const file = join(root, 'output-styles', `${style}.md`);
+  if (!existsSync(file)) throw new Error(`--style ${style}: no output-styles/${style}.md`);
+  const body = readFileSync(file, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
+  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-styled-'));
+  cpSync(root, dir, {
+    recursive: true,
+    filter: (src) => !/^(\.git|node_modules|evals[\\/]results)([\\/]|$)/.test(relative(root, src)),
+  });
+  for (const name of readdirSync(join(dir, 'evals', 'outcomes'))) {
+    const prompt = join(dir, 'evals', 'outcomes', name, 'prompt.md');
+    if (!existsSync(prompt)) continue;
+    const text = readFileSync(prompt, 'utf8');
+    const styled = text.replace(/^(---\r?\n[\s\S]*?)(\r?\n---\r?\n)/,
+      (_, head, end) => `${head}\nappend_system_prompt: ${JSON.stringify(body)}${end}`);
+    if (styled === text || /\nappend_system_prompt:[\s\S]*\nappend_system_prompt:/.test(styled)) {
+      rmSync(dir, { recursive: true, force: true });
+      throw new Error(`--style ${style}: could not add the style to ${name}/prompt.md`);
+    }
+    writeFileSync(prompt, styled);
+  }
+  return dir;
+}
+
 // The last thing Claude said, from the run's trace: what a beginner would have read.
 function lastReply(trace) {
   let text = '';
@@ -348,12 +393,13 @@ async function runArm(label, pluginDir, opts) {
         if (g.name !== 'changed-files') checks.push({ name: g.name, passed: g.passed, why: g.explanation });
       }
       const trace = join(saved, 'trace.jsonl');
-      const reply = existsSync(trace) ? lastReply(readFileSync(trace, 'utf8')) : '';
+      const traceText = existsSync(trace) ? readFileSync(trace, 'utf8') : '';
+      const reply = lastReply(traceText);
       // A run the account's usage limit stopped measured nothing. The first Thai run of
       // the no-easyClaude arm stopped this way three times, and was cached as 0/3.
       if (USAGE_LIMIT.test(reply)) limited++;
       runs.push({
-        success: checks.every((k) => k.passed), checks, reply,
+        success: checks.every((k) => k.passed), checks, reply, ...replyMeasures(reply),
         saved: relative(root, saved),
         // Day one's cost, spread over the day-two runs it seeded.
         costUsd: (run.costUsd ?? 0) + (dayOne[c.name] ?? 0) / Math.max(1, c.arms.with.length),
@@ -415,6 +461,8 @@ function summarise(arm) {
     map.set(c.name, {
       ok: c.runs.filter((r) => r.success).length, n,
       cost: n ? c.runs.reduce((s, r) => s + r.costUsd, 0) / n : 0,
+      length: n ? Math.round(c.runs.reduce((s, r) => s + (r.length ?? replyMeasures(r.reply ?? '').length), 0) / n) : 0,
+      codeTerms: n ? c.runs.reduce((s, r) => s + (r.codeTerms ?? replyMeasures(r.reply ?? '').codeTerms), 0) / n : 0,
     });
   }
   return map;
@@ -433,14 +481,23 @@ async function main() {
     concurrency: Number(arg('-j', 2)),
     case: arg('--case', null),
     shell: flag('--shell'),
-    saveDir: join(RESULTS, `outcome-${new Date().toISOString().replace(/[:.]/g, '-')}`),
+    // --style plain: the easyClaude arm runs with that output style on, as kickoff sets it
+    // when the user says yes. Compare with a run without it, on the same tasks.
+    style: arg('--style', null),
+    saveDir: join(RESULTS, `outcome-${new Date().toISOString().replace(/[:.]/g, '-')}${arg('--style', null) ? `-${arg('--style')}` : ''}`),
   };
   if (opts.shell && process.platform === 'win32') {
     throw new Error('--shell needs a sandbox, and native Windows has none. Run this under WSL2 or Linux.');
   }
 
   const version = claude(['--version']).stdout?.trim() ?? 'unknown';
-  const withArm = await runArm('with easyClaude', root, opts);
+  let withArm;
+  const styled = opts.style ? stylePlugin(opts.style) : null;
+  try {
+    withArm = await runArm('with easyClaude', styled ?? root, opts);
+  } finally {
+    if (styled) rmSync(styled, { recursive: true, force: true });
+  }
 
   let without = null;
   if (!flag('--with-only')) {
@@ -486,7 +543,8 @@ async function main() {
   const wo = summarise(without);
   const lines = [
     `Outcome benchmark - ${version}, ${opts.model}, ${opts.runs} run(s) per case` +
-      (opts.shell ? ', shell allowed' : ', no shell (see the note below)'),
+      (opts.shell ? ', shell allowed' : ', no shell (see the note below)') +
+      (opts.style ? `, easyClaude with the "${opts.style}" output style` : ''),
     '',
     '| task | works, with easyClaude | works, without | cost per run, with | cost per run, without |',
     '|---|---|---|---|---|',
@@ -498,6 +556,13 @@ async function main() {
     lines.push(`| ${name.replace(/^outcome-/, '')} | ${pct(s.ok, s.n)} | ${b ? pct(b.ok, b.n) : '-'} | ${money(s.cost)} | ${b ? money(b.cost) : '-'} |`);
   }
   lines.push(`| **all** | **${pct(okW, nW)}** | **${without ? pct(okWo, nWo) : '-'}** | | |`);
+  // The final reply, averaged per run: letters outside code, and code terms in it.
+  lines.push('', '| task | reply length, with | code terms, with | reply length, without | code terms, without |',
+    '|---|---|---|---|---|');
+  for (const [name, s] of w) {
+    const b = wo.get(name);
+    lines.push(`| ${name.replace(/^outcome-/, '')} | ${s.length} | ${s.codeTerms.toFixed(1)} | ${b ? b.length : '-'} | ${b ? b.codeTerms.toFixed(1) : '-'} |`);
+  }
   if (!opts.shell) {
     lines.push('', 'No shell: neither arm could run commands. easyClaude\'s verify gate still ran the ' +
       'tests, because it is a hook, so this favours easyClaude. Use --shell under Linux or WSL2 for the fair figure.');

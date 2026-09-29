@@ -163,13 +163,14 @@ Five jobs come up rarely enough that they aren't listening in the background. Yo
 /easyclaude:pick-library       find a vetted library instead of hand-rolling
 ```
 
-Seven more control easyClaude itself:
+Eight more control easyClaude itself:
 
 ```
 /easyclaude:start              run setup by hand, if it did not run on its own
 /easyclaude:cheap <task>       one cheap turn, then back to normal
 /easyclaude:cheap-session      stay cheap until you say otherwise
 /easyclaude:full               back to normal
+/easyclaude:plain [off]        short answers in plain words, no code terms
 /easyclaude:connect            hook up other tools (Figma, GitHub, databases)
 /easyclaude:autoship           let it commit or ship on its own, off by default
 /easyclaude:skills             browse a catalogue of third-party skills, install what you pick
@@ -471,8 +472,9 @@ Recommended but not vendored: [task-observer](https://github.com/rebelytics/one-
 .claude-plugin/   plugin + marketplace manifests
 .mcp.json         starts empty, /easyclaude:connect fills it
 hooks/            session orientation, verify gate (runs verify.mjs), cost notices
-commands/         start, cheap, cheap-session, full, autoship, connect,
-                  skills
+commands/         start, cheap, cheap-session, full, plain, autoship,
+                  connect, skills
+output-styles/    plain (short answers in plain words, off unless chosen)
 skills/           always-on: kickoff, plan-feature, build-task, debug, ship,
                   explore-code, rescue
                   opt-in:    write-tests, security-check, deploy,

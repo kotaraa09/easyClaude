@@ -78,6 +78,16 @@ breaks('a command using disallowed-tools, which is a CLI flag and not a key', '1
     (t) => t.replace(/^description:/m, 'disallowed-tools: Bash\ndescription:')),
   /"disallowed-tools" is not a frontmatter key/);
 
+// --- 1b. output styles ---------------------------------------------------------
+// A style name that matches nothing gives the default style, and nothing else reports it.
+breaks('kickoff naming a style that does not ship', '1b',
+  (d) => editText(d, 'output-styles/plain.md', (t) => t.replace(/^name: plain$/m, 'name: plain-words')),
+  /sets outputStyle "easyclaude:plain", but output-styles\/ has no style named "plain"/);
+
+breaks('a style that drops the coding instructions', '1b',
+  (d) => editText(d, 'output-styles/plain.md', (t) => t.replace(/^keep-coding-instructions: true\n/m, '')),
+  /keep-coding-instructions: true/);
+
 // --- 2. skills ---------------------------------------------------------------
 breaks('a skill whose name does not match its directory', '2',
   (d) => editText(d, 'skills/kickoff/SKILL.md', (t) => t.replace(/^name:.*$/m, 'name: kickof')),

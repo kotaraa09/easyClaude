@@ -101,6 +101,32 @@ for (const f of walk(join(root, 'commands')).filter((p) => p.endsWith('.md'))) {
 }
 if (commandNames.length === 0) err('commands/', 'no commands found');
 
+// --- 1b. output styles ----------------------------------------------------------
+// A setting that names a style Claude Code does not have gives the default style, with no
+// error anywhere. So every "easyclaude:<name>" that a command or skill writes into
+// outputStyle must be a style shipped here, and each style must keep the coding
+// instructions: it changes how Claude writes, not how it works.
+const styleNames = new Set();
+const stylesDir = join(root, 'output-styles');
+if (existsSync(stylesDir)) {
+  for (const f of walk(stylesDir).filter((p) => p.endsWith('.md'))) {
+    const r = rel(f);
+    const fm = parseFrontmatter(readFileSync(f, 'utf8'), r);
+    if (!fm) continue;
+    styleNames.add(fm.name ?? basename(f, '.md'));
+    if (!fm.description) err(r, 'missing "description" - the /config picker shows it');
+    if (String(fm['keep-coding-instructions']) !== 'true') {
+      err(r, 'needs "keep-coding-instructions: true", or the style drops how Claude Code works on code');
+    }
+    if (fm['force-for-plugin'] !== undefined) err(r, '"force-for-plugin" makes the style apply to every user - offer it instead');
+  }
+}
+for (const f of [...walk(join(root, 'commands')), ...walk(join(root, 'skills'))].filter((p) => p.endsWith('.md'))) {
+  for (const m of readFileSync(f, 'utf8').matchAll(/"outputStyle":\s*"easyclaude:([^"]+)"/g)) {
+    if (!styleNames.has(m[1])) err(rel(f), `sets outputStyle "easyclaude:${m[1]}", but output-styles/ has no style named "${m[1]}"`);
+  }
+}
+
 // --- 2. skills ---------------------------------------------------------------
 const skillNames = [];
 const skillsDir = join(root, 'skills');

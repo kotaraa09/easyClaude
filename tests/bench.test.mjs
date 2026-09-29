@@ -6,7 +6,7 @@
 // three ways, against the sample project the real run starts from: untouched, fixed the
 // way a good answer would fix it, and fixed the wrong way. The first and last must fail.
 import { test, assert, repoRoot } from './harness.mjs';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -161,6 +161,46 @@ test('bench: a Thai task wants a Thai reply, and file names in it do not count a
       '**สรุปสิ่งที่แก้:**\n- ต้นเหตุ: `src/checkout.js:8` เรียก `discount.code.toUpperCase()` โดยตรง ถ้าไม่ได้ใส่โค้ดส่วนลดโค้ดจะพัง\n' +
       '- แก้โดยใส่ `discount?.code ?? \'\'` เพื่อรองรับกรณีไม่มีโค้ดส่วนลด\n- เพิ่มเทสต์ใหม่ที่จำลองการจ่ายเงินโดยไม่ใส่โค้ด ซึ่งจะพังก่อนแก้ และผ่านหลังแก้',
   ]) assert(!isThai(t), `not Thai, but passed: ${t}`);
+});
+
+// --- plain replies -----------------------------------------------------------------
+
+test('bench: code terms count what a beginner cannot act on, and plain words count none', async () => {
+  const { replyMeasures } = await import('../scripts/bench.mjs');
+  const tech = replyMeasures('Fixed. `amountToPay` in src/checkout.js read discount.code unguarded; see `tests/checkout.test.mjs`.');
+  const plain = replyMeasures('Paying without a discount code works now. I added a check so it cannot break again.');
+  const thai = replyMeasures('แก้แล้วครับ ตอนนี้จ่ายเงินได้แม้ไม่มีโค้ดส่วนลด');
+  assert(tech.codeTerms >= 3, `backticks, a file name and a camelCase name are code terms: ${tech.codeTerms}`);
+  assert(plain.codeTerms === 0 && thai.codeTerms === 0, `plain replies have none: ${plain.codeTerms}, ${thai.codeTerms}`);
+  assert(thai.length > 30, 'Thai counts toward length, marks included');
+  const block = replyMeasures('Done.\n```js\nconst total = cartTotal(cart);\n```');
+  assert(block.length < 10, `code in a block is not prose length: ${block.length}`);
+});
+
+// An eval run loads no project settings, so the style reaches the run through the case.
+test('bench: --style adds the style to every task in a copy, and leaves the repo alone', async () => {
+  const { stylePlugin } = await import('../scripts/bench.mjs');
+  const body = readFileSync(join(repoRoot, 'output-styles', 'plain.md'), 'utf8')
+    .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
+  const before = readFileSync(join(caseDir('outcome-rename-shop'), 'prompt.md'), 'utf8');
+  const dir = stylePlugin('plain');
+  try {
+    const outcomes = join(dir, 'evals', 'outcomes');
+    for (const name of readdirSync(outcomes)) {
+      const p = join(outcomes, name, 'prompt.md');
+      const fm = readFileSync(p, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/)[1];
+      const line = fm.split('\n').find((l) => l.startsWith('append_system_prompt: '));
+      assert(line && JSON.parse(line.slice('append_system_prompt: '.length)) === body,
+        `${name}: the style text must be in the frontmatter, whole`);
+    }
+    assert(!existsSync(join(dir, '.git')) && !existsSync(join(dir, 'evals', 'results')), 'the copy leaves out git and old results');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  assert(readFileSync(join(caseDir('outcome-rename-shop'), 'prompt.md'), 'utf8') === before, 'the repo case is untouched');
+  let refused = '';
+  try { stylePlugin('no-such-style'); } catch (e) { refused = e.message; }
+  assert(/no output-styles/.test(refused), `a style that does not ship must be refused, not run as the default: ${refused}`);
 });
 
 test('bench: a run stopped by a usage limit is recognised, and a normal reply is not', async () => {
