@@ -124,3 +124,7 @@ easyClaude and is measured without it. **Effort:** 1-2 weeks.
   Node.js when the opener never ran, and starts a git history. The README lists what to
   install and has a desktop-app path. Tests with git off the PATH stand in for the
   benchmark, which always starts on a complete machine.
+- **0.2.3** - "How do I ship this?" gets an answer, not a release. A new case found `ship`
+  firing on the question 3/3, stopped only by the missing shell; now 0/3, and "ship it"
+  still 3/3. A case for setup in an empty folder: 3/3 with easyClaude, 0/3 without. The
+  per-turn cost is re-measured: ~1,575 tokens.
