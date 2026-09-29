@@ -82,23 +82,10 @@ and check it against the task. Only where a browser tool is available.
 **Done when.** A benchmark task with a visible bug (a button that does nothing) passes with
 easyClaude and is measured without it. **Effort:** 1-2 weeks.
 
-### 6. Start from nothing installed
-
-**Why.** Installing means a terminal, Node, git and a GitHub account. A true beginner fails
-before the first message.
-
-**What.** A first-run check that finds what is missing and explains each fix in plain
-words, and a desktop-app path in the README. **Effort:** 3-5 days.
-
-**Built, not yet released (2026-09-29).** Before setup, the session opener checks for git and
-for a git name and email, and Claude explains each gap in the user's language. Node.js cannot
-be checked that way, because the check runs on it, so kickoff checks it when the opener never
-ran. Setup now starts a git history when there is none. The README lists the three things to
-install and has a desktop-app path. The benchmark cannot measure this: every task starts in a
-set-up project on a complete machine. Tests with git off the PATH stand in for it.
-
 ## Later
 
+- **The desktop-app install path, tried by hand.** 0.2.2 tells desktop users to type the two
+  `/plugin` lines in the Code tab. Nobody has tried that yet on a clean machine.
 - **Planning that waits for a yes, measured.** `plan-feature` stops and asks before it
   builds. The benchmark sends one message per session, so it cannot answer "yes" yet. A
   saved conversation (`context.history_file`) could.
@@ -135,3 +122,8 @@ set-up project on a complete machine. Tests with git off the PATH stand in for i
 - **0.2.1** - Plain answers: an output style kickoff offers, and
   `/easyclaude:plain` turns on. Every task still works; code terms in replies fell from 42.6
   to 5.6, and replies are 11% shorter.
+- **0.2.2** - Start from nothing installed. Before setup, easyClaude says in plain words
+  that git, or a git name and email, is missing, and how to fix it; kickoff checks for
+  Node.js when the opener never ran, and starts a git history. The README lists what to
+  install and has a desktop-app path. Tests with git off the PATH stand in for the
+  benchmark, which always starts on a complete machine.
