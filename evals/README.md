@@ -1,6 +1,6 @@
 # Evals
 
-Seven cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Nine cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -25,6 +25,8 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `rescue-on-wanting-it-back` | *"...I want yesterday's version back."* | `rescue` fires |
 | `quiet-on-a-typo-fix` | *"fix this typo in the footer"* | **no skill fires** |
 | `quiet-on-a-security-question` | *"is this safe to make public?"* | `security-check` does **not** fire |
+| `quiet-on-how-to-ship` | *"how do I ship this?"* | `ship` does **not** fire |
+| `kickoff-on-an-empty-folder` | *"I want to make a website for my bakery"* | `kickoff` fires, in an empty folder |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
 reply help). Under the default ablation the first is an indicator, not part of the score,
@@ -63,7 +65,7 @@ claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish
   sandbox there. So `ship` and `debug` cannot run the checks, and their graders accept a
   reply that says so and stops.
 - `--case` takes one glob. A second `--case` replaces the first.
-- A full run is 42 agent runs: about 5 minutes with `-j 4`, and 3 to 5 US dollars.
+- A full run is 54 agent runs: about 6 minutes with `-j 4`, and 4 to 6 US dollars.
 
 CI does not run this: it costs money and needs a login. Check 16 in `validate.mjs` checks
 the shape of every case on each push instead.
@@ -84,6 +86,23 @@ outcome grader passed.
 | quiet-on-a-security-question | 3/3 | 3/3 | 1/3 |
 
 Every skill fires where it should and stays quiet where it should.
+
+**The two newest cases**, 2026-09-29, Claude Code 2.1.284, three runs per arm:
+
+| case | skill fired correctly | with plugin | without plugin |
+|---|---|---|---|
+| kickoff-on-an-empty-folder | 3/3 | 3/3 | 0/3 |
+| quiet-on-how-to-ship | 3/3 | 3/3 | 3/3 |
+
+In an empty folder, plain Claude answered a bakery owner with a plan or a finished page. With
+easyClaude it asked one plain question each time.
+
+`quiet-on-how-to-ship` found a real bug on its first run. `ship` fired on *"how do I ship
+this?"* three times of three, and each reply said it could not ship *yet*: it had taken the
+question as an order, and stopped only because the case has no shell. On a real computer it
+would have gone on. The judges passed those replies, so the grader now also fails a reply
+that started the release and stopped. The `ship` description now ends "not when asked how to
+ship". After that: `ship` fired 0 times of 3 on the question, and still 3 of 3 on `ship it`.
 
 On `plan-feature`, `ship`, `debug` and the typo case the baseline scores the same, so those
 graders show the skill fires but not yet that it adds anything. Sharper outcome criteria are
@@ -275,7 +294,5 @@ tests, because it is a hook and not a tool. That favours easyClaude. Under Linux
 
 ## The next cases to write
 
-- *"how do I ship this?"* must **not** reach `ship`. It is the paired negative for
-  `ship-on-ship-it`, and the pair proves the description separates an instruction from a
-  question.
-- A case for `kickoff` on an empty folder, which is now the only thing no case covers.
+- `explore-code` and `slopmonster` can fire on their own, and no case covers either. Each
+  needs a sentence that should reach it and one that should not.

@@ -16,7 +16,7 @@ import {
   test, assert, assertMatch, workspace, runValidate, covered, repoRoot,
   readText, writeText, editText, editJson, removeFile, replaceOnce,
 } from './harness.mjs';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // --- the two shapes of a mutation case ---------------------------------------
@@ -583,8 +583,11 @@ breaks('an outcome case with nothing to grade it', '16',
 
 breaks('a suite with no should-not-fire case', '16',
   (d) => {
-    for (const c of ['quiet-on-a-typo-fix', 'quiet-on-a-security-question']) {
-      editText(d, `evals/${c}/prompt.md`, (t) => t.replace('negative]', 'positive]'));
+    // Found, not listed: a hand-written list went stale the day a third negative case landed,
+    // and the validator rightly passed a suite that still had one.
+    for (const c of readdirSync(join(d, 'evals'))) {
+      const f = join(d, 'evals', c, 'prompt.md');
+      if (existsSync(f)) editText(d, `evals/${c}/prompt.md`, (t) => t.replace('negative]', 'positive]'));
     }
   },
   /no case is tagged "negative"/);
