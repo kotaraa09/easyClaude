@@ -95,9 +95,6 @@ easyClaude and is measured without it. **Effort:** 1-2 weeks.
   whether the two-session result holds for users who have it.
 - **Hook messages in the user's language.** Cost notices are English, because Claude Code
   shows them before Claude reads anything. Only a translation table could change that.
-- **Re-measure the per-turn cost.** `docs/cost.json` is out of date since 0.1.9. The words
-  sent each turn barely changed, but the figure should be measured, not assumed. About
-  $0.50-1.
 - **English notes to a Thai user, without plain answers.** 0.2.0 made them rarer, not gone:
   one Thai bug-fix run of three on 2026-09-26 still opened with an English note. With the
   plain style on, none did. Five runs would show whether the language line needs more.
