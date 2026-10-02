@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first.
+nothing to learn first. Last reviewed on 2026-10-02, at 0.2.6.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -16,12 +16,27 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 
 ## Now
 
-### 1. A test machine that can run commands
+### 1. Re-run the benchmark on the current version
+
+**Why.** The README quotes outcome figures from 2026-09-26, measured on 0.2.0. Since then
+0.2.1 to 0.2.6 changed what Claude is told on every message: the page check, the library
+line, longer plans for short requests, the skills offer at the end of setup. No full run
+has checked that the seven tasks still pass together. Only `fix-checkout` was re-run, in
+0.2.4.
+
+**What.** `node scripts/bench.mjs` with easyClaude, all seven tasks. The no-easyClaude arm
+is cached and does not need a new run. Update the figures in both READMEs and in
+`evals/README.md`, including the cost per task.
+
+**Done when.** Every figure in the README comes from a 0.2.6 or later run, or says which
+version it is from. **Effort:** 1 hour, plus about $5 of runs.
+
+### 2. A test machine that can run commands
 
 **Why.** On native Windows the eval runner grants no shell, because it has no sandbox
 there. Neither arm can run a command, but easyClaude's verify gate still runs the tests,
 because it is a hook. Every figure in `evals/README.md` leans toward easyClaude for that
-reason, and the two tasks in items 2 and 3 cannot be tested fairly at all.
+reason, and the tasks in items 3 and 4 cannot be tested fairly at all.
 
 **What.** Run the benchmark under WSL2 or Linux with `--shell`, and re-run the no-easyClaude
 arm with `--fresh-baseline`. Say in `evals/README.md` which figures are the fair ones.
@@ -34,7 +49,7 @@ and bills real money rather than plan usage.
 **Done when.** A full `--shell` run is published beside the Windows one. **Effort:** half
 a day, plus about $5 of runs.
 
-### 2. Benchmark: a change that breaks something nobody mentioned
+### 3. Benchmark: a change that breaks something nobody mentioned
 
 **Why.** A beginner cannot see what a change broke elsewhere. This is where the verify
 gate should earn its cost, and no task measures it yet.
@@ -44,10 +59,11 @@ test for that feature already in the project. Graded on both features working.
 
 **Done when.** The task runs in both arms with a shell. **Effort:** 1 day.
 
-### 3. Benchmark: "I want yesterday's version back"
+### 4. Benchmark: "I want yesterday's version back"
 
 **Why.** The rescue skill exists because Claude restored files before asking, twice, in
-testing. Nothing measures it, and it needs git, so it needs item 1.
+testing. The trigger case shows it asks first (3/3, against 1/3 without), but a judge read
+the reply. Nothing checks the files, and that needs git, so it needs item 2.
 
 **What.** The `rescue` variant of the sample project already exists. Grade on: the old
 version is back, today's uncommitted work still exists somewhere recoverable, and the
@@ -57,7 +73,20 @@ reply asked before overwriting.
 
 ## Next
 
-### 4. Fewer permission prompts a beginner cannot answer
+### 5. Benchmark: a button that does nothing
+
+**Why.** 0.2.4 released the page check: when a turn changed a web page and nothing looked
+at it, the gate holds the turn once. The free tests pin the hold, and `fix-checkout` still
+passes with it. No task yet shows that it catches a bug a beginner would see.
+
+**What.** A task with a visible bug, such as a button with no handler, where the hidden
+tests pass before and after. Graded on the button working. The eval has no browser, so
+with easyClaude the expected reply says how to see it; with a browser tool, a later run
+shows whether Claude looks.
+
+**Done when.** The task runs in both arms. **Effort:** 1-2 days.
+
+### 6. Fewer permission prompts a beginner cannot answer
 
 **Why.** Claude Code asks "allow this command?" often. A beginner says yes to everything
 or stops. The deny rules are not a security boundary, and the Claude Code docs say so.
@@ -68,33 +97,32 @@ each, with the deny rules kept as a second layer.
 **Done when.** A setup check confirms both are on, and the benchmark scores do not drop
 with them on. **Effort:** 3-5 days.
 
-**Waits for item 1.** Claude Code's sandbox is not available on native Windows, so neither the
-setup check nor the benchmark run can be tested on the current test machine.
+**Waits for item 2.** Claude Code's sandbox is not available on native Windows, so neither
+the setup check nor the benchmark run can be tested on the current test machine.
 
-### 5. "Done" means the user could see it work
+### 7. Trigger cases that show a difference
 
-**Why.** The gate checks exit codes. For a website, a beginner's "done" is "I opened it and
-it works", and nothing checks that yet.
+**Why.** On `plan-feature`, `ship`, `debug` and the typo fix, plain Claude passes the same
+grader as easyClaude. Those cases prove the skill fires, not that it helps. And four skills
+that fire on their own have no sentence that should not reach them.
 
-**What.** For web projects, open the page in a browser after a change, take a screenshot,
-and check it against the task. Only where a browser tool is available.
+**What.** Sharper outcome criteria for those four cases. A should-not-fire case each for
+`build-task`, `debug`, `rescue` and `kickoff`. A sample project large enough that one
+search does not find a name, so `explore-code` can fire (0/3 now, and correctly).
 
-**Done when.** A benchmark task with a visible bug (a button that does nothing) passes with
-easyClaude and is measured without it. **Effort:** 1-2 weeks.
-
-**Released in 0.2.4; its own benchmark task is not yet paid for.** `scripts/look-check.mjs`: when checks pass and the
-turn changed a web page, the Stop hook reads the session's transcript. If no browser tool
-looked at the page, it holds the turn once: look with a browser tool, or tell the user in one
-line what to click. Free tests pin it. `fix-checkout`, with easyClaude, three runs: still 3/3,
-about $0.25 a run (was $0.20). Every final reply was the line on how to see it, since the
-eval has no browser. One of three sent the user to a `checkout.html` that does not exist, so
-the hold now names the real page. Not yet paid for: the benchmark task above, and the other
-tasks.
+**Done when.** Every skill that fires on its own has a case that should reach it and one
+that should not, and each case either differs between arms or says why it cannot.
+**Effort:** 2-3 days, plus about $10 of runs.
 
 ## Later
 
-- **The desktop-app install path, tried by hand.** 0.2.2 tells desktop users to type the two
-  `/plugin` lines in the Code tab. Nobody has tried that yet on a clean machine.
+- **The install, tried on a clean machine.** 0.2.5 found that `/plugin` in the desktop app
+  only browses, so 0.2.6 installs by pasting a prompt. Nobody has tried that prompt on a
+  computer with nothing installed. `template/` should offer the install when the folder is
+  trusted; in the desktop app that offer did not appear.
+- **The skills offer, end to end.** At the end of setup, easyClaude offers at most two skills.
+  In the eval, Claude Code refused every write into `.claude/`, so no run installed one.
+  A run that allows it would show the install works, and the cost it quotes is right.
 - **Planning that waits for a yes, measured.** `plan-feature` stops and asks before it
   builds. The benchmark sends one message per session, so it cannot answer "yes" yet. A
   saved conversation (`context.history_file`) could.
@@ -139,12 +167,14 @@ tasks.
   per-turn cost is re-measured: ~1,575 tokens.
 - **0.2.4** - A web page that changed must be looked at. When the checks pass and a turn
   changed a page nobody looked at, the gate holds it once: look with a browser tool, or tell
-  the user how to open the real page and what to click. `fix-checkout` still 3/3. The
-  benchmark now builds its sample project from a PowerShell terminal too.
+  the user how to open the real page and what to click. `fix-checkout` still 3/3, at about
+  $0.25 a run (was $0.20). Its own benchmark task is item 5. The benchmark now builds its
+  sample project from a PowerShell terminal too.
 - **0.2.5** - Fixes from the first real use, in the desktop app: plans ask more when the request
   is short, name a free library before hand-building a calendar or a map, the `/clear` advice
   comes back after each `/clear`, and the skill catalogue covers games. The calendar case:
   3/3 with easyClaude, 2/3 without.
 - **0.2.6** - Skills that fit the project, offered at the end of setup with a cost in tokens,
   and `/easyclaude:skills` works out the project with no category. A shorter README, in both
-  languages, that installs by pasting a prompt and shows measured results, ties included.
+  languages, that installs by pasting a prompt and compares plain Claude Code with easyClaude
+  on the same requests, ties included.
