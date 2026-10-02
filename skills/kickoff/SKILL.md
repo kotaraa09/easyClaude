@@ -166,15 +166,21 @@ Three lines: what you set up, what the verify command is, and the single next ac
 
 If the project obviously wants a browser, a database, or live library docs, mention in **one line** that `/easyclaude:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.
 
-easyClaude ships no design skill, no marketing skill, and no deep security or testing skill,
-because bundling one picks it for every project that installs it. So the user has to be told
-the catalogue exists, or they never find out. Mention in **one line** that `/easyclaude:skills`
-browses third-party skills by category and installs the ones they pick. Say it once, at the end,
-and only name the category their project actually needs — game development for a game (its
-engine's own plugin, not design), design for a website or app, testing for anything with a weak
-verify contract. If nothing in the catalogue fits, say the command can search for skills for
-their stack. Do not list the categories.
+easyClaude ships no design skill, no game skill, and no deep security or testing skill,
+because bundling one picks it for every project that installs it. You know what this project
+is now, so pick for the user instead of sending them to a list. Read
+`reference/skills-catalogue.md` under `${CLAUDE_PLUGIN_ROOT}`, and choose **at most two** entries
+that fit what they told you and what you detected: the engine's own plugin for a game, a design
+pick for a website or app, a testing pick when the verify contract is weak. Never a design skill
+for a game.
 
-Say what it costs in the same breath: an installed skill rides on every turn afterwards, used
-or not. A user who installs fifty of them pays more per turn than this whole framework. They
-should know that before they pick, not after the bill.
+Offer them in the same closing message, after the three lines: each by name, what it adds in
+one plain line, and what it costs on every turn from then on, as a number of tokens. Work the
+number out from the catalogue's skill count at 25 to 60 tokens a skill. "A little" is not a
+cost: in testing it was the word two replies of three used, and nobody can compare it. Ask one yes-or-no question. On a
+yes, follow steps 5 and 6 of `commands/skills.md` under `${CLAUDE_PLUGIN_ROOT}`: scan, then
+install. Install nothing without that yes, and nothing they did not pick. If no entry fits, say
+nothing about skills.
+
+A user who installs fifty skills pays more per turn than this whole framework, so the cost is
+said before the choice, not after the bill.

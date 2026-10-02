@@ -1,6 +1,6 @@
 ---
-description: Advanced - browse a catalogue of third-party skills by category and install the ones picked
-argument-hint: (nothing) | design | security | testing | marketing | writing | games | status
+description: Recommend third-party skills that fit this project, scan them, and install the ones picked
+argument-hint: (nothing - fits the project) | <a category to browse instead> | status
 disable-model-invocation: true
 allowed-tools: Read, Bash, Glob
 ---
@@ -13,8 +13,8 @@ testing skill. That is deliberate. Bundling one picks it for everybody and charg
 session for the pick. This command shows what exists, states what each one costs, scans it,
 and installs only what the user asks for.
 
-**Never run this during kickoff and never offer it unprompted.** A project builds fine
-with none of these. The user came here on purpose.
+A project builds fine with none of these. kickoff offers the ones that fit once, at the end of
+setup, and otherwise this runs only when the user types it.
 
 For `status`, run step 1 only and stop.
 
@@ -39,8 +39,14 @@ each one is or is not recommended. Do not recommend anything that is not in it, 
 restate an entry from memory - the counts and licences in that file were checked against
 the source and yours were not.
 
-If `$ARGUMENTS` names a category, show that section only. If it names nothing, list the
-category names with one line each and ask which one.
+**With nothing after the command, work out the project yourself.** The user should not need to
+know the category names. Read `CLAUDE.md` and `docs/PRD.md`, and look for the markers that
+say what it is: `project.godot` (a Godot game), `ProjectSettings/` (Unity), `*.uproject`
+(Unreal), a game library in `package.json` such as phaser or three, `pubspec.yaml` (a Flutter
+app), `index.html` or a web framework (a website or web app). Then say in one line what you
+take the project to be, and go straight to the entries that fit it: at most three, best first.
+
+If `$ARGUMENTS` names a category, show that section instead.
 
 Match the category to what the project is, not to what is in the list. Design skills are for
 websites and apps. **Never tell the user that a skill made for another kind of project is
