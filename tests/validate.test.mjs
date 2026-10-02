@@ -341,7 +341,13 @@ breaks('no measurement at all', '10d',
 // about files that have changed since. A comment is the mutation because the estimate skips
 // comments, so the only thing this edit can trip is the fingerprint.
 warns('a rule edited after the last measurement', '10d',
-  (d) => appendLine(d, 'rules/workflow.md', '<!-- a note added after the measurement -->'),
+  // Inside the file's own comment, which is not sent to Claude, so the estimate cannot move.
+  // An appended line moved it by one token on 2026-10-02, when the rules sat on a rounding
+  // edge, and the test failed for a reason it does not test.
+  (d) => editText(d, 'rules/workflow.md', (t) => {
+    if (!t.includes('HTML comments are not sent to Claude.')) throw new Error('mutation target moved');
+    return t.replace('HTML comments are not sent to Claude.', 'HTML comments are not sent to Claude. Edited after the measurement.');
+  }),
   /docs\/cost\.json: measured on .*changed since/);
 
 // --- 11. the STATE.md compaction rule must not drift -------------------------

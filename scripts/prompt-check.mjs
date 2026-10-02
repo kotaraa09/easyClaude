@@ -20,7 +20,7 @@
 // write in any language, so Claude says it instead.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, rmSync, openSync, readSync, fstatSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -99,6 +99,21 @@ const FINISH_NUDGE = 'easyClaude: the user asked you to finish several tasks. Do
   'after another in this turn, each checked and ticked off before the next. Do not stop to ' +
   'ask whether to go on; stop when all are done, or at the first one that fails.';
 
+// A piece of interface that free libraries already do well. A user trying easyClaude on
+// 2026-09-30 found features built by hand where a library existed, and the debugging and
+// restyling that followed. plan-feature says to name one, but the plan is skipped for small
+// work, and here the decision is made before any skill loads. "map" is matched as a word, so
+// a sitemap is not one; a miss costs one line.
+const SOLVED_PIECE = new RegExp([
+  /(?<![a-z.])(calendars?|date ?pickers?|maps?|charts?|graphs?|rich ?text|wysiwyg|drag(-| and | ?& ?)drop|carousels?|sliders?|video players?|audio players?|file uploads?|markdown editors?|code editors?|pathfinding|physics engine)(?![a-z])/.source,
+  'ปฏิทิน', 'แผนที่', 'กราฟ', 'แผนภูมิ', 'ลากวาง', 'อัปโหลด',
+].join('|'), 'i');
+export const asksForSolvedPiece = (prompt) => !/^\s*\//.test(prompt) && SOLVED_PIECE.test(prompt);
+const LIBRARY_NUDGE = 'easyClaude: this asks for something free, open-source libraries already do ' +
+  'well. Before writing it yourself, name one widely used library for it, with its licence and ' +
+  'one line on why it fits, and ask the user before adding it. Prefer MIT, BSD or Apache-2.0, ' +
+  'and nothing that needs a paid account.';
+
 // The lines above are English, and a user who writes in Thai got English with them. In the
 // Thai bug-fix task, two runs of three wrote English notes between steps ("Root cause
 // found: ...", "no new Debt entry is needed"), where the rename task, with no line added,
@@ -140,12 +155,23 @@ function main() {
     later ? laterNudge(new Date().toLocaleDateString('en-CA')) : null,
     // Not in cheap mode, which does one thing per turn on purpose.
     !cheap && asksToFinishSeveral(prompt) ? FINISH_NUDGE : null,
+    // In cheap mode too: an existing library is usually the smaller change.
+    asksForSolvedPiece(prompt) ? LIBRARY_NUDGE : null,
   ].filter(Boolean);
   if (nudges.length && writesNonLatin(prompt)) nudges.push(LANGUAGE_NUDGE);
   const nudgeText = nudges.join('\n\n') || null;
   // Nothing left to say this session, so the transcript - which can run to megabytes - is
   // not read on every prompt.
-  if (!cheap && alreadyAdvised(payload.session_id)) return say(nudgeText);
+  if (!cheap && alreadyAdvised(payload.session_id)) {
+    // Once per conversation, not once per session. /clear and /compact keep the session, so
+    // a user who took the advice never heard it again, however long the next stretch grew.
+    // Only the end of the transcript is read: the last request's size is enough to see it
+    // shrank.
+    const advisedAt = advisedContext(payload.session_id);
+    const now = payload.transcript_path ? lastContextTokens(payload.transcript_path) : null;
+    if (!(advisedAt && now !== null && now < advisedAt / 2)) return say(nudgeText);
+    forgetAdvice(payload.session_id);
+  }
 
   const history = payload.transcript_path ? historyTokens(payload.transcript_path) : null;
   if (history === null) return say(nudgeText);
@@ -167,7 +193,7 @@ function main() {
     context = `easyClaude: this conversation holds ${k} of history, and every step re-reads it. ` +
       'Do the task as usual. When it is finished, add one line in the user\'s language: before the ' +
       'next task, /clear makes every step cheaper, and the plan stays in docs/STATE.md. Say this once.';
-    markAdvised(payload.session_id);
+    markAdvised(payload.session_id, payload.transcript_path ? lastContextTokens(payload.transcript_path) : null);
   }
 
   say([nudgeText, context].filter(Boolean).join('\n\n'));
@@ -177,10 +203,37 @@ function main() {
 const adviceMemo = (session) =>
   join(tmpdir(), `easyclaude-advised-${createHash('sha256').update(String(session)).digest('hex').slice(0, 16)}`);
 const alreadyAdvised = (session) => Boolean(session) && existsSync(adviceMemo(session));
-const markAdvised = (session) => {
+const markAdvised = (session, context) => {
   if (!session) return;
-  try { writeFileSync(adviceMemo(session), ''); } catch { /* advice may repeat; nothing breaks */ }
+  try { writeFileSync(adviceMemo(session), JSON.stringify({ context })); } catch { /* advice may repeat; nothing breaks */ }
 };
+const advisedContext = (session) => {
+  try { return Number(JSON.parse(readFileSync(adviceMemo(session), 'utf8')).context) || null; } catch { return null; }
+};
+const forgetAdvice = (session) => rmSync(adviceMemo(session), { force: true });
+
+// The size of the last main-thread request, from the end of the transcript only. A session
+// file runs to megabytes, and this runs on every prompt once advice was given.
+export function lastContextTokens(transcriptPath, tailBytes = 512 * 1024) {
+  let fd;
+  try {
+    fd = openSync(transcriptPath, 'r');
+    const size = fstatSync(fd).size;
+    const len = Math.min(size, tailBytes);
+    const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, size - len);
+    const lines = buf.toString('utf8').split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].includes('"usage"')) continue;
+      let entry;
+      try { entry = JSON.parse(lines[i]); } catch { continue; }
+      const u = entry?.message?.usage;
+      if (entry.type !== 'assistant' || entry.isSidechain || !u) continue;
+      return (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+    }
+    return null;
+  } catch { return null; } finally { if (fd !== undefined) closeSync(fd); }
+}
 
 // Run as the hook; imported by the tests for historyTokens.
 if (process.argv[1]?.endsWith('prompt-check.mjs')) main();

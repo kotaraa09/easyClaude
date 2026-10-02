@@ -17,7 +17,7 @@ Read `docs/STATE.md`. If the user said which work they mean — "the rest of wha
 - Make it run end to end, however thinly. A task is not done if it needs a later task to be observable.
 - Follow the existing code's conventions over your own preferences — naming, file layout, error handling, comment density.
 - Reuse what's there. Search before you write: a duplicate implementation is worse than an ugly reused one.
-- If this task is a solved problem, do not hand-roll it — `/easyclaude:pick-library` finds and vets an existing one. No new dependency without asking first.
+- If this task is a solved problem - a calendar, a map, charts, dates, money, parsing - do not hand-roll it. Read `skills/pick-library/SKILL.md` under `${CLAUDE_PLUGIN_ROOT}` and run its checks on a free, open-source library before you install it. That skill only starts when the user types it, so you read it instead. No new dependency without asking first.
 
 ## 3. Verify
 

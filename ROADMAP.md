@@ -141,3 +141,7 @@ tasks.
   changed a page nobody looked at, the gate holds it once: look with a browser tool, or tell
   the user how to open the real page and what to click. `fix-checkout` still 3/3. The
   benchmark now builds its sample project from a PowerShell terminal too.
+- **0.2.5** - Fixes from the first real use, in the desktop app: plans ask more when the request
+  is short, name a free library before hand-building a calendar or a map, the `/clear` advice
+  comes back after each `/clear`, and the skill catalogue covers games. The calendar case:
+  3/3 with easyClaude, 2/3 without.

@@ -1,6 +1,6 @@
 # Evals
 
-Thirteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Fifteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -31,6 +31,8 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `quiet-explore-on-what-next` | *"what should I work on next?"* | `explore-code` does **not** fire |
 | `slopmonster-on-sounds-like-ai` | *"does this sound like AI? ..."* | `slopmonster` fires |
 | `quiet-slopmonster-on-write-copy` | *"write a one-line welcome for the top of the home page"* | `slopmonster` does **not** fire |
+| `library-on-a-calendar` | *"add a calendar so shoppers can pick a delivery day"* | `plan-feature` fires, and names a free library before building |
+| `skills-for-a-godot-game` | *"/easyclaude:skills games"*, in a Godot project | game skills offered, not design ones; nothing installed |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
 reply help). Under the default ablation the first is an indicator, not part of the score,
@@ -69,7 +71,9 @@ claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish
   sandbox there. So `ship` and `debug` cannot run the checks, and their graders accept a
   reply that says so and stops.
 - `--case` takes one glob. A second `--case` replaces the first.
-- A full run is 78 agent runs: about 9 minutes with `-j 4`, and 6 to 8 US dollars.
+- A full run is about 90 agent runs: about 10 minutes with `-j 4`, and 7 to 9 US dollars.
+- `skills-for-a-godot-game` runs a command only easyClaude has, so run it with
+  `--ablation none`. In the default run its no-plugin arm measures nothing.
 
 CI does not run this: it costs money and needs a login. Check 16 in `validate.mjs` checks
 the shape of every case on each push instead.
@@ -314,6 +318,20 @@ tests, because it is a hook and not a tool. That favours easyClaude. Under Linux
   need about 10 steps, so that case allows 14.
 - **Judge criteria were too strict at first.** The typo grader failed a correct fix for one
   extra line about the commit. The criteria now say what extra text is fine.
+
+**From the first real use**, 2026-10-02, same settings. A user who writes little tried easyClaude
+on a new project and found four problems; these two cases check the fixes:
+
+| case | skill fired correctly | with plugin | without plugin |
+|---|---|---|---|
+| library-on-a-calendar | 2/3 | 3/3 | 2/3 |
+| skills-for-a-godot-game | - | 3/3 | (needs easyClaude) |
+
+Every easyClaude reply to the calendar named flatpickr (MIT) or the browser's own date box,
+and asked before adding anything. Two of three asked five questions, each with a default; the
+third asked two, after putting the library decision first. Plain Claude asked good questions
+twice, and once built a calendar straight away. In the Godot project every reply offered the
+game entries, said the design skills do not cover a game, and installed nothing.
 
 ## The next cases to write
 

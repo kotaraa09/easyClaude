@@ -170,8 +170,10 @@ easyClaude ships no design skill, no marketing skill, and no deep security or te
 because bundling one picks it for every project that installs it. So the user has to be told
 the catalogue exists, or they never find out. Mention in **one line** that `/easyclaude:skills`
 browses third-party skills by category and installs the ones they pick. Say it once, at the end,
-and only name the category their project actually needs — design for anything with a UI,
-testing for anything with a weak verify contract. Do not list the categories.
+and only name the category their project actually needs — game development for a game (its
+engine's own plugin, not design), design for a website or app, testing for anything with a weak
+verify contract. If nothing in the catalogue fits, say the command can search for skills for
+their stack. Do not list the categories.
 
 Say what it costs in the same breath: an installed skill rides on every turn afterwards, used
 or not. A user who installs fifty of them pays more per turn than this whole framework. They

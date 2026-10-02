@@ -446,6 +446,34 @@ test('prompt hook: a very long normal conversation gets the /clear advice once',
   assert(second.out.trim() === '', `the advice must not repeat in one session:\n${second.out}`);
 });
 
+// /clear and /compact keep the session. A user who took the advice on 2026-09-30 never
+// heard it again, because "once" meant once per session.
+test('prompt hook: after /clear the advice comes back once the conversation is long again', async () => {
+  const { dir, file } = transcript([30_000, 150_000]);
+  const session = `advice-${Date.now()}-${Math.random()}`;
+  const grow = (sizes) => writeFileSync(file, sizes.map((n, i) => JSON.stringify({
+    type: 'assistant', isSidechain: false, uuid: `u${i}`,
+    message: { usage: { input_tokens: 2, cache_creation_input_tokens: 0, cache_read_input_tokens: n - 2 } },
+  })).join('\n') + '\n');
+  assertMatch((await promptHook(dir, file, 'add a counter', session)).out, /\/clear makes/, 'first long stretch');
+  grow([30_000, 150_000, 31_000]);
+  const fresh = await promptHook(dir, file, 'and a footer', session);
+  assert(!/\/clear makes/.test(fresh.out), `right after /clear there is nothing to advise:\n${fresh.out}`);
+  grow([30_000, 150_000, 31_000, 125_000]);
+  assertMatch((await promptHook(dir, file, 'and a header', session)).out, /\/clear makes/,
+    'a second long stretch after /clear must get the advice again.');
+});
+
+test('prompt hook: a calendar, a map or a chart gets the library line; code does not', async () => {
+  const { dir, file } = transcript([30_000, 35_000]);
+  for (const prompt of ['add a booking calendar', 'show the shop on a map', 'เพิ่มปฏิทินจองคิว']) {
+    assertMatch((await promptHook(dir, file, prompt)).out, /open-source libraries/, `"${prompt}" must get the library line.`);
+  }
+  for (const prompt of ['array.map is slow here', 'fix the sitemap']) {
+    assert(!/open-source libraries/.test((await promptHook(dir, file, prompt)).out), `"${prompt}" is not a library question.`);
+  }
+});
+
 // --- the cost notices ---------------------------------------------------------
 // Claude Code reports what reopening or switching will re-send, before it is sent. The
 // notices show that to the user only when it is worth /clear, and never to Claude.

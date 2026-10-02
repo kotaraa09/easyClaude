@@ -1,6 +1,6 @@
 ---
 description: Advanced - browse a catalogue of third-party skills by category and install the ones picked
-argument-hint: (nothing) | design | security | testing | marketing | writing | status
+argument-hint: (nothing) | design | security | testing | marketing | writing | games | status
 disable-model-invocation: true
 allowed-tools: Read, Bash, Glob
 ---
@@ -42,6 +42,24 @@ the source and yours were not.
 If `$ARGUMENTS` names a category, show that section only. If it names nothing, list the
 category names with one line each and ask which one.
 
+Match the category to what the project is, not to what is in the list. Design skills are for
+websites and apps. **Never tell the user that a skill made for another kind of project is
+enough.** A user building a Godot game was told the design skills covered it; they do not.
+
+## 2b. When no category fits, search, and say it was not checked
+
+A game engine with no entry, a mobile app, a data pipeline, a microcontroller: say plainly that
+the catalogue has nothing for it yet. Then offer to search. If they say yes:
+
+```bash
+gh api "search/repositories?q=<engine or stack>+claude+skill&sort=stars&per_page=10" --jq '.items[] | "\(.full_name) \(.license.spdx_id) \(.stargazers_count) \(.pushed_at)"'
+```
+
+With no `gh`, use a web search for "<engine or stack> Claude Code skill". Show at most three:
+an open licence, pushed in the last six months, and the number of skills each one installs.
+Mark each one **not in the catalogue, not checked by easyClaude**. Step 5 applies to them as to
+anything else.
+
 ## 3. State the cost before the choice, not after
 
 Warning: an installed skill is not free. Claude Code loads the name and description of
@@ -49,7 +67,7 @@ every installed skill into every turn of every session, used or not. That is rou
 60 tokens each.
 
 So a marketplace with 50 skills costs somewhere near 1,200 to 3,000 tokens on every turn,
-against 901 for this entire framework. Say that figure out loud whenever an entry carries
+which can be more than this entire framework costs. Say that figure out loud whenever an entry carries
 a bold skill count.
 
 Then give the rule that follows from it: **add the marketplace, install the plugins.**
@@ -104,14 +122,20 @@ Two install shapes appear in the catalogue:
 npx skills@latest add <owner>/<repo>
 ```
 
-For a marketplace, hand the user this to type - it is a slash command, so you cannot run
-it yourself:
+For a marketplace, run Claude Code's own command line, which installs one plugin by name:
 
-```
-/plugin marketplace add <owner>/<repo>
+```bash
+claude plugin marketplace add <owner>/<repo>
+claude plugin install <plugin>@<marketplace name>
 ```
 
-Then `/plugin`, and install the named plugins from the list.
+The marketplace name is the `name` field in the repository's `.claude-plugin/marketplace.json`,
+which is not always the repository's name. This works in the desktop app as well, where typing
+`/plugin` opens a browsing screen and a user who has never seen it does not know what to press.
+
+Only if `claude` does not run in a shell here, hand the user the slash commands to type:
+`/plugin marketplace add <owner>/<repo>`, then `/plugin`, and install the named plugin from
+the list.
 
 ## 7. Watch for the two collisions
 

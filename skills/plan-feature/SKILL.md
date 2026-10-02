@@ -20,11 +20,42 @@ Leave the rest alone. This is a readback, not a cleanup: turning a feature reque
 
 ## 2. Name the parts you should not be writing
 
-Before listing tasks, mark any that are long-solved problems — dates and timezones, money, auth, crypto, parsing a file format, validation, retries. Those become "adopt a library" tasks, not "build" tasks, and `/easyclaude:pick-library` handles them. Deciding this at plan time is far cheaper than discovering it halfway through an implementation.
+Before listing tasks, mark any that are long-solved problems. Two kinds:
 
-## 3. Ask only what you genuinely can't decide
+- **Logic:** dates and timezones, money, auth, crypto, parsing a file format, validation, retries.
+- **Big pieces of interface or engine:** a calendar or date picker, a map, charts, a rich text
+  editor, drag and drop, a video or audio player, a carousel, file upload, a game's physics,
+  pathfinding or tweening. A hand-built calendar is weeks of fixing edge cases and restyling;
+  a mature one has had those fixed by thousands of users already.
 
-At most two questions, and only where two readings lead to materially different builds. Pick sensible defaults for everything else and state them.
+For each, name one free, open-source library in the plan, with its licence (MIT, BSD or
+Apache-2.0 first), and say in one line why it fits. Prefer one that is widely used and still
+maintained, and one the project's stack already uses if there is one. Never a paid library, and
+never one that needs an account or an API key, unless the user agrees to it. Each becomes its own
+"add <library>" task, not a "build" task. Deciding this at plan time is far cheaper than
+discovering it halfway through an implementation.
+
+## 3. Ask what you cannot decide - more when the request is short
+
+Count the user's words first. **A short request**, a sentence or less like "add a booking page",
+leaves most of the feature unsaid, and a user who writes little usually answers only what is
+asked. Defaults you pick in silence are guesses about their project. So ask three to five
+questions, in one message, as a short numbered list. Put your default after each one, so "ok"
+keeps it:
+
+- who uses it, and when
+- what must happen for it to count as working - the one thing it must not get wrong
+- what it looks like, or where it sits among what already exists
+- what it keeps or remembers, if anything
+- what it should **not** do in this first version
+
+Skip any question the code, `docs/STATE.md` or `docs/PRD.md` already answers. Ask about what the
+user sees and does, never about frameworks or file layout. Then wait for the answers before you
+write the spec.
+
+**A detailed request** already answers most of that. Ask at most two questions, and only where
+two readings lead to materially different builds. Pick sensible defaults for everything else and
+state them.
 
 ## 4. Write the spec
 
