@@ -1,6 +1,6 @@
 {
   "name": "easyclaude",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "A stack-agnostic harness that makes Claude Code work well on any project: persistent state, an enforced verify gate, guardrails, and a token-frugal escape hatch.",
   "author": { "name": "DegonCore" },
   "homepage": "https://github.com/kotaraa09/easyClaude",
