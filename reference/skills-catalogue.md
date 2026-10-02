@@ -65,8 +65,8 @@ needs it or not. The bill is roughly `(name + description) / 4` tokens per skill
 lands between 25 and 60 tokens for a normal one.
 
 That arithmetic is why some entries below carry a skill count in bold. A marketplace with
-50 skills costs somewhere near 1,200 to 3,000 tokens on every turn. easyClaude's entire
-always-on budget is 901. **Installing one 50-skill marketplace can cost more than this
+50 skills costs somewhere near 1,200 to 3,000 tokens on every turn.
+**Installing one 50-skill marketplace can cost more than this
 whole framework, forever, on projects that never use it.**
 
 So: install a plugin, not a marketplace, wherever the repository allows it. Adding a
@@ -193,6 +193,44 @@ guidelines, canvas design, skill authoring, and MCP server authoring.
 - **19 skills.** Check first: Claude Code ships several of these already, and installing a
   second copy gives you two descriptions competing for the same turn.
 
+## game development
+
+Added on 2026-10-02, after a user building a Godot game was told the design skills were
+enough. They are not: every design entry above is for websites and apps. Checked against
+GitHub on that day: licence, last push, and the skills each plugin installs.
+
+### gamedev-skills/awesome-gamedev-agent-skills - pick your engine only
+
+Engine skills for Godot 4, Unity 6, Unreal 5, Phaser, PixiJS, three.js, Bevy, pygame, LÖVE
+and Roblox, plus cross-engine ones: game AI, procedural generation, dialogue, saves, audio.
+Split into one plugin per engine, so you install the one you use.
+
+- Add the marketplace `gamedev-skills/awesome-gamedev-agent-skills`, then install one plugin:
+  `godot` (**16 skills**), `unity` (**8**), `unreal` (**6**), `web-engines` (**6**) or
+  `other-engines` (**10**). `disciplines` (**15**) and `genres` (**9**) are separate.
+- Apache-2.0. Around 1,300 stars, pushed 2026-09-27.
+- Warning: the `gamedev` plugin in the same marketplace is **all 75 skills**, roughly 2,000 to
+  4,500 tokens on every turn. Do not install it.
+
+### jame581/GodotPrompter - the heavy Godot pick
+
+Godot 4 only, in depth: GDScript and C#, scenes, signals, UI, physics, shaders, multiplayer,
+export, with checklists for each.
+
+- Add the marketplace `jame581/GodotPrompter`, then install `godot-prompter`.
+- MIT. Around 780 stars, pushed 2026-10-01. **56 skills in one plugin**, so roughly 1,400 to
+  3,400 tokens on every turn. Take it only if Godot is all you build.
+
+### Randroids-Dojo/skills, the godot plugin - the light Godot pick
+
+One skill for testing, building and exporting a Godot 4 game: GdUnit4 tests, scripted play
+tests, web and desktop exports, CI. It fills the gap easyClaude's checks leave on Godot, where
+a test runner is the hard part.
+
+- Add the marketplace `Randroids-Dojo/skills`, then install `godot` only. The marketplace holds
+  thirteen other unrelated plugins.
+- MIT. **1 skill.** Around 50 stars, pushed 2026-09-21: small and young, so scan it first.
+
 ## Considered and not recommended
 
 These are good repositories. They are listed here so nobody has to rediscover the reason.
@@ -210,6 +248,14 @@ of easyClaude, or alongside it knowingly, but not because a catalogue suggested 
 ### rebelytics/one-skill-to-rule-them-all
 
 Same shape of problem, recorded in `skills/registry.json` with the full reasoning.
+
+### Donchitos/Claude-Code-Game-Studios
+
+The most-starred game-development set on GitHub (MIT, around 25,000 stars, checked 2026-10-02):
+49 agents and 72 workflow skills that model a whole game studio. Same shape of problem as
+superpowers: it is a framework with its own way of running a project, and the 72 skill
+descriptions alone cost more per turn than all of easyClaude. For engine knowledge without a
+second framework, take one engine plugin from the game development section above.
 
 ### alirezarezvani/claude-skills
 

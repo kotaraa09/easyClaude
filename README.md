@@ -61,20 +61,27 @@ You do not need a GitHub account to install. You need one only to publish your p
 
 Missed one? The first time you open a project, easyClaude checks for Git and says what is missing, in plain words. It cannot check for Node.js, because the check runs on Node.js. If setup never starts on its own, that is almost always the reason.
 
-**In the desktop app:** open the Code tab, choose your project folder, and type the two lines below into the message box.
-
 **In a terminal:** open one in any project and start Claude Code:
 
 ```bash
 claude
 ```
 
-Then type these two lines, in the desktop app or in the terminal:
+Then type these two lines into Claude Code:
 
 ```
 /plugin marketplace add kotaraa09/easyClaude
 /plugin install easyclaude@easyclaude
 ```
+
+**In the desktop app:** typing `/plugin` there opens a browsing screen, not an install (found by a user on 2026-09-30). Instead, run these two commands once in any terminal, PowerShell included. The desktop app reads the same settings, and its next session in the Code tab loads easyClaude:
+
+```bash
+claude plugin marketplace add kotaraa09/easyClaude
+claude plugin install easyclaude@easyclaude
+```
+
+If the terminal says `claude` is not found, install Claude Code for the terminal first, with the same account.
 
 That's the whole setup. Open a project and start talking to it. If it doesn't recognise the project yet, it will say so and offer to get things ready.
 
@@ -83,7 +90,7 @@ That's the whole setup. Open a project and start talking to it. If it doesn't re
 
 <br>
 
-Fork [`template/`](template/) instead. It already points at the plugin in `.claude/settings.json`, so anyone who clones your repo skips the install entirely. They just approve the trust prompt the first time they run Claude Code.
+Fork [`template/`](template/) instead. It already points at the plugin in `.claude/settings.json`, so anyone who clones your repo skips the install entirely. They just approve the trust prompt the first time they run Claude Code. In the desktop app no install prompt appeared in testing, so install it as above first.
 
 </details>
 
@@ -403,6 +410,8 @@ Call it a page and a half of text per turn. If that's more than you want to spen
 
 Two moments cost far more than a normal turn, and easyClaude tells you before each one. Reopening an old conversation sends all of it again with your first message. Switching model in a long conversation does the same, because each model keeps its own copy. When either would cost more than about $0.25, a line shows the figure and says that `/clear` is cheaper. That line is in English whatever you write in, because Claude Code shows it before Claude reads anything.
 
+A long conversation costs more on every step, too. Once it holds about 80,000 tokens of history beyond its start, Claude finishes the task in hand and adds one line suggesting `/clear`. It says it once, and again after each `/clear` or `/compact` when the conversation has grown that long again.
+
 To see what every installed skill costs you, easyClaude's and everyone else's, and which ones you never use, run `/skill-doctor` (Claude Code 2.1.252 or later).
 
 <details>
@@ -414,7 +423,7 @@ To see what every installed skill costs you, easyClaude's and everyone else's, a
 
 Until 0.1.3 this page said ~958 tokens per turn. Measured, a set-up project with a Thai plan cost ~2,190. The old figure was an estimate: it counted four characters as one token, which is optimistic, and it left out the `CLAUDE.md` kickoff writes. Cutting duplicated rules and shortening that `CLAUDE.md` brought it to today's figure.
 
-CI still makes the estimate, because it can do that on every push: <!--cost:752,211,484,57-->**~752 tokens per turn**: ~211 of rules, ~484 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
+CI still makes the estimate, because it can do that on every push: <!--cost:756,215,484,57-->**~756 tokens per turn**: ~215 of rules, ~484 of skill descriptions, ~57 of agent descriptions. That covers only the files in this plugin, and it is the number the budget below is checked against.
 
 </details>
 
