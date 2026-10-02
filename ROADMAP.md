@@ -145,3 +145,6 @@ tasks.
   is short, name a free library before hand-building a calendar or a map, the `/clear` advice
   comes back after each `/clear`, and the skill catalogue covers games. The calendar case:
   3/3 with easyClaude, 2/3 without.
+- **0.2.6** - Skills that fit the project, offered at the end of setup with a cost in tokens,
+  and `/easyclaude:skills` works out the project with no category. A shorter README, in both
+  languages, that installs by pasting a prompt and shows measured results, ties included.

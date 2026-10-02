@@ -1,6 +1,6 @@
 # Evals
 
-Fifteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Sixteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -32,7 +32,8 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `slopmonster-on-sounds-like-ai` | *"does this sound like AI? ..."* | `slopmonster` fires |
 | `quiet-slopmonster-on-write-copy` | *"write a one-line welcome for the top of the home page"* | `slopmonster` does **not** fire |
 | `library-on-a-calendar` | *"add a calendar so shoppers can pick a delivery day"* | `plan-feature` fires, and names a free library before building |
-| `skills-for-a-godot-game` | *"/easyclaude:skills games"*, in a Godot project | game skills offered, not design ones; nothing installed |
+| `skills-for-a-godot-game` | *"/easyclaude:skills"*, in a Godot project | it works out the project is a game, offers game skills, installs nothing |
+| `kickoff-offers-godot-skills` | setup in a Godot project, answered in one message | the close offers at most two Godot skills, with a cost in tokens |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
 reply help). Under the default ablation the first is an indicator, not part of the score,
@@ -72,8 +73,8 @@ claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish
   reply that says so and stops.
 - `--case` takes one glob. A second `--case` replaces the first.
 - A full run is about 90 agent runs: about 10 minutes with `-j 4`, and 7 to 9 US dollars.
-- `skills-for-a-godot-game` runs a command only easyClaude has, so run it with
-  `--ablation none`. In the default run its no-plugin arm measures nothing.
+- `skills-for-a-godot-game` and `kickoff-offers-godot-skills` need easyClaude, so run them with
+  `--ablation none`. In the default run their no-plugin arm measures nothing.
 
 CI does not run this: it costs money and needs a login. Check 16 in `validate.mjs` checks
 the shape of every case on each push instead.
@@ -332,6 +333,14 @@ and asked before adding anything. Two of three asked five questions, each with a
 third asked two, after putting the library decision first. Plain Claude asked good questions
 twice, and once built a calendar straight away. In the Godot project every reply offered the
 game entries, said the design skills do not cover a game, and installed nothing.
+
+The same day the user asked why they had to know a category name at all. Now
+`/easyclaude:skills` with nothing after it works out the project, and the end of setup offers
+the skills that fit without being asked. With no category, in the Godot project: 3/3. The end
+of setup: every reply offered Godot skills by name and installed nothing, but two of three gave
+the cost as "a little extra on every turn". kickoff now asks for a number of tokens; the rerun
+passed 3/3. In the eval, Claude Code refused every write into `.claude/` (the runner's
+permission mode), so those runs set up everything else and said so.
 
 ## The next cases to write
 
