@@ -35,22 +35,24 @@
 
 None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. easyClaude sets them up for you, and it measures whether the result is better.
 
-## Does it help?
+## What changes when it is on
 
-Seven beginner tasks, three runs each, in a small sample shop, graded by hidden tests. The same tasks ran with and without easyClaude:
+The same request, in the same small sample shop, three runs with easyClaude and three without:
 
-| task | works, with | works, without |
+| you say | plain Claude Code | with easyClaude |
 |---|---|---|
-| fix a checkout bug, and add a test for it | 3/3 | 1/3 |
-| the same, asked in Thai | 3/3 | 1/3 |
-| five changes over two days: "just the first one today", then "finish the rest" | 3/3 | 0/3 |
-| add shipping costs | 3/3 | 3/3 |
-| "make the tests pass" without cheating the test | 3/3 | 3/3 |
-| rename the shop, in English and in Thai | 6/6 | 6/6 |
+| *"the checkout breaks when there's no discount code"* | Fixes it. Adds no test that catches the bug if it comes back, 0 of 3. | Fixes it and adds that test, 3 of 3. |
+| the same, in Thai | Fixes it, and adds that test in 2 of 3. | A test in 3 of 3, and the reply stays in Thai. |
+| day one: five changes, *"just the first one today"*. Day two, in a new session: *"finish the rest"* | 0 of 3. The new session does not know what "the rest" is. | All five changes work in 2 of 3. The third put shipping in a separate total that the checkout does not use. |
+| *"I want yesterday's version back"* | Asks before it changes anything in 1 of 3. The others restore at once, or hand over git commands. | Says what it would restore, and asks first, 3 of 3. |
+| *"I want to make a website for my bakery"*, in an empty folder | Writes a plan or a finished page without asking, 3 of 3. | Asks one plain question first, 3 of 3. |
+| *"add a calendar so shoppers can pick a delivery day"* | Asks first in 2 of 3. Once it builds a calendar by hand straight away. | Names a free calendar library and asks before adding it, 3 of 3. |
 
-Where plain Claude already does well, easyClaude adds nothing. Where it helps, the reason is simple: plain Claude often fixes a bug without a test, and a new session knows nothing about the last one. One caveat: these runs had no shell, which favours easyClaude, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run and its cost.
+**Where it makes no difference.** Adding shipping costs, *"just make the tests pass"* without weakening the test, and renaming the shop in English and Thai: both get these right every time.
 
-It is probably not worth it for one-off questions and snippets. It adds about 1,600 tokens to every turn.
+**What it costs.** Where it helps, it does more work, so the run costs more: about $0.23 against $0.13 for the bug fix, and $0.86 against $0.33 for the two-day task (Sonnet 5 at list price; on a Claude plan it is plan usage). Where it makes no difference, the cost is about the same. Every turn also carries about 1,600 tokens of its setup, so it is probably not worth it for one-off questions and snippets.
+
+**How this was measured.** The first three rows are from 2026-10-02 and 2026-10-03, on 0.2.6, the Thai row after the language fix in 0.2.7. In the first three rows, hidden tests that Claude never saw check the files it left. In the last three, a second Claude grades the reply against written criteria. Three runs is a small sample, and a row can move by one run between days. The runs had no shell, which favours easyClaude, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run.
 
 ## Install
 

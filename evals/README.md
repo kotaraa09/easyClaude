@@ -183,7 +183,31 @@ the run count, the sample project or that task changes. After that, a full run i
 $3.50, most of it the two-day task, and one small task is about $0.60. There is no judge
 model: every check is a test or a pattern, so grading is free.
 
-**Results.** Claude Code 2.1.280, Sonnet 5, three runs per task, no shell. The latest,
+**Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
+Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.
+
+| task | works, with | works, without | cost, with | cost, without |
+|---|---|---|---|---|
+| `add-shipping` | 3/3 | 3/3 | $0.24 | $0.20 |
+| `fix-checkout` | 3/3 | 0/3 | $0.23 | $0.13 |
+| `fix-checkout-th` | 1/3, then 3/3 | 2/3 | $0.23, then $0.35 | $0.16 |
+| `honest-test-fix` | 3/3 | 3/3 | $0.18 | $0.13 |
+| `rename-shop` | 3/3 | 3/3 | $0.09 | $0.08 |
+| `rename-shop-th` | 1/3, then 3/3 | 3/3 | $0.10 | $0.09 |
+| `two-sessions` | 2/3 | 0/3 | $0.86 | $0.33 |
+| **all** | **20/21** | **14/21** | | |
+
+The run found a step back in Thai: 2/6 with easyClaude. The page check from 0.2.4 holds the
+turn with an English message, and Claude then wrote its "how to see it" line in English, and
+once in Japanese. It was the third English message from easyClaude to do this, so 0.2.7 sends
+every one through `scripts/language.mjs`, and a test fails if `verify.mjs` holds a turn any
+other way. The two Thai tasks reran on 2026-10-03: 6/6. The "then" figures are that rerun.
+
+The `two-sessions` miss did all five changes, but put shipping in a new `totalToPay()` that
+the page does not call, so `amountToPay()` charged no shipping and three hidden tests failed.
+The user asked for shipping "added to what people pay", so it counts as a miss.
+
+**Earlier results.** Claude Code 2.1.280, Sonnet 5, three runs per task, no shell.
 2026-09-26:
 
 | task | works, with easyClaude | works, without |
