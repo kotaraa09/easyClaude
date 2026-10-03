@@ -10,7 +10,7 @@
 // here needs the plugin installed, and nothing writes to this repo.
 import { test, assert, assertMatch, projectDir, runVerify, run, repoRoot } from './harness.mjs';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Exit codes in hook mode, from Claude Code's hook contract:
@@ -390,4 +390,34 @@ test('look: failing checks report the failure, not the page', async () => {
   const r = await lookStop(dir, [prompt('fix the button'), used('Edit', { file_path: join(dir, 'index.html') })]);
   assertMatch(r.stderr, /Verification failed/, 'a broken build comes first.');
   assert(!/nothing looked at the page/.test(r.stderr), `do not ask to look at a page that fails its checks:\n${r.out}`);
+});
+
+// Four Thai runs of six on 2026-10-02 got their "how to see it" line in English, and one in
+// Japanese, after this hold. Every hold now goes through language.mjs.
+test('language: a hold for a Thai user names the language, one for an English user does not', async () => {
+  const dir = lookProject(PASSING);
+  const th = await lookStop(dir, [prompt('เปลี่ยนชื่อร้านเป็น Green Corner ทุกหน้า'), used('Edit', { file_path: join(dir, 'index.html') })]);
+  assert(th.code === BLOCK, `the page changed, so the turn is held:\n${th.out}`);
+  assertMatch(th.stderr, /language of the user's message/, 'a Thai user must get the language line with the hold.');
+  assertMatch(th.stderr, /begins: "เปลี่ยนชื่อร้าน/, 'the hold must quote the start of the message, so Claude does not guess a language.');
+  const en = await lookStop(dir, [prompt('rename the shop to Green Corner'), used('Edit', { file_path: join(dir, 'index.html') })]);
+  assert(en.code === BLOCK && !/language of the user's message/.test(en.stderr),
+    `an English user gets no language line, which once read as "reply in another language":\n${en.stderr}`);
+});
+
+test('language: a failing check is held in the user\'s language too', async () => {
+  const dir = projectDir({ steps: [{ name: 'test', cmd: FAILS }] });
+  const r = await lookStop(dir, [prompt('ถ้าไม่ใส่โค้ดส่วนลด หน้าชำระเงินจะพัง')]);
+  assert(r.code === BLOCK, `a failing step holds the turn:\n${r.out}`);
+  assertMatch(r.stderr, /language of the user's message/, 'the failure report must carry the language line.');
+});
+
+// The structural half: a hold written straight to stderr skips the language line, which is
+// how the page check went out English-only. Only hold() may end a turn with exit 2.
+test('language: verify.mjs holds a turn in one place only', () => {
+  const src = readFileSync(join(repoRoot, 'scripts', 'verify.mjs'), 'utf8');
+  const exits = src.match(/process\.exit\(2\)/g) ?? [];
+  const writes = src.match(/process\.stderr\.write\(/g) ?? [];
+  assert(exits.length === 1 && writes.length === 1,
+    `found ${exits.length} exit(2) and ${writes.length} stderr writes - send every hold through hold(), so it gets the user's language.`);
 });
