@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-02, at 0.2.6.
+nothing to learn first. Last reviewed on 2026-10-03, at 0.2.7.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -16,27 +16,12 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 
 ## Now
 
-### 1. Re-run the benchmark on the current version
-
-**Why.** The README quotes outcome figures from 2026-09-26, measured on 0.2.0. Since then
-0.2.1 to 0.2.6 changed what Claude is told on every message: the page check, the library
-line, longer plans for short requests, the skills offer at the end of setup. No full run
-has checked that the seven tasks still pass together. Only `fix-checkout` was re-run, in
-0.2.4.
-
-**What.** `node scripts/bench.mjs` with easyClaude, all seven tasks. The no-easyClaude arm
-is cached and does not need a new run. Update the figures in both READMEs and in
-`evals/README.md`, including the cost per task.
-
-**Done when.** Every figure in the README comes from a 0.2.6 or later run, or says which
-version it is from. **Effort:** 1 hour, plus about $5 of runs.
-
-### 2. A test machine that can run commands
+### 1. A test machine that can run commands
 
 **Why.** On native Windows the eval runner grants no shell, because it has no sandbox
 there. Neither arm can run a command, but easyClaude's verify gate still runs the tests,
 because it is a hook. Every figure in `evals/README.md` leans toward easyClaude for that
-reason, and the tasks in items 3 and 4 cannot be tested fairly at all.
+reason, and the tasks in items 2 and 3 cannot be tested fairly at all.
 
 **What.** Run the benchmark under WSL2 or Linux with `--shell`, and re-run the no-easyClaude
 arm with `--fresh-baseline`. Say in `evals/README.md` which figures are the fair ones.
@@ -49,7 +34,7 @@ and bills real money rather than plan usage.
 **Done when.** A full `--shell` run is published beside the Windows one. **Effort:** half
 a day, plus about $5 of runs.
 
-### 3. Benchmark: a change that breaks something nobody mentioned
+### 2. Benchmark: a change that breaks something nobody mentioned
 
 **Why.** A beginner cannot see what a change broke elsewhere. This is where the verify
 gate should earn its cost, and no task measures it yet.
@@ -59,11 +44,11 @@ test for that feature already in the project. Graded on both features working.
 
 **Done when.** The task runs in both arms with a shell. **Effort:** 1 day.
 
-### 4. Benchmark: "I want yesterday's version back"
+### 3. Benchmark: "I want yesterday's version back"
 
 **Why.** The rescue skill exists because Claude restored files before asking, twice, in
 testing. The trigger case shows it asks first (3/3, against 1/3 without), but a judge read
-the reply. Nothing checks the files, and that needs git, so it needs item 2.
+the reply. Nothing checks the files, and that needs git, so it needs item 1.
 
 **What.** The `rescue` variant of the sample project already exists. Grade on: the old
 version is back, today's uncommitted work still exists somewhere recoverable, and the
@@ -73,7 +58,7 @@ reply asked before overwriting.
 
 ## Next
 
-### 5. Benchmark: a button that does nothing
+### 4. Benchmark: a button that does nothing
 
 **Why.** 0.2.4 released the page check: when a turn changed a web page and nothing looked
 at it, the gate holds the turn once. The free tests pin the hold, and `fix-checkout` still
@@ -86,7 +71,7 @@ shows whether Claude looks.
 
 **Done when.** The task runs in both arms. **Effort:** 1-2 days.
 
-### 6. Fewer permission prompts a beginner cannot answer
+### 5. Fewer permission prompts a beginner cannot answer
 
 **Why.** Claude Code asks "allow this command?" often. A beginner says yes to everything
 or stops. The deny rules are not a security boundary, and the Claude Code docs say so.
@@ -97,10 +82,10 @@ each, with the deny rules kept as a second layer.
 **Done when.** A setup check confirms both are on, and the benchmark scores do not drop
 with them on. **Effort:** 3-5 days.
 
-**Waits for item 2.** Claude Code's sandbox is not available on native Windows, so neither
+**Waits for item 1.** Claude Code's sandbox is not available on native Windows, so neither
 the setup check nor the benchmark run can be tested on the current test machine.
 
-### 7. Trigger cases that show a difference
+### 6. Trigger cases that show a difference
 
 **Why.** On `plan-feature`, `ship`, `debug` and the typo fix, plain Claude passes the same
 grader as easyClaude. Those cases prove the skill fires, not that it helps. And four skills
@@ -168,12 +153,15 @@ that should not, and each case either differs between arms or says why it cannot
 - **0.2.4** - A web page that changed must be looked at. When the checks pass and a turn
   changed a page nobody looked at, the gate holds it once: look with a browser tool, or tell
   the user how to open the real page and what to click. `fix-checkout` still 3/3, at about
-  $0.25 a run (was $0.20). Its own benchmark task is item 5. The benchmark now builds its
+  $0.25 a run (was $0.20). Its own benchmark task is item 4. The benchmark now builds its
   sample project from a PowerShell terminal too.
 - **0.2.5** - Fixes from the first real use, in the desktop app: plans ask more when the request
   is short, name a free library before hand-building a calendar or a map, the `/clear` advice
   comes back after each `/clear`, and the skill catalogue covers games. The calendar case:
   3/3 with easyClaude, 2/3 without.
+- **0.2.7** - Every message easyClaude sends Claude goes through one language step. The
+  0.2.6 benchmark, both arms fresh, found the Thai tasks at 2/6, after the page check's English
+  hold; now 6/6. All tasks: 20/21 with easyClaude, 14/21 without.
 - **0.2.6** - Skills that fit the project, offered at the end of setup with a cost in tokens,
   and `/easyclaude:skills` works out the project with no category. A shorter README, in both
   languages, that installs by pasting a prompt and compares plain Claude Code with easyClaude

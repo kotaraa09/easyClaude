@@ -41,18 +41,18 @@ The same request, in the same small sample shop, three runs with easyClaude and 
 
 | you say | plain Claude Code | with easyClaude |
 |---|---|---|
-| *"the checkout breaks when there's no discount code"* | Fixes it. Adds a test that catches the bug if it comes back in 1 run of 3. | Fixes it and adds that test, 3 of 3. |
-| the same, in Thai | The same: a test in 1 of 3. | A test in 3 of 3, and the reply stays in Thai. |
-| day one: five changes, *"just the first one today"*. Day two, in a new session: *"finish the rest"* | 0 of 3. The new session does not know what "the rest" is. | 3 of 3. All five changes work. |
+| *"the checkout breaks when there's no discount code"* | Fixes it. Adds no test that catches the bug if it comes back, 0 of 3. | Fixes it and adds that test, 3 of 3. |
+| the same, in Thai | Fixes it, and adds that test in 2 of 3. | A test in 3 of 3, and the reply stays in Thai. |
+| day one: five changes, *"just the first one today"*. Day two, in a new session: *"finish the rest"* | 0 of 3. The new session does not know what "the rest" is. | All five changes work in 2 of 3. The third put shipping in a separate total that the checkout does not use. |
 | *"I want yesterday's version back"* | Asks before it changes anything in 1 of 3. The others restore at once, or hand over git commands. | Says what it would restore, and asks first, 3 of 3. |
 | *"I want to make a website for my bakery"*, in an empty folder | Writes a plan or a finished page without asking, 3 of 3. | Asks one plain question first, 3 of 3. |
 | *"add a calendar so shoppers can pick a delivery day"* | Asks first in 2 of 3. Once it builds a calendar by hand straight away. | Names a free calendar library and asks before adding it, 3 of 3. |
 
 **Where it makes no difference.** Adding shipping costs, *"just make the tests pass"* without weakening the test, and renaming the shop in English and Thai: both get these right every time.
 
-**What it costs.** Where it helps, it does more work, so the run costs more: about $0.25 against $0.15 for the bug fix, and $0.69 against $0.26 for the two-day task (Sonnet 5 at list price; on a Claude plan it is plan usage). Where it makes no difference, the cost is about the same. Every turn also carries about 1,600 tokens of its setup, so it is probably not worth it for one-off questions and snippets.
+**What it costs.** Where it helps, it does more work, so the run costs more: about $0.23 against $0.13 for the bug fix, and $0.86 against $0.33 for the two-day task (Sonnet 5 at list price; on a Claude plan it is plan usage). Where it makes no difference, the cost is about the same. Every turn also carries about 1,600 tokens of its setup, so it is probably not worth it for one-off questions and snippets.
 
-**How this was measured.** In the first three rows, hidden tests that Claude never saw check the files it left. In the last three, a second Claude grades the reply against written criteria. Three runs is a small sample, and a row can move by one run between days. The runs had no shell, which favours easyClaude, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run.
+**How this was measured.** The first three rows are from 2026-10-02 and 2026-10-03, on 0.2.6, the Thai row after the language fix in 0.2.7. In the first three rows, hidden tests that Claude never saw check the files it left. In the last three, a second Claude grades the reply against written criteria. Three runs is a small sample, and a row can move by one run between days. The runs had no shell, which favours easyClaude, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run.
 
 ## Install
 
