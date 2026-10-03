@@ -25,6 +25,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { markLater } from './later-memo.mjs';
+import { writesNonLatin, withLanguage } from './language.mjs';
 
 // History, in tokens, beyond what the session's first request carried. That first request
 // is Claude Code's own prompt, tools and project files - a floor no /clear removes - so it
@@ -114,21 +115,8 @@ const LIBRARY_NUDGE = 'easyClaude: this asks for something free, open-source lib
   'one line on why it fits, and ask the user before adding it. Prefer MIT, BSD or Apache-2.0, ' +
   'and nothing that needs a paid account.';
 
-// The lines above are English, and a user who writes in Thai got English with them. In the
-// Thai bug-fix task, two runs of three wrote English notes between steps ("Root cause
-// found: ...", "no new Debt entry is needed"), where the rename task, with no line added,
-// wrote none. Only for a message mostly in a script other than Latin: a line naming the
-// user's language on English messages is what once got English requests Hungarian replies.
-// Letters and marks both: Thai writes most vowels as marks, and letters alone undercounted
-// "เปลี่ยนชื่อร้านจาก Plant Corner เป็น Green Corner" as mostly Latin. Even counted right,
-// that line is half Latin, so the bar is under half: English has next to none of another script.
-export const writesNonLatin = (prompt) => {
-  const chars = prompt.match(/[\p{L}\p{M}]/gu) ?? [];
-  const other = chars.filter((c) => !/[\p{Script=Latin}\p{Script=Inherited}]/u.test(c)).length;
-  return chars.length > 0 && other >= 0.3 * chars.length;
-};
-const LANGUAGE_NUDGE = "Every note the user sees, between steps included, goes in the language of the user's " +
-  'message, not in the language of these lines.';
+// The lines above are English. language.mjs adds the user's language to them; see there.
+export { writesNonLatin };
 
 function say(context) {
   if (context) {
@@ -158,8 +146,7 @@ function main() {
     // In cheap mode too: an existing library is usually the smaller change.
     asksForSolvedPiece(prompt) ? LIBRARY_NUDGE : null,
   ].filter(Boolean);
-  if (nudges.length && writesNonLatin(prompt)) nudges.push(LANGUAGE_NUDGE);
-  const nudgeText = nudges.join('\n\n') || null;
+  const nudgeText = withLanguage(nudges.join('\n\n'), prompt) || null;
   // Nothing left to say this session, so the transcript - which can run to megabytes - is
   // not read on every prompt.
   if (!cheap && alreadyAdvised(payload.session_id)) {

@@ -18,7 +18,8 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { treeFingerprint, lastSeen, remember } from './tree-state.mjs';
 import { laterBlock } from './later-memo.mjs';
-import { lookBlock } from './look-check.mjs';
+import { lookBlock, readTurn } from './look-check.mjs';
+import { withLanguage } from './language.mjs';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -277,6 +278,13 @@ const skipRequested = /^(1|true|yes)$/i.test(process.env.EASYCLAUDE_SKIP_VERIFY 
 // "Nothing changed since the last block" is the one case where blocking again cannot
 // produce a different outcome, so it is the one case that now lets the turn end.
 if (HOOK) {
+  // Every hold goes through here, so it reaches Claude in the user's language when that is
+  // not English. A test fails if a turn is held anywhere else; see language.mjs.
+  const hold = (message) => {
+    const userText = payload.transcript_path ? readTurn(payload.transcript_path)?.text : '';
+    process.stderr.write(withLanguage(message, userText));
+    process.exit(2);
+  };
   const allow = (systemMessage) => {
     if (systemMessage) process.stdout.write(JSON.stringify({ systemMessage }));
     process.exit(0);
@@ -287,20 +295,14 @@ if (HOOK) {
   // nothing else checks the page.
   const allowAfterLook = (systemMessage, cfg) => {
     const look = lookBlock(root, payload, { lookSetting: cfg?.look });
-    if (look) {
-      process.stderr.write(look);
-      process.exit(2);
-    }
+    if (look) hold(look);
     allow(systemMessage);
   };
 
   // Before the checks: work left for another session must be written down first. It
   // blocks once at most; see later-memo.mjs for why this is a script and not a rule.
   const later = laterBlock(root, payload.session_id);
-  if (later) {
-    process.stderr.write(later);
-    process.exit(2);
-  }
+  if (later) hold(later);
 
   // Says so out loud, for the same reason the all-full-tier case does. This is a real
   // escape hatch and it stays, but set once in a shell profile it used to switch the gate
@@ -392,8 +394,7 @@ if (HOOK) {
     'If it genuinely cannot pass here, say exactly what is failing and what you tried, and stop.',
   ].join('\n');
 
-  process.stderr.write(report);
-  process.exit(2);
+  hold(report);
 }
 
 // --- human mode --------------------------------------------------------------
