@@ -80,12 +80,16 @@ const BUG_REPORT = new RegExp([
   /(?<!งาน|ที่|เรื่อง)ค้าง(?!ไว้|คา)/.source,
 ].join('|'), 'i');
 // An error the user asks to add or show is a feature, not one they hit: "add an error
-// message when the email is empty" got the debug line. Only a sentence that starts with
-// the request is dropped, so "it shows an error when I pay" is still a bug report. The
-// whole sentence goes, because "show an error if the code is wrong" says "wrong" too.
+// message when the email is empty" got the debug line. A sentence is dropped only when it
+// opens with the request and the error follows within a few words, so "it shows an error
+// when I pay" is still a bug report, and so are "Add to cart gives an error" and "Log in
+// fails", where the verb is the name of a button. The whole sentence goes, because "show an
+// error if the code is wrong" says "wrong" too. Thai has no sentence marks and drops the
+// subject, so "แสดงข้อผิดพลาด..." may be "it shows an error"; only "add", "put" and "make it
+// show" count there.
 const ASKS_FOR_ERROR = new RegExp([
-  /(?:^|[.!?\n])\s*(?:please\s+|can you\s+|could you\s+)?(?:add|show|display|create|write|handle|return|throw|raise|log)(?![a-z])[^.!?\n]*?(?<![a-z])errors?(?![a-z])[^.!?\n]*/.source,
-  /^\s*(?:ช่วย|รบกวน)?\s*(?:เพิ่ม|แสดง|ใส่)[^.!?\n]*?(?:errors?|ผิดพลาด)[^.!?\n]*/.source,
+  /(?:^|[.!?\n])\s*(?:(?:also|and|then|please|let's|can you|could you|would you|i want you to|i'd like you to)\s+)*(?:add|show|display|create|write|handle|return|throw|raise|log)\s+(?:(?:a|an|the|some|any|more|better|clear|clearer|friendly|helpful|proper|nice|nicer|custom|inline|validation)\s+){0,3}errors?(?![a-z])[^.!?\n]*/.source,
+  /^\s*(?:ช่วย|รบกวน)?\s*(?:เพิ่ม|ใส่|ให้แสดง|ทำให้แสดง)[^.!?\n]*?(?:errors?|ผิดพลาด)[^.!?\n]*/.source,
 ].join('|'), 'gi');
 export const looksLikeBug = (prompt) => {
   const words = userWords(prompt);
@@ -162,8 +166,11 @@ function main() {
   let payload = {};
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { return; }
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  // Only what the user typed: see userWords.
+  // Only what the user typed: see userWords. A message that was all wrapper came from a
+  // helper or the harness, not the user, so nothing here applies to it - not even the
+  // long-conversation advice, which would hold a cheap session's work on a report.
   const prompt = userWords(payload.prompt);
+  if (!prompt && String(payload.prompt ?? '').trim()) return;
   const cheap = CHEAP_COMMAND.test(prompt) || existsSync(join(root, '.claude', 'cheap-session'));
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
   const later = leavesWorkForLater(prompt) && existsSync(join(root, 'docs', 'STATE.md'));

@@ -562,11 +562,15 @@ const WRAPPED_REPORT = '<system-reminder>\n<agent-message from="a1">[Subagent ha
 test('prompt hook: an error the user asks for is a feature, not a bug report', async () => {
   const { looksLikeBug } = await import('../scripts/prompt-check.mjs');
   for (const p of ['add an error message when the email field is empty', 'show an error if the code is wrong',
-    'Handle errors from the payment API.', 'แสดง error เมื่ออีเมลว่าง']) {
+    'Handle errors from the payment API.', 'Also add a clear error message for a bad email.',
+    'I want you to add an error when the cart is empty', 'Could you please add validation errors to the form?',
+    'ให้แสดง error เมื่ออีเมลว่าง', 'เพิ่มข้อความ error เมื่ออีเมลว่าง']) {
     assert(!looksLikeBug(p), `this asks for an error message, it does not report one: ${p}`);
   }
+  // The reviewer's cases: a button named with a verb is still the subject of a bug report.
   for (const p of ['it shows an error when I pay', 'The checkout crashes. Show an error instead.',
-    'มันแสดงข้อผิดพลาดตอนจ่ายเงิน']) {
+    'Add to cart gives an error', 'Log in fails with an error', 'Create account throws an error',
+    'มันแสดงข้อผิดพลาดตอนจ่ายเงิน', 'แสดงข้อผิดพลาดตอนจ่ายเงิน']) {
     assert(looksLikeBug(p), `an error the user hit was missed: ${p}`);
   }
 });
@@ -588,6 +592,13 @@ test('prompt hook: a helper report wrapped by Claude Code is not the user speaki
   const { dir, file } = transcript([30_000, 31_000]);
   const r = await promptHook(dir, file, WRAPPED_REPORT);
   assert(!r.out.trim(), `a wrapped report must add no line at all:\n${r.out}`);
+  // In an armed cheap session with a long history, a user prompt is held for /clear. A
+  // report is not the user asking for anything, so it must not be held.
+  const long = transcript([30_000, 80_000]);
+  mkdirSync(join(long.dir, '.claude'), { recursive: true });
+  writeFileSync(join(long.dir, '.claude', 'cheap-session'), '2026-10-04');
+  const held = await promptHook(long.dir, long.file, WRAPPED_REPORT);
+  assert(!held.out.trim(), `a report in a long cheap session must not be held:\n${held.out}`);
 });
 
 test('prompt hook: the debug line rides with the long-conversation advice', async () => {
