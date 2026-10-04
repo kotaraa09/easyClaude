@@ -1,11 +1,9 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero-light.png" width="820" alt="A tangled thread passes through a series of gates and leaves as one straight, glowing line.">
+    <img src="docs/assets/hero-light.png" width="820" alt="easyClaude: a tangled thread passes through a series of gates and leaves as one straight, glowing line.">
   </picture>
 </p>
-
-<h1 align="center">easyClaude</h1>
 
 <p align="center">
   A Claude Code plugin for people who build with Claude and do not write code themselves.
@@ -22,7 +20,12 @@
   <img src="https://img.shields.io/badge/costs-~1.7k%20tokens%2Fturn-8C8781" alt="Around 1.7k tokens per turn">
 </p>
 
----
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 ## What it does
 
@@ -54,6 +57,13 @@ The same request, in the same small sample shop, three runs with easyClaude and 
 **What it costs.** Where it helps, it does more work, so the run costs more: about $0.23 against $0.13 for the bug fix, and $0.86 against $0.33 for the two-day task (Sonnet 5 at list price; on a Claude plan it is plan usage). Where it makes no difference, the cost is about the same. Every turn also carries about 1,700 tokens of its setup, so it is probably not worth it for one-off questions and snippets.
 
 **How this was measured.** The first three rows are from 2026-10-02 and 2026-10-03, on 0.2.6, the Thai row after the language fix in 0.2.7. In the first three rows, hidden tests that Claude never saw check the files it left. In the last three, a second Claude grades the reply against written criteria. Three runs is a small sample, and a row can move by one run between days. The runs had no shell, which favours easyClaude, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 ## Install
 
@@ -105,6 +115,13 @@ Debt:    3 items - reset tokens never expire
 ```
 
 "Debt" shows only when something was skipped on purpose.<!--skill:kickoff-->
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 ## Just say what you want
 
@@ -220,6 +237,13 @@ No. A failing check sends Claude back while it keeps changing files. If it chang
 
 </details>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
+
 ## What it costs
 
 Measured with Claude Code in a set-up project whose plan is in English:
@@ -267,7 +291,12 @@ One is built in: [slopmonster](skills/slopmonster/), a checker for AI-sounding p
 
 </details>
 
----
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 <p align="center">
   MIT · built by <a href="https://github.com/kotaraa09">DegonCore</a>

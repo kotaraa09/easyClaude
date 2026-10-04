@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>easyClaude README art</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: transparent; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<script>
+// The README pictures, drawn in code: ?kind=hero|divider & theme=dark|light.
+// render.sh turns each combination into a PNG in docs/assets/.
+//
+// The earlier header was made by an image model, and its thread broke into short dashes
+// wherever it crossed itself or a gate; asking a model to redraw it copied the breaks.
+// Here the thread is one computed path, so it cannot break: every point follows the last.
+const q = new URLSearchParams(location.search);
+const kind = q.get('kind') || 'hero';
+const theme = q.get('theme') || 'dark';
+
+const C = theme === 'dark'
+  ? { bg: '#1a1917', dot: '#f3eee6', dotOp: 0.12, gate: '#efe9df', text: '#f3eee6', grey: '#9b958e', orange: '#ec7a43' }
+  : { bg: '#f3eee6', dot: '#1f1e1d', dotOp: 0.14, gate: '#1f2430', text: '#1f1e1d', grey: '#8c8781', orange: '#e06c3c' };
+
+const W = 2172;
+const H = kind === 'hero' ? 724 : 120;
+const f = (n) => n.toFixed(2);
+
+const pathOf = (pts) => 'M' + pts.map(([x, y]) => `${f(x)} ${f(y)}`).join(' L');
+
+// A parallelogram gate seen at an angle: the left post sits lower because it is the near
+// one. The thread goes through the opening, so it is drawn over the far post and both bars
+// (gate) and under the near post (gateFront). Where it passes behind the near post, a mask
+// cuts a short gap in the thread (gateGap) so the post reads as in front. A mask rather
+// than a strip of background colour, because the divider is transparent and sits on
+// whatever colour GitHub's page has.
+const gateCorners = (x, cy, s) => {
+  const w = 26 * s, up = 62 * s, down = 72 * s, lean = 20 * s;
+  return [[x - w, cy - up], [x + w, cy - up - lean], [x + w, cy + down - lean], [x - w, cy + down]];
+};
+function gate(x, cy, s) {
+  const p = gateCorners(x, cy, s);
+  return `<polygon points="${p.map(([a, b]) => `${f(a)},${f(b)}`).join(' ')}" fill="none" stroke="${C.gate}" stroke-width="${f(5.5 * s)}" stroke-linejoin="miter"/>`;
+}
+const post = (x, cy, s, stroke, width) => {
+  const [tl, , , bl] = gateCorners(x, cy, s);
+  return `<line x1="${f(tl[0])}" y1="${f(tl[1])}" x2="${f(bl[0])}" y2="${f(bl[1])}" stroke="${stroke}" stroke-width="${f(width)}" stroke-linecap="round"/>`;
+};
+const gateFront = (x, cy, s) => post(x, cy, s, C.gate, 5.5 * s);
+const gateGap = (x, cy, s) => post(x, cy, s, '#000', 15 * s);
+
+// The thread, with a gap behind each near post.
+function thread(d, xs, cy, s, width) {
+  return `
+  <mask id="gaps" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+    <rect width="${W}" height="${H}" fill="#fff"/>${xs.map((x) => gateGap(x, cy, s)).join('')}
+  </mask>
+  <path d="${d}" stroke="url(#thread)" stroke-width="${width}" fill="none" stroke-linecap="round" stroke-linejoin="round" mask="url(#gaps)"/>`;
+}
+
+function hero() {
+  const cy = 452;
+  const gates = [530, 835, 1135, 1440, 1745];
+  const pts = [];
+  // 1-2. lead-in and knot: a smooth curve through chosen points that circle a centre
+  // about five times at changing distances, so the loops cross like a ball of thread.
+  const ctrl = [[-60, cy], [-20, cy], [30, cy + 2], [85, cy - 4]];
+  const radii = [55, 92, 108, 84, 58, 104, 96, 66, 112, 88, 72, 106, 60, 98, 110, 78, 90, 64, 100, 84, 50];
+  const turn = (2 * Math.PI) / 4.4;
+  radii.forEach((r, k) => {
+    const t = k / (radii.length - 1);
+    const th = Math.PI + (k + 1) * turn;
+    ctrl.push([205 + 90 * t + 1.3 * r * Math.cos(th), cy - 6 + 0.95 * r * Math.sin(th)]);
+  });
+  ctrl.push([395, cy - 2], [430, cy], [470, cy + 14]);
+  // Catmull-Rom: passes through every point with a continuous tangent, so no corners.
+  for (let i = 1; i < ctrl.length - 2; i++) {
+    const [p0, p1, p2, p3] = [ctrl[i - 1], ctrl[i], ctrl[i + 1], ctrl[i + 2]];
+    for (let s = 0; s < 1; s += 1 / 60) {
+      const s2 = s * s, s3 = s2 * s;
+      const c = (a, b, cc, d) => 0.5 * (2 * b + (-a + cc) * s + (2 * a - 5 * b + 4 * cc - d) * s2 + (-a + 3 * b - 3 * cc + d) * s3);
+      pts.push([c(p0[0], p1[0], p2[0], p3[0]), c(p0[1], p1[1], p2[1], p3[1])]);
+    }
+  }
+  pts.push([430, cy]);
+  // 3. the wave through the gates, calming down to nothing at the last gate
+  const x0 = 430;
+  const end = gates[gates.length - 1];
+  for (let x = x0 + 2; x <= end; x += 2) {
+    const k = (x - x0) / (end - x0);
+    const amp = 34 * Math.pow(1 - k, 1.6);
+    const lambda = 260 + 120 * k;
+    pts.push([x, cy + amp * Math.sin((2 * Math.PI * (x - x0)) / lambda)]);
+  }
+  // 4. straight to the edge
+  for (let x = end + 2; x <= W + 10; x += 4) pts.push([x, cy]);
+
+  const glow = `M${end - 20} ${cy} L${W + 10} ${cy}`;
+  return `
+  <defs>
+    <linearGradient id="thread" gradientUnits="userSpaceOnUse" x1="420" y1="0" x2="${end}" y2="0">
+      <stop offset="0" stop-color="${C.grey}"/><stop offset="1" stop-color="${C.orange}"/>
+    </linearGradient>
+    <linearGradient id="glowFade" gradientUnits="userSpaceOnUse" x1="${end - 20}" y1="0" x2="${end + 120}" y2="0">
+      <stop offset="0" stop-color="${C.orange}" stop-opacity="0"/><stop offset="1" stop-color="${C.orange}" stop-opacity="1"/>
+    </linearGradient>
+    <!-- A straight line has no height, so the blur needs its region in page units. -->
+    <filter id="blur" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><feGaussianBlur stdDeviation="9"/></filter>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.3" fill="${C.dot}"/></pattern>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.30" stop-color="#fff" stop-opacity="0"/><stop offset="0.45" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.80" stop-color="#fff" stop-opacity="1"/><stop offset="0.95" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="bandMask"><rect width="${W}" height="${H}" fill="url(#band)"/></mask>
+  </defs>
+  <rect width="${W}" height="${H}" fill="${C.bg}"/>
+  <rect width="${W}" height="${H}" fill="url(#dots)" opacity="${C.dotOp}" mask="url(#bandMask)"/>
+  <text x="${W / 2}" y="250" text-anchor="middle" font-family="Outfit, 'Segoe UI', sans-serif" font-weight="500" font-size="132" letter-spacing="-2" fill="${C.text}">easyClaude</text>
+  ${gates.map((x) => gate(x, cy, 1)).join('')}
+  <path d="${glow}" stroke="url(#glowFade)" stroke-width="26" opacity="0.8" filter="url(#blur)" fill="none"/>
+  ${thread(pathOf(pts), gates, cy, 1, 8)}
+  ${gates.map((x) => gateFront(x, cy, 1)).join('')}`;
+}
+
+// A thin band with one gate, on a transparent background.
+function divider() {
+  const cy = H / 2 + 6;
+  const mid = W / 2;
+  const pts = [];
+  for (let x = 200; x <= mid; x += 2) {
+    const k = (x - 200) / (mid - 200);
+    pts.push([x, cy + 10 * (1 - k) * Math.sin((2 * Math.PI * (x - 200)) / 170)]);
+  }
+  for (let x = mid + 2; x <= W - 200; x += 4) pts.push([x, cy]);
+  return `
+  <defs>
+    <linearGradient id="thread" gradientUnits="userSpaceOnUse" x1="200" y1="0" x2="${W - 200}" y2="0">
+      <stop offset="0" stop-color="${C.grey}" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="${C.grey}"/>
+      <stop offset="0.5" stop-color="${C.orange}"/>
+      <stop offset="0.82" stop-color="${C.orange}"/>
+      <stop offset="1" stop-color="${C.orange}" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  ${gate(mid, cy, 0.55)}
+  ${thread(pathOf(pts), [mid], cy, 0.55, 5)}
+  ${gateFront(mid, cy, 0.55)}`;
+}
+
+document.body.innerHTML =
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${kind === 'hero' ? hero() : divider()}</svg>`;
+</script>
+</body>
+</html>
