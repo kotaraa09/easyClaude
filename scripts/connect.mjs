@@ -36,6 +36,13 @@ import { placeholder, writeSecret, runClaude } from './connect-core.mjs';
 // Every entry below was verified to exist before it shipped: npm packages via
 // `npm view <pkg> time.modified`, remote endpoints by an unauthenticated request
 // returning 401. A connector that 404s on first use is worse than no catalog.
+//
+// No database connector, on purpose. There was one, for Postgres, until 2026-10-04. Its
+// package, @modelcontextprotocol/server-postgres, is marked unsupported on npm, so it gets
+// no security fixes, and it is a server that holds the keys to a user's data. It also took the connection string as a command-line argument, so the
+// password sat in the process list for as long as the server ran - the one leak the
+// placeholder below exists to prevent. When a maintained server takes the URL from the
+// environment, it can come back here.
 const CONNECTORS = [
   {
     name: 'playwright', key: null,
@@ -83,12 +90,6 @@ const CONNECTORS = [
     what: 'current library docs, so it stops guessing at APIs that changed',
     where: 'https://context7.com/dashboard',
     add: (v) => ['-s', 'local', 'context7', '-e', `CONTEXT7_API_KEY=${v}`, '--', 'npx', '-y', '@upstash/context7-mcp'],
-  },
-  {
-    name: 'postgres', key: 'DATABASE_URL',
-    what: 'query your database directly instead of guessing at the schema',
-    where: 'your own database, e.g. postgres://user:pass@localhost:5432/dbname',
-    add: (v) => ['-s', 'local', 'postgres', '--', 'npx', '-y', '@modelcontextprotocol/server-postgres', v],
   },
   {
     name: 'github', key: 'GITHUB_TOKEN',
@@ -233,8 +234,8 @@ let failed = 0;
 for (const c of todo) {
   const secret = c.key ? values.get(c.key) : undefined;
   // The placeholder stands in wherever the value would have gone - an env var for
-  // context7, a positional argument for postgres, inside a header for github. Swapping
-  // it in the config afterwards works the same in all three.
+  // context7, inside a header for github. Swapping it in the config afterwards works the
+  // same in both.
   const token = secret ? placeholder() : undefined;
   const argv = c.add(token);
   const scope = argv[1];
