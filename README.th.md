@@ -1,11 +1,9 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero-light.png" width="820" alt="เส้นด้ายที่พันกันยุ่งลอดผ่านประตูหลายบาน แล้วออกมาเป็นเส้นตรงเส้นเดียวที่เรืองแสง">
+    <img src="docs/assets/hero-light.png" width="820" alt="easyClaude: เส้นด้ายที่พันกันยุ่งลอดผ่านประตูหลายบาน แล้วออกมาเป็นเส้นตรงเส้นเดียวที่เรืองแสง">
   </picture>
 </p>
-
-<h1 align="center">easyClaude</h1>
 
 <p align="center">
   ปลั๊กอินของ Claude Code สำหรับคนที่สร้างงานกับ Claude โดยไม่ได้เขียนโค้ดเอง
@@ -22,7 +20,12 @@
   <img src="https://img.shields.io/badge/costs-~1.7k%20tokens%2Fturn-8C8781" alt="ราว 1.7k โทเคนต่อเทิร์น">
 </p>
 
----
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 ## มันทำอะไร
 
@@ -54,6 +57,13 @@
 **ค่าใช้จ่าย** งานที่มันช่วย มันทำงานมากกว่า จึงแพงกว่า: แก้บั๊กราว $0.23 เทียบกับ $0.13 และงานสองวัน $0.86 เทียบกับ $0.33 (Sonnet 5 ราคาเต็ม ถ้าใช้แพ็กเกจ Claude จะนับเป็นโควตาแทน) งานที่ไม่ต่างกัน ค่าใช้จ่ายพอ ๆ กัน และทุกเทิร์นมีการตั้งค่าของมันราว 1,700 โทเคน ถ้าคุณใช้ Claude แค่ถามคำถามหรือขอโค้ดทีละชิ้น อาจไม่คุ้ม
 
 **วัดอย่างไร** สามแถวแรกวัดวันที่ 2-3 ตุลาคม 2026 บนรุ่น 0.2.6 แถวภาษาไทยวัดหลังแก้เรื่องภาษาในรุ่น 0.2.7 สามแถวแรก ตรวจไฟล์ที่ Claude ทิ้งไว้ด้วยเทสต์ที่ Claude มองไม่เห็น สามแถวหลัง Claude อีกตัวให้คะแนนคำตอบตามเกณฑ์ที่เขียนไว้ 3 รอบเป็นตัวอย่างที่น้อย ผลแต่ละแถวขยับได้หนึ่งรอบในแต่ละวัน รอบเหล่านี้ใช้คำสั่งในเครื่องไม่ได้ ซึ่งเข้าข้าง easyClaude เพราะการตรวจของมันรันเป็น hook รายละเอียดทุกรอบอยู่ใน [`evals/README.md`](evals/README.md)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 ## ติดตั้ง
 
@@ -104,6 +114,13 @@ claude plugin install easyclaude@easyclaude
 ```
 
 บรรทัด "ค้างไว้" จะขึ้นเฉพาะเมื่อมีงานที่ตั้งใจข้ามไป<!--skill:kickoff-->
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 ## แค่บอกว่าอยากได้อะไร
 
@@ -219,6 +236,13 @@ Claude สร้างของพวกนี้เองไม่ได้ `/e
 
 </details>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
+
 ## ค่าใช้จ่าย
 
 วัดด้วย Claude Code ในโปรเจกต์ที่ตั้งค่าแล้ว และแผนงานเป็นภาษาอังกฤษ
@@ -266,7 +290,12 @@ node scripts/bench.mjs      # การวัดผลด้านบน (ต้
 
 </details>
 
----
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/divider-dark.png">
+    <img src="docs/assets/divider-light.png" width="820" alt="">
+  </picture>
+</p>
 
 <p align="center">
   MIT · สร้างโดย <a href="https://github.com/kotaraa09">DegonCore</a>
