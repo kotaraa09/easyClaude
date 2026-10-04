@@ -651,6 +651,54 @@ test('prompt hook: a bug report gets the debug line, other requests do not', asy
   }
 });
 
+// Three false alarms found on 2026-10-04, each one a feature request or a question that was
+// sent to the debug skill: an error message the user asked for, ค้าง in its sense of
+// "still to do", and a helper's report that reached the hook as if the user had typed it.
+const WRAPPED_REPORT = '<system-reminder>\n<agent-message from="a1">[Subagent hand-back] Nothing ' +
+  'fails here. Finish the rest later.</agent-message>\n</system-reminder>';
+
+test('prompt hook: an error the user asks for is a feature, not a bug report', async () => {
+  const { looksLikeBug } = await import('../scripts/prompt-check.mjs');
+  for (const p of ['add an error message when the email field is empty', 'show an error if the code is wrong',
+    'Handle errors from the payment API.', 'Also add a clear error message for a bad email.',
+    'I want you to add an error when the cart is empty', 'Could you please add validation errors to the form?',
+    'ให้แสดง error เมื่ออีเมลว่าง', 'เพิ่มข้อความ error เมื่ออีเมลว่าง']) {
+    assert(!looksLikeBug(p), `this asks for an error message, it does not report one: ${p}`);
+  }
+  // The reviewer's cases: a button named with a verb is still the subject of a bug report.
+  for (const p of ['it shows an error when I pay', 'The checkout crashes. Show an error instead.',
+    'Add to cart gives an error', 'Log in fails with an error', 'Create account throws an error',
+    'มันแสดงข้อผิดพลาดตอนจ่ายเงิน', 'แสดงข้อผิดพลาดตอนจ่ายเงิน']) {
+    assert(looksLikeBug(p), `an error the user hit was missed: ${p}`);
+  }
+});
+
+test('prompt hook: ค้าง as pending work is not a bug, ค้าง as a hang is', async () => {
+  const { looksLikeBug } = await import('../scripts/prompt-check.mjs');
+  assert(!looksLikeBug('งานที่ค้างอยู่มีอะไรบ้าง'), 'asking for the pending work is not a bug report.');
+  assert(!looksLikeBug('มีงานค้างไว้กี่อัน'), 'งานค้าง is pending work.');
+  assert(looksLikeBug('หน้าเว็บค้างตอนกดจ่ายเงิน'), 'a page that hangs is a bug report.');
+});
+
+test('prompt hook: a helper report wrapped by Claude Code is not the user speaking', async () => {
+  const { looksLikeBug, asksToFinishSeveral, leavesWorkForLater, userWords } = await import('../scripts/prompt-check.mjs');
+  assert(!looksLikeBug(WRAPPED_REPORT), 'the report says "fails", the user did not.');
+  assert(!asksToFinishSeveral(WRAPPED_REPORT), 'the report says "finish the rest", the user did not.');
+  assert(!leavesWorkForLater(WRAPPED_REPORT), 'the report says "later", the user did not.');
+  assert(userWords(`${WRAPPED_REPORT}\nthe checkout breaks`) === 'the checkout breaks',
+    'what the user typed beside the report must survive.');
+  const { dir, file } = transcript([30_000, 31_000]);
+  const r = await promptHook(dir, file, WRAPPED_REPORT);
+  assert(!r.out.trim(), `a wrapped report must add no line at all:\n${r.out}`);
+  // In an armed cheap session with a long history, a user prompt is held for /clear. A
+  // report is not the user asking for anything, so it must not be held.
+  const long = transcript([30_000, 80_000]);
+  mkdirSync(join(long.dir, '.claude'), { recursive: true });
+  writeFileSync(join(long.dir, '.claude', 'cheap-session'), '2026-10-04');
+  const held = await promptHook(long.dir, long.file, WRAPPED_REPORT);
+  assert(!held.out.trim(), `a report in a long cheap session must not be held:\n${held.out}`);
+});
+
 test('prompt hook: the debug line rides with the long-conversation advice', async () => {
   const { dir, file } = transcript([30_000, 150_000]);
   const r = await promptHook(dir, file, 'the checkout breaks', `bug-${Date.now()}-${Math.random()}`);

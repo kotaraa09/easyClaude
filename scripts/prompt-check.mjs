@@ -55,6 +55,15 @@ export function historyTokens(transcriptPath) {
   return Math.max(0, sizes[sizes.length - 1] - Math.min(...sizes));
 }
 
+// What the user typed, without what Claude Code wrapped around it. A helper's report, a
+// background task's result and the harness's own reminders arrive through this same hook,
+// inside these tags. On 2026-10-04 a code reviewer's report reached it as a prompt, and its
+// words - "fails", "finish the rest" - told Claude that the user had reported a bug and
+// asked for several tasks. The user had written neither. Every matcher below reads only
+// what is left.
+const WRAPPED = /<(system-reminder|task-notification|agent-message)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+export const userWords = (prompt) => String(prompt ?? '').replace(WRAPPED, ' ').trim();
+
 // A bug report in plain words. The outcome benchmark (scripts/bench.mjs) found that with
 // easyClaude loaded, Claude fixed "the checkout breaks" in one edit and wrote no test in
 // two runs of three, where Claude with no plugin wrote one every time. The debug skill
@@ -66,9 +75,27 @@ export function historyTokens(transcriptPath) {
 const BUG_REPORT = new RegExp([
   /(?<![a-z])(bugs?|broken|breaks?|crash(es|ed|ing)?|errors?|exceptions?|fail(s|ed|ing)?|wrong)(?![a-z])/.source,
   /(?<![a-z])(doesn'?t|does not|isn'?t|is not|won'?t|stopped|not) work/.source,
-  'พัง', 'ไม่ทำงาน', 'ใช้ไม่ได้', 'ใช้งานไม่ได้', 'บั๊ก', 'ผิดพลาด', 'ค้าง',
+  'พัง', 'ไม่ทำงาน', 'ใช้ไม่ได้', 'ใช้งานไม่ได้', 'บั๊ก', 'ผิดพลาด',
+  // ค้าง is "it hangs", but also "still to do": งานที่ค้าง is the pending work, and asking
+  // for it read as a bug report. Those two senses are told apart by the word before it.
+  /(?<!งาน|ที่|เรื่อง)ค้าง(?!ไว้|คา)/.source,
 ].join('|'), 'i');
-export const looksLikeBug = (prompt) => !/^\s*\//.test(prompt) && BUG_REPORT.test(prompt);
+// An error the user asks to add or show is a feature, not one they hit: "add an error
+// message when the email is empty" got the debug line. A sentence is dropped only when it
+// opens with the request and the error follows within a few words, so "it shows an error
+// when I pay" is still a bug report, and so are "Add to cart gives an error" and "Log in
+// fails", where the verb is the name of a button. The whole sentence goes, because "show an
+// error if the code is wrong" says "wrong" too. Thai has no sentence marks and drops the
+// subject, so "แสดงข้อผิดพลาด..." may be "it shows an error"; only "add", "put" and "make it
+// show" count there.
+const ASKS_FOR_ERROR = new RegExp([
+  /(?:^|[.!?\n])\s*(?:(?:also|and|then|please|let's|can you|could you|would you|i want you to|i'd like you to)\s+)*(?:add|show|display|create|write|handle|return|throw|raise|log)\s+(?:(?:a|an|the|some|any|more|better|clear|clearer|friendly|helpful|proper|nice|nicer|custom|inline|validation)\s+){0,3}errors?(?![a-z])[^.!?\n]*/.source,
+  /^\s*(?:ช่วย|รบกวน)?\s*(?:เพิ่ม|ใส่|ให้แสดง|ทำให้แสดง)[^.!?\n]*?(?:errors?|ผิดพลาด)[^.!?\n]*/.source,
+].join('|'), 'gi');
+export const looksLikeBug = (prompt) => {
+  const words = userWords(prompt);
+  return !/^\s*\//.test(words) && BUG_REPORT.test(words.replace(ASKS_FOR_ERROR, ' '));
+};
 const BUG_NUDGE = 'easyClaude: this reads like a bug report. Use the debug skill: find the ' +
   'cause before you edit, and add a test that fails without the fix. A one-line fix gets ' +
   'its test too.';
@@ -81,7 +108,10 @@ const LATER = new RegExp([
   /(?<![a-z])(tomorrow|later|next time|another day|next week|some other time)(?![a-z])/.source,
   'พรุ่งนี้', 'ทีหลัง', 'ไว้ก่อน', 'คราวหน้า', 'วันหลัง', 'ครั้งหน้า',
 ].join('|'), 'i');
-export const leavesWorkForLater = (prompt) => !/^\s*\//.test(prompt) && LATER.test(prompt);
+export const leavesWorkForLater = (prompt) => {
+  const words = userWords(prompt);
+  return !/^\s*\//.test(words) && LATER.test(words);
+};
 const laterNudge = (date) => 'easyClaude: the user is leaving part of this for another ' +
   'session, and that session will not see this conversation - only docs/STATE.md carries ' +
   'over. Before you end this turn, put every item they asked for and you did not finish at ' +
@@ -96,7 +126,10 @@ const FINISH = new RegExp([
   /(?<![a-z])the rest of (it|them|what|the)(?![a-z])/.source,
   'ที่เหลือ', 'ให้เสร็จ', 'ให้ครบ',
 ].join('|'), 'i');
-export const asksToFinishSeveral = (prompt) => !/^\s*\//.test(prompt) && FINISH.test(prompt);
+export const asksToFinishSeveral = (prompt) => {
+  const words = userWords(prompt);
+  return !/^\s*\//.test(words) && FINISH.test(words);
+};
 const FINISH_NUDGE = 'easyClaude: the user asked you to finish several tasks. Do them one ' +
   'after another in this turn, each checked and ticked off before the next. Do not stop to ' +
   'ask whether to go on; stop when all are done, or at the first one that fails.';
@@ -110,7 +143,10 @@ const SOLVED_PIECE = new RegExp([
   /(?<![a-z.])(calendars?|date ?pickers?|maps?|charts?|graphs?|rich ?text|wysiwyg|drag(-| and | ?& ?)drop|carousels?|sliders?|video players?|audio players?|file uploads?|markdown editors?|code editors?|pathfinding|physics engine)(?![a-z])/.source,
   'ปฏิทิน', 'แผนที่', 'กราฟ', 'แผนภูมิ', 'ลากวาง', 'อัปโหลด',
 ].join('|'), 'i');
-export const asksForSolvedPiece = (prompt) => !/^\s*\//.test(prompt) && SOLVED_PIECE.test(prompt);
+export const asksForSolvedPiece = (prompt) => {
+  const words = userWords(prompt);
+  return !/^\s*\//.test(words) && SOLVED_PIECE.test(words);
+};
 const LIBRARY_NUDGE = 'easyClaude: this asks for something free, open-source libraries already do ' +
   'well. Before writing it yourself, name one widely used library for it, with its licence and ' +
   'one line on why it fits, and ask the user before adding it. Prefer MIT, BSD or Apache-2.0, ' +
@@ -131,7 +167,11 @@ function main() {
   let payload = {};
   try { payload = JSON.parse(readFileSync(0, 'utf8')); } catch { return; }
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const prompt = String(payload.prompt ?? '');
+  // Only what the user typed: see userWords. A message that was all wrapper came from a
+  // helper or the harness, not the user, so nothing here applies to it - not even the
+  // long-conversation advice, which would hold a cheap session's work on a report.
+  const prompt = userWords(payload.prompt);
+  if (!prompt && String(payload.prompt ?? '').trim()) return;
   // A cheap-session file that came with the repo is not this user's; see personal.mjs.
   const cheap = CHEAP_COMMAND.test(prompt) || cheapArmed(root);
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
