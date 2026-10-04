@@ -134,7 +134,7 @@ You never need these for the common jobs. They cost nothing until you type them.
 /easyclaude:generate-asset     images, audio and 3D, through a provider you have a key for
 /easyclaude:pick-library       find and check a library before hand-writing one
 /easyclaude:skills             add third-party skills that fit this project
-/easyclaude:connect            connect other tools (a browser, Figma, databases)
+/easyclaude:connect            connect other tools (a browser, Figma, GitHub)
 /easyclaude:cheap <task>       one task in the fewest steps
 /easyclaude:cheap-session      stay in cheap mode until /easyclaude:full
 /easyclaude:full               leave cheap mode

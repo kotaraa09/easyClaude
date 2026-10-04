@@ -164,7 +164,7 @@ Keep those three comments. The first is what keeps the opener readable to the pe
 
 Three lines: what you set up, what the verify command is, and the single next action. Then stop — do not start building unless asked.
 
-If the project obviously wants a browser, a database, or live library docs, mention in **one line** that `/easyclaude:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.
+If the project obviously wants a browser or live library docs, mention in **one line** that `/easyclaude:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.
 
 easyClaude ships no design skill, no game skill, and no deep security or testing skill,
 because bundling one picks it for every project that installs it. You know what this project

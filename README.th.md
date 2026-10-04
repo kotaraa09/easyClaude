@@ -133,7 +133,7 @@ claude plugin install easyclaude@easyclaude
 /easyclaude:generate-asset     รูป เสียง และ 3D ผ่านผู้ให้บริการที่คุณมีคีย์
 /easyclaude:pick-library       หาและตรวจไลบรารีก่อนจะเขียนเอง
 /easyclaude:skills             เพิ่มสกิลจากที่อื่นที่เหมาะกับโปรเจกต์นี้
-/easyclaude:connect            เชื่อมเครื่องมืออื่น (เบราว์เซอร์ Figma ฐานข้อมูล)
+/easyclaude:connect            เชื่อมเครื่องมืออื่น (เบราว์เซอร์ Figma GitHub)
 /easyclaude:cheap <งาน>        ทำงานหนึ่งอย่างด้วยขั้นตอนน้อยที่สุด
 /easyclaude:cheap-session      อยู่ในโหมดประหยัดจนกว่าจะพิมพ์ /easyclaude:full
 /easyclaude:full               ออกจากโหมดประหยัด
