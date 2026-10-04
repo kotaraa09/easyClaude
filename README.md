@@ -26,6 +26,7 @@
 
 ## What it does
 
+- **Asks when your words are unclear.** If a request like "make it better" can mean several things, it names the likely meanings, says which it would pick, and waits for you.
 - **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions, each with a default you can accept.
 - **Keeps the plan in a file.** `docs/STATE.md` holds what is in progress, what is next and what was skipped. A new session reads it, so "finish the rest" works the next day.
 - **Runs your project's checks after each change.** If they fail, Claude has to fix them before it can say "done". On a website it also asks Claude to look at the page.
@@ -241,7 +242,7 @@ Three moments cost more, and easyClaude tells you about each one: reopening an o
 
 <br>
 
-`node scripts/measure-cost.mjs` measures the figures above (about $1 a run), and CI fails if this page quotes different ones. CI also estimates the plugin's own share on every push, from the size of its files: <!--cost:747,206,484,57-->**~747 tokens per turn**: ~206 of rules, ~484 of skill descriptions, ~57 of agent descriptions. `skills/registry.json` sets a ceiling of 1,400, and the build fails above it.
+`node scripts/measure-cost.mjs` measures the figures above (about $1 a run), and CI fails if this page quotes different ones. CI also estimates the plugin's own share on every push, from the size of its files: <!--cost:833,292,484,57-->**~833 tokens per turn**: ~292 of rules, ~484 of skill descriptions, ~57 of agent descriptions. `skills/registry.json` sets a ceiling of 1,400, and the build fails above it.
 
 <!--always-on:8-->Eight skills stay loaded so plain sentences reach them. Seven are the steps in the table under "Just say what you want", plus setup. The eighth is slopmonster, the prose checker, at ~59 tokens. The five occasional skills load only when typed, so they cost nothing per turn. One read-only agent, the diff reviewer that `ship` uses, costs ~57. `.mcp.json` ships empty, because MCP tool lists are usually the largest cost of all and this ceiling cannot count them.
 
