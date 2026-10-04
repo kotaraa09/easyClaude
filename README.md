@@ -29,7 +29,7 @@
 - **Asks when your words are unclear.** If a request like "make it better" can mean several things, it names the likely meanings, says which it would pick, and waits for you.
 - **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions, each with a default you can accept.
 - **Keeps the plan in a file.** `docs/STATE.md` holds what is in progress, what is next and what was skipped. A new session reads it, so "finish the rest" works the next day.
-- **Runs your project's checks after each change.** If they fail, Claude has to fix them before it can say "done". On a website it also asks Claude to look at the page.
+- **Runs your project's checks after each change.** You approve the commands once on your computer, and again whenever they change, so a project from someone else cannot run commands you have not seen. If a check fails, Claude has to fix it before it can say "done". On a website it also asks Claude to look at the page.
 - **Suggests a free library** before it hand-writes a calendar, a map or a chart.
 - **Blocks a few destructive commands**, such as force pushes and reading `.env`.
 - **Answers in your language.** Short answers in plain words are one setting away.

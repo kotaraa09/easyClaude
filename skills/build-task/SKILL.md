@@ -29,6 +29,8 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs
 
 One line per step, non-zero exit if any failed. **Run it with no flags** — that is the whole contract, both tiers. Finishing a task is exactly the boundary the slow steps exist for, and it is the last point before the work is called done.
 
+If it says the checks are not approved on this computer, nothing ran and there is nothing to fix: show the user the commands it lists, ask, and approve them only after a clear yes.
+
 If a step fails, fix it — **do not report success on red, and do not describe the work as done, working, or complete while any step fails.**
 
 The Stop hook runs only the fast tier on every turn, so on a tiered contract it will not catch a failing test for you. That is the one place where finishing a task depends on you running the command above rather than on the gate catching you.

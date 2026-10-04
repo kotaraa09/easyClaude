@@ -72,7 +72,9 @@ jobs:
       # The gate running easyClaude's own contract, on this platform. Fast tier only: the
       # full tier of that contract is the suite above, which has just run.
       - name: Verify contract passes
-        run: node scripts/verify.mjs --fast
+        run: |
+          node scripts/verify.mjs --trust
+          node scripts/verify.mjs --fast
 
       # The repo is checked out with LF via .gitattributes. If a diff appears here,
       # something was committed with line endings that bypassed it - and this runs on
