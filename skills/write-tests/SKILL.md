@@ -57,7 +57,7 @@ Target seconds. Push slow things — full browser runs, real network, large fixt
 
 Adding tests is only half the job. Now make them count:
 
-1. Add the test command to `.claude/verify.json`.
+1. Add the test command to `.claude/verify.json`. A changed command needs approval again, so tell the user the new command in one line and run `node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs --trust`: they asked for these tests.
 2. Run the whole contract and confirm it passes:
    ```bash
    node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs

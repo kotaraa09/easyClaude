@@ -126,7 +126,7 @@ Write the smallest possible use of the library, run it, and run the verify contr
 `.claude/verify.json`. Finding out it doesn't do what the README implied costs one turn
 now and a rewrite later.
 
-If it fails here, remove it and go back to step 2. A half-integrated dependency is worse
+If the contract says its checks are not approved on this computer, nothing ran: ask the user as it says, and do not count that against the library. If it fails here, remove it and go back to step 2. A half-integrated dependency is worse
 than none.
 
 ## 7. Record it
