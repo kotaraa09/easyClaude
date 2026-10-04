@@ -18,6 +18,7 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
+import { trust } from '../scripts/trust.mjs';
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -63,12 +64,20 @@ export function workspace() {
   return dir;
 }
 
+// The gate runs a contract only once a person approved it (scripts/trust.mjs). Every child
+// process inherits this, so the suite records approvals in a temp file and never in the
+// real home of whoever runs it.
+process.env.EASYCLAUDE_TRUST_FILE = join(tempDir('easyclaude-trust-'), 'trusted-checks.json');
+
 // A bare project directory with a verify contract, for exercising the gate. Not the plugin.
-export function projectDir(verifyJson) {
+// The contract comes approved, as kickoff leaves it; pass { approved: false } to test the
+// gate meeting one nobody approved.
+export function projectDir(verifyJson, { approved = true } = {}) {
   const dir = tempDir('easyclaude-project-');
   if (verifyJson !== undefined) {
     mkdirSync(join(dir, '.claude'), { recursive: true });
     writeFileSync(join(dir, '.claude', 'verify.json'), JSON.stringify(verifyJson, null, 2) + '\n');
+    if (approved && Array.isArray(verifyJson?.steps)) trust(dir, verifyJson.steps);
   }
   return dir;
 }

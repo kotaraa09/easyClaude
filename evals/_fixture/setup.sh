@@ -60,6 +60,11 @@ else
     '
     rm -f CLAUDE.md.bak
   fi
+  # The gate runs a project's checks only after a person approved them on this computer
+  # (scripts/trust.mjs), and kickoff approves the contract it writes. The runner gives each
+  # run one home, for this script and for Claude, so the approval holds for the run.
+  # The folder is named outright: an exported CLAUDE_PROJECT_DIR would approve another one.
+  CLAUDE_PROJECT_DIR="$PWD" node "$plugin/scripts/verify.mjs" --trust >/dev/null
 fi
 
 # Minutes, not hours: a "today" commit made hours back crosses midnight in a late run, and
