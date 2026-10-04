@@ -10,7 +10,7 @@ Be honest about how this works: **easyClaude cannot change the session model.** 
 
 Do this:
 
-1. Check `.gitignore` first, and add `.claude/cheap-session` and `.claude/cheap-contract.md` if they are not already there. Create the file if the project has none. These are one person's choice to lower the standard of every turn; committing them would apply that choice to everyone who clones the repo, without them ever agreeing to it. `/easyclaude:autoship` protects its own file the same way and for the same reason.
+1. Check `.gitignore` first, and add `.claude/cheap-session` and `.claude/cheap-contract.md` if they are not already there. Create the file if the project has none. These are one person's choice to lower the standard of every turn; committing them would apply that choice to everyone who clones the repo, without them ever agreeing to it. `/easyclaude:autoship` protects its own file the same way and for the same reason. If git already tracks either file, run `git rm --cached` on it: easyClaude ignores a tracked copy, because it came with the code and not from this user.
 2. Write `.claude/cheap-session` containing today's date. `SessionStart` reads it, so the contract is re-applied automatically in future sessions until it is cleared.
 3. Copy `${CLAUDE_PLUGIN_ROOT}/reference/cheap.md` to `.claude/cheap-contract.md`. It is deliberately **not** in `.claude/rules/`: everything there loads on every turn of every session, and this contract is for a minority of turns. Planting it here means it costs nothing until someone arms it.
 4. Read `.claude/cheap-contract.md` and restate its contract in your reply. That is what makes it apply for the rest of *this* session — it lands in the conversation, so it costs nothing extra per turn.

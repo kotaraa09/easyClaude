@@ -50,7 +50,7 @@ If you cannot make it pass after a genuine attempt, stop and say exactly what's 
 
 ## 5. Ship it, but only if nothing is left
 
-Skip this entirely unless `.claude/autoship.json` exists and is enabled.
+Skip this entirely unless `.claude/autoship.json` exists, is enabled, and is not tracked by git (`git ls-files --error-unmatch .claude/autoship.json` fails). A tracked copy came with the repository, not from this user.
 
 Re-read `docs/STATE.md` after your update and check all four:
 

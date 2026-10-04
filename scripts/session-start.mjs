@@ -11,11 +11,12 @@
 // and cannot pick the wrong branch because it was worded ambiguously.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { treeFingerprint, remember } from './tree-state.mjs';
 import { resumeNotice } from './cost-notice.mjs';
 import { missingTools } from './first-run.mjs';
+import { PERSONAL_FILES, personalFile, ignoredNotice } from './personal.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -133,7 +134,22 @@ if (!COMPACT && !setUp) {
     : 'Tools check: Node.js and git are installed, and git has a name and email. Say nothing about it.');
 }
 
-if (existsSync(join(root, '.claude', 'cheap-session'))) {
+// A copy of these that came with the repository authorises nothing; see personal.mjs. Only
+// a file that would have changed this session is reported, so a repo that commits a
+// disabled autoship.json costs its users no line in every session.
+const kind = Object.fromEntries(PERSONAL_FILES.map((f) => [f, personalFile(root, f)]));
+let autoship = null;
+try { autoship = JSON.parse(read('.claude/autoship.json') ?? 'null'); } catch { /* see below */ }
+const cheapAsked = kind['.claude/cheap-session'] !== 'absent';
+const ignored = [
+  autoship?.enabled === true && kind['.claude/autoship.json'] === 'ignored' ? '.claude/autoship.json' : null,
+  kind['.claude/cheap-session'] === 'ignored' ? '.claude/cheap-session' : null,
+  cheapAsked && kind['.claude/cheap-contract.md'] === 'ignored' ? '.claude/cheap-contract.md' : null,
+].filter(Boolean);
+// The same rule as cheapArmed(), from the answers already in hand rather than asking git again.
+const cheapOn = kind['.claude/cheap-session'] === 'personal' && kind['.claude/cheap-contract.md'] !== 'ignored';
+
+if (cheapOn) {
   const contract = read('.claude/cheap-contract.md');
   parts.push('The user armed cheap mode for this session. ' +
     (COMPACT ? '' : 'Add one line to your first reply saying cheap mode is on and that ' +
@@ -143,14 +159,14 @@ if (existsSync(join(root, '.claude', 'cheap-session'))) {
         '/easyclaude:cheap-session again.'));
 }
 
-try {
-  const auto = JSON.parse(read('.claude/autoship.json') ?? 'null');
-  if (auto?.enabled === true && !COMPACT) {
-    // The user must always know when a session can commit, push or merge on their behalf.
-    parts.push(`Autoship is armed through "${auto.through ?? 'commit'}". Add one line to your ` +
-      'first reply saying so, and that /easyclaude:autoship off turns it off.');
-  }
-} catch { /* a broken autoship.json arms nothing, and autoship reports it when it runs */ }
+// A broken autoship.json arms nothing, and autoship reports it when it runs.
+if (autoship?.enabled === true && kind['.claude/autoship.json'] === 'personal' && !COMPACT) {
+  // The user must always know when a session can commit, push or merge on their behalf.
+  parts.push(`Autoship is armed through "${autoship.through ?? 'commit'}". Add one line to your ` +
+    'first reply saying so, and that /easyclaude:autoship off turns it off.');
+}
+
+if (ignored.length && !COMPACT) parts.push(ignoredNotice(ignored));
 
 // Here and not in rules/, because rules load only after kickoff, and the first English
 // note a beginner saw came before it: "Since the list item has a line-through style...".

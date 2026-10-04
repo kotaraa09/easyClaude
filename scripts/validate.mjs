@@ -1026,6 +1026,19 @@ if (tmplIgnore !== null) {
   }
 }
 
+// --- 14b. a tracked autoship.json authorises nothing, everywhere --------------
+// .gitignore cannot stop a repository shipping autoship.json. The scripts ignore a tracked
+// copy (personal.mjs), but the two skills that act on it read the file themselves, so each
+// must run the same git question first. A copy of the rule in prose is the drift check 11
+// exists for, so the question has to appear word for word.
+for (const f of ['skills/ship/SKILL.md', 'skills/build-task/SKILL.md']) {
+  const text = readOrErr(f, 'missing - it acts on .claude/autoship.json');
+  if (text !== null && !text.includes('git ls-files --error-unmatch .claude/autoship.json')) {
+    err(f, 'acts on .claude/autoship.json but never asks `git ls-files --error-unmatch ' +
+      '.claude/autoship.json` - a copy that came with the repository would authorise a push');
+  }
+}
+
 // --- 15. the cost section must count the skills that are actually always-on --
 // Both READMEs said five skills trigger constantly, and named the five. There were six: the
 // vendored design-taste set no disable-model-invocation, so it rode along on every turn -
