@@ -73,7 +73,9 @@ For `off`: set `"enabled": false` — keep the file so `status` can still show w
 last choice was. Confirm in one line.
 
 For `status`: print the current level and re-run the preflight, since a token can expire
-or access can be revoked long after this was armed.
+or access can be revoked long after this was armed. If git tracks the file
+(`git ls-files --error-unmatch .claude/autoship.json` succeeds), say autoship is OFF: a
+tracked copy came with the code, and easyClaude ignores it.
 
 ## 4. Tell them how it fires
 

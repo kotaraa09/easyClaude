@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { treeFingerprint, remember } from './tree-state.mjs';
 import { resumeNotice } from './cost-notice.mjs';
 import { missingTools } from './first-run.mjs';
-import { PERSONAL_FILES, personalFile, trackedNotice } from './personal.mjs';
+import { PERSONAL_FILES, personalFile, ignoredNotice } from './personal.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -142,11 +142,12 @@ let autoship = null;
 try { autoship = JSON.parse(read('.claude/autoship.json') ?? 'null'); } catch { /* see below */ }
 const cheapAsked = kind['.claude/cheap-session'] !== 'absent';
 const ignored = [
-  autoship?.enabled === true && kind['.claude/autoship.json'] === 'tracked' ? '.claude/autoship.json' : null,
-  kind['.claude/cheap-session'] === 'tracked' ? '.claude/cheap-session' : null,
-  cheapAsked && kind['.claude/cheap-contract.md'] === 'tracked' ? '.claude/cheap-contract.md' : null,
+  autoship?.enabled === true && kind['.claude/autoship.json'] === 'ignored' ? '.claude/autoship.json' : null,
+  kind['.claude/cheap-session'] === 'ignored' ? '.claude/cheap-session' : null,
+  cheapAsked && kind['.claude/cheap-contract.md'] === 'ignored' ? '.claude/cheap-contract.md' : null,
 ].filter(Boolean);
-const cheapOn = kind['.claude/cheap-session'] === 'personal' && kind['.claude/cheap-contract.md'] !== 'tracked';
+// The same rule as cheapArmed(), from the answers already in hand rather than asking git again.
+const cheapOn = kind['.claude/cheap-session'] === 'personal' && kind['.claude/cheap-contract.md'] !== 'ignored';
 
 if (cheapOn) {
   const contract = read('.claude/cheap-contract.md');
@@ -165,7 +166,7 @@ if (autoship?.enabled === true && kind['.claude/autoship.json'] === 'personal' &
     'first reply saying so, and that /easyclaude:autoship off turns it off.');
 }
 
-if (ignored.length && !COMPACT) parts.push(trackedNotice(ignored));
+if (ignored.length && !COMPACT) parts.push(ignoredNotice(ignored));
 
 // Here and not in rules/, because rules load only after kickoff, and the first English
 // note a beginner saw came before it: "Since the list item has a line-through style...".

@@ -18,7 +18,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { personalFile } from './personal.mjs';
+import { cheapArmed } from './personal.mjs';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const memoPath = (root, session) =>
@@ -82,7 +82,7 @@ export function lookBlock(root, payload, { lookSetting } = {}) {
   if (!session || !payload.transcript_path || lookSetting === false) return null;
   // Cheap mode promises no screenshots. A cheap-session file that came with the repo is
   // not this user's choice; see personal.mjs.
-  if (personalFile(root, '.claude/cheap-session') === 'personal') return null;
+  if (cheapArmed(root)) return null;
   const turn = readTurn(payload.transcript_path);
   if (!turn || /^\s*\/easyclaude:cheap\b/.test(turn.text)) return null;
 

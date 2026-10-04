@@ -447,6 +447,11 @@ breaks('a template that does not ignore the file it tells you to put keys in', '
   (d) => editText(d, 'template/.gitignore', (t) => t.replace(/^\.env$/m, '')),
   /does not ignore "\.env"/);
 
+// --- 14b. a tracked autoship.json authorises nothing, everywhere --------------
+breaks('ship acting on an autoship.json the repository shipped', '14b',
+  (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replace('git ls-files --error-unmatch .claude/autoship.json', 'cat .claude/autoship.json')),
+  /skills\/ship\/SKILL\.md.*git ls-files --error-unmatch/);
+
 // --- 15. the cost section must count the skills that are actually always-on --
 breaks('an always-on count drifting from the measured set', '15',
   (d) => bumpNumber(d, 'README.th.md', /<!--\s*always-on:(\d+)\s*-->/),

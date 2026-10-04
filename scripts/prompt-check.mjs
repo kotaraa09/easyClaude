@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { markLater } from './later-memo.mjs';
 import { writesNonLatin, withLanguage } from './language.mjs';
-import { personalFile } from './personal.mjs';
+import { cheapArmed } from './personal.mjs';
 
 // History, in tokens, beyond what the session's first request carried. That first request
 // is Claude Code's own prompt, tools and project files - a floor no /clear removes - so it
@@ -133,7 +133,7 @@ function main() {
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
   const prompt = String(payload.prompt ?? '');
   // A cheap-session file that came with the repo is not this user's; see personal.mjs.
-  const cheap = CHEAP_COMMAND.test(prompt) || personalFile(root, '.claude/cheap-session') === 'personal';
+  const cheap = CHEAP_COMMAND.test(prompt) || cheapArmed(root);
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
   const later = leavesWorkForLater(prompt) && existsSync(join(root, 'docs', 'STATE.md'));
   // The Stop hook holds the turn once if docs/STATE.md is still unchanged. See later-memo.mjs.
