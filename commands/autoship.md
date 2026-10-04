@@ -85,6 +85,7 @@ Autoship is ON through <level>. It fires only when all of these are true:
   · the change didn't touch auth, payments, or a migration
 
 Anything else and it stays quiet and hands back to you.
+If you say "ship it" yourself, the docs/STATE.md rule does not apply.
 Turn it off with /easyclaude:autoship off
 ```
 

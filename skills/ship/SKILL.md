@@ -80,6 +80,11 @@ At `merge`:
 **Refuse the automatic path** and hand back, even though the config says yes, when:
 
 - any verify step failed
+- the user did not ask to ship in this turn, and `docs/STATE.md` still has an unchecked task
+  under `## Now` or `## Next`, or `## Blocked` is not `none`. `/easyclaude:autoship` promises
+  the user it fires only at the end of a feature. build-task checks this before it calls you,
+  and every other way in must check it too. A user who says "ship it" has asked, so this one
+  does not apply to them
 - the change touched authentication, payments, or a data migration
 - `.claude/cheap-session` exists — cheap turns deliberately skip depth, which is the wrong
   input to an unreviewed merge

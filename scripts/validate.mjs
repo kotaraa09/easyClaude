@@ -822,6 +822,25 @@ for (const f of [
   }
 }
 
+// --- 11c. autoship must keep the promise it makes ------------------------------
+// /easyclaude:autoship tells the user it fires only when docs/STATE.md has nothing left
+// under Now, Next or Blocked. build-task checked that before it called ship, and ship did
+// not, so any other way into ship's automatic mode pushed with tasks still open. Found on
+// 2026-10-04. The promise and both places that keep it must name all three sections.
+const autoshipPromise = [
+  ['commands/autoship.md', ['Now', 'Next', 'Blocked'].map((s) => new RegExp(`\\b${s}\\b`))],
+  ['skills/build-task/SKILL.md', ['## Now', '## Next', '## Blocked'].map((s) => new RegExp(s))],
+  ['skills/ship/SKILL.md', ['## Now', '## Next', '## Blocked'].map((s) => new RegExp(s))],
+];
+for (const [f, sections] of autoshipPromise) {
+  const text = readOrErr(f, 'missing - it states or keeps the autoship promise');
+  if (text === null) continue;
+  if (!sections.every((re) => re.test(text))) {
+    err(f, 'must name the Now, Next and Blocked sections of docs/STATE.md - /easyclaude:autoship ' +
+      'promises it fires only when all three are empty, and ship and build-task both keep that promise');
+  }
+}
+
 // --- 12. only skills that can hear a phrase may be promised one ----------------
 // Every README so far has promised that "is this safe to make public?" and "put it
 // online" trigger security-check and deploy on their own. Both set
