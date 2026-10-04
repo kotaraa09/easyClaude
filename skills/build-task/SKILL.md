@@ -56,7 +56,7 @@ Re-read `docs/STATE.md` after your update and check all four:
 
 - `## Now` — no unchecked task
 - `## Next` — no unchecked `- [ ]`
-- `## Blocked` — reads `none`
+- `## Blocked` — empty, or says none, in whatever language the file is written in
 - nothing you found this turn is still unrecorded
 
 A bug you spotted, a half-finished slice, or a follow-up you were about to suggest **is** a
@@ -65,7 +65,9 @@ nothing. That is the point: autoship fires at the end of a *feature*, not the en
 *task*.
 
 If all four hold, invoke the `ship` skill and let it work to the level in the config. If
-any fail, say nothing about shipping and carry on.
+any fail, say nothing about shipping and carry on. If the user asked you to ship in this
+turn, invoke `ship` whatever the four say: they asked, and `/easyclaude:autoship` tells
+them the state rule does not apply then.
 
 ## 6. Report
 

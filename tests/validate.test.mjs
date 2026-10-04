@@ -355,6 +355,11 @@ breaks('one of the four copies of the "## Done" cap drifting', '11',
   (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replace('ten most recent', 'twenty most recent')),
   /skills\/ship\/SKILL\.md.*ten most recent/);
 
+// --- 11c. autoship must keep the promise it makes ------------------------------
+breaks('ship no longer checking the state autoship promises', '11c',
+  (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replaceAll('## Blocked', '## Stuck')),
+  /skills\/ship\/SKILL\.md.*autoship/);
+
 // --- 11b. the template must actually reach kickoff -------------------------
 breaks('a template that can never reach kickoff', '11b',
   (d) => editText(d, 'template/docs/STATE.md', (t) => t.replace('<!-- easyclaude:not-kicked-off -->', '')),
