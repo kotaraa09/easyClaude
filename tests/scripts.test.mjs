@@ -94,6 +94,22 @@ test('connect: the generated form still matches template/.env.example', async ()
     'template/.env.example is stale. Regenerate it with: node scripts/connect.mjs --form');
 });
 
+// The Postgres connector was removed on 2026-10-04. Anyone who wired it still has it, and
+// their DATABASE_URL now does nothing, so the script has to say so - by name, never value.
+test('connect: a key for a removed connector is named with the way to take it out', async () => {
+  const dir = projectDir();
+  const secret = 'postgres://u:hunter2@localhost:5432/shop';
+  writeFileSync(join(dir, '.env'), `DATABASE_URL=${secret}\n`);
+  for (const args of [['--status'], ['--apply', '--dry-run']]) {
+    const r = await run(script('connect.mjs'), { cwd: dir, args });
+    assertMatch(r.out, /claude mcp remove postgres -s local/, `${args.join(' ')} must name the way out.`);
+    assert(!r.out.includes('hunter2'), `${args.join(' ')} printed the value of a key:\n${r.out}`);
+  }
+  writeFileSync(join(dir, '.env'), 'CONTEXT7_API_KEY=abc\n');
+  const quiet = await run(script('connect.mjs'), { cwd: dir, args: ['--status'] });
+  assert(!/postgres/.test(quiet.out), `with no DATABASE_URL there is nothing to say:\n${quiet.out}`);
+});
+
 // --- a connector's one-time local step is actually shown ----------------------
 // graft is wired as an MCP server, but its tools return nothing until `graft build` has
 // run once in the project. That step lives in the catalog as `note`. A note nobody prints

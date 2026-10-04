@@ -39,10 +39,11 @@ import { placeholder, writeSecret, runClaude } from './connect-core.mjs';
 //
 // No database connector, on purpose. There was one, for Postgres, until 2026-10-04. Its
 // package, @modelcontextprotocol/server-postgres, is marked unsupported on npm, so it gets
-// no security fixes, and it is a server that holds the keys to a user's data. It also took the connection string as a command-line argument, so the
-// password sat in the process list for as long as the server ran - the one leak the
-// placeholder below exists to prevent. When a maintained server takes the URL from the
-// environment, it can come back here.
+// no security fixes, and it is a server that holds the keys to a user's data. It also took
+// the connection string as a command-line argument, so the password sat in the process
+// list for as long as the server ran - the same leak the placeholder below keeps out of
+// `claude mcp add`. When a maintained server takes the URL from the environment, it can
+// come back here.
 const CONNECTORS = [
   {
     name: 'playwright', key: null,
@@ -204,6 +205,18 @@ if (has('form')) {
 
 const { values, exists } = readForm();
 
+// Connectors that were removed, by the .env key that used to switch them on. Someone who
+// filled one in still has the server in their config, wired by an earlier --apply, and the
+// key in .env now does nothing at all. So --status and --apply say both, and name the
+// command that takes the server out. Key names only, as everywhere else in this file.
+const REMOVED = [
+  { key: 'DATABASE_URL', name: 'postgres', why: 'its package is no longer supported, and it put the database password in the process list' },
+];
+const removedNotes = () => REMOVED.filter((r) => values.has(r.key)).flatMap((r) => [
+  `  ${r.key} is set, but the ${r.name} connector was removed: ${r.why}.`,
+  `  If you added it before, take it out with: claude mcp remove ${r.name} -s local`,
+]);
+
 if (has('status')) {
   if (!exists) console.log('\nNo .env yet. Copy .env.example to .env and fill in what you have.\n');
   console.log('\nForm status - key names only, values are never printed:\n');
@@ -214,6 +227,8 @@ if (has('status')) {
   for (const p of [...PROVIDERS, ...KEY_ONLY]) {
     console.log(`  ${p.key.padEnd(20)} ${values.has(p.key) ? 'key present' : 'not set'}`);
   }
+  const removed = removedNotes();
+  if (removed.length) console.log(['', 'Removed:', ...removed].join('\n'));
   console.log(`\nOAuth-only (use /mcp): ${OAUTH_ONLY.join(', ')}\n`);
   process.exit(0);
 }
@@ -222,6 +237,7 @@ if (!has('apply')) die('use --list, --form, --status, or --apply');
 
 const dry = has('dry-run');
 const todo = CONNECTORS.filter((c) => c.key === null || values.has(c.key));
+for (const line of removedNotes()) console.log(line);
 
 if (todo.length === 0) {
   console.log('\nNothing to wire up: no connector keys are filled in .env.');
