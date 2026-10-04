@@ -1,8 +1,8 @@
 {
   "_comment": "easyClaude's own verify contract. The framework should run under its own gate; if the validator is red, no turn here should be allowed to end claiming otherwise.",
-  "_tier_comment": "The validator is fast and runs on every turn. The test suite for the checking machinery takes around 25 seconds - too slow for a per-turn gate, and it only matters when the checking machinery itself changes - so it is full tier: it runs at the end of a task and in CI, not after every edit.",
+  "_tier_comment": "The validator is fast and runs on every turn. The test suite for the checking machinery takes around 25 seconds - too slow for a per-turn gate, and it only matters when the checking machinery itself changes - so it is full tier: it runs at the end of a task and in CI, not after every edit. It has a ten-minute limit: on a slower Windows machine on 2026-10-04 it took about five minutes, and the 120-second default stopped it before it could answer.",
   "steps": [
     { "name": "validate", "cmd": "node scripts/validate.mjs", "tier": "fast" },
-    { "name": "test", "cmd": "node scripts/test.mjs", "tier": "full" }
+    { "name": "test", "cmd": "node scripts/test.mjs", "tier": "full", "timeoutMs": 600000 }
   ]
 }
