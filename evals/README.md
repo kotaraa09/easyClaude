@@ -156,6 +156,21 @@ those; one more failed a good reply for using a list, and both graders now accep
 The rule now says "say which you would pick", and all 3 runs did. `keep going` still builds
 without a question, so the rule's exception holds.
 
+**The typo case and the page check**, same day and settings, three runs per arm with
+`--ablation none`:
+
+| version | quiet-on-a-typo-fix passed |
+|---|---|
+| main before #65 | 0/3 |
+| after #65 | 3/3 |
+| after #70, checks approved in setup | 5/6, over two runs |
+
+Before #65 every run fixed the typo, but the reply to the page check was the last message,
+and it said only how to open the page, so the judge never saw the fix named. #65 asks that
+reply to start with what changed. After #70 no reply asked for approval, which shows the
+sample shop's approval from setup held inside the runner. The one failure there named the
+fix as well, and reads as a judge miss.
+
 ## The outcome benchmark
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on

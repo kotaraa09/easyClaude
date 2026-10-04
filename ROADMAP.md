@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-03, at 0.2.7.
+nothing to learn first. Last reviewed on 2026-10-04, at 1.0.0.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -197,3 +197,11 @@ that should not, and each case either differs between arms or says why it cannot
   and `/easyclaude:skills` works out the project with no category. A shorter README, in both
   languages, that installs by pasting a prompt and compares plain Claude Code with easyClaude
   on the same requests, ties included.
+- **1.0.0** - The first stable release, after a review for bugs and security holes. A
+  project's checks run only after the user approves the commands on their computer, and a
+  repository's own autoship or cheap-mode file arms nothing. Claude asks when a request can
+  mean two things: on "sort the plants" it asked first in 9 of 9 runs, over two wordings of
+  the rule, against 4 of 6 without easyClaude; the final wording also named its pick, 3/3.
+  The message hook stops reading helper reports as the user, the page check's last reply
+  says what changed (typo case 0/3 to 3/3), and the unsupported Postgres connector is gone.
+  Measured cost: ~1,710 tokens per turn in a set-up project.

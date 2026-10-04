@@ -52,19 +52,23 @@ if (!version) {
   process.exit(1);
 }
 // An installed copy of easyClaude would load in every case, the baseline included, and
-// every difference would come out near zero - a result that looks like good news.
+// every difference would come out near zero - a result that looks like good news. This used
+// to stop and ask the user to disable it for their whole account. The settings file below
+// switches it off for these runs only instead; tested on 2026-10-04, it took ~940 tokens
+// out of a run, the plugin's share. If it ever stops working, the check after the second
+// case catches it, before the other three are paid for.
 let installed = [];
 try { installed = JSON.parse(claude(['plugin', 'list', '--json']).stdout); } catch { /* none */ }
-if (installed.some((p) => /^easyclaude@/.test(p.id) && p.enabled)) {
-  console.error('measure-cost: easyClaude is installed and enabled for your user, so it would load in ' +
-    'the baseline too. Disable it for the run: claude plugin disable easyclaude@easyclaude');
-  process.exit(1);
-}
+const installedCopies = (Array.isArray(installed) ? installed : [])
+  .filter((p) => /^easyclaude@/.test(p?.id ?? '') && p.enabled).map((p) => p.id);
 
 const work = mkdtempSync(join(tmpdir(), 'ec-cost-'));
 const settings = join(work, 'settings.json');
 // The user's own output style changes how Claude answers "hi", not what the plugin costs.
-writeFileSync(settings, JSON.stringify({ outputStyle: 'default' }));
+writeFileSync(settings, JSON.stringify({
+  outputStyle: 'default',
+  ...(installedCopies.length ? { enabledPlugins: Object.fromEntries(installedCopies.map((id) => [id, false])) } : {}),
+}));
 
 function project(name, files) {
   const dir = join(work, name);
@@ -134,6 +138,18 @@ for (const [name, , dir, withPlugin] of CASES) {
     console.error(`measure-cost: the runs of "${name}" differ by ${Math.max(...seen) - tokens[name]} ` +
       `tokens, more than ${SPREAD}. Something outside the plugin changed between runs, so ` +
       'nothing was saved. Run it again.');
+    process.exit(1);
+  }
+  // The plugin's skills, agent and hooks are hundreds of tokens. Next to nothing means both
+  // cases loaded the same plugins: the installed copy got into the baseline, or the per-run
+  // switch also turned off the copy under test. Either way every figure would be wrong, so
+  // stop here, before the other three cases are paid for.
+  if (name === 'plugin' && tokens.plugin - tokens.baseline < 300) {
+    console.error(`measure-cost: the plugin came out at ${tokens.plugin - tokens.baseline} tokens, so ` +
+      'the baseline and the plugin case loaded the same plugins' +
+      `${installedCopies.length ? ` (installed: ${installedCopies.join(', ')})` : ''}. Nothing was saved. ` +
+      'Disable the installed copy for the run: claude plugin disable easyclaude@easyclaude');
+    rmSync(work, { recursive: true, force: true });
     process.exit(1);
   }
 }
