@@ -63,7 +63,9 @@ would fix it.
 `through` is one of `commit`, `push`, `pr`, `merge`. `base` comes from the preflight, not
 from a guess.
 
-Add `.claude/autoship.json` to `.gitignore` if it isn't there. It is per-person
+Add `.claude/autoship.json` to `.gitignore` if it isn't there. If git already tracks it,
+run `git rm --cached .claude/autoship.json` too: easyClaude ignores a tracked copy, because
+it came with the code and not from this user. It is per-person
 authorisation to push on their behalf — committing it would hand that to everyone who
 clones the repo without them ever agreeing to it.
 
