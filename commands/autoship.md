@@ -63,7 +63,9 @@ would fix it.
 `through` is one of `commit`, `push`, `pr`, `merge`. `base` comes from the preflight, not
 from a guess.
 
-Add `.claude/autoship.json` to `.gitignore` if it isn't there. It is per-person
+Add `.claude/autoship.json` to `.gitignore` if it isn't there. If git already tracks it,
+run `git rm --cached .claude/autoship.json` too: easyClaude ignores a tracked copy, because
+it came with the code and not from this user. It is per-person
 authorisation to push on their behalf — committing it would hand that to everyone who
 clones the repo without them ever agreeing to it.
 
@@ -71,7 +73,9 @@ For `off`: set `"enabled": false` — keep the file so `status` can still show w
 last choice was. Confirm in one line.
 
 For `status`: print the current level and re-run the preflight, since a token can expire
-or access can be revoked long after this was armed.
+or access can be revoked long after this was armed. If git tracks the file
+(`git ls-files --error-unmatch .claude/autoship.json` succeeds), say autoship is OFF: a
+tracked copy came with the code, and easyClaude ignores it.
 
 ## 4. Tell them how it fires
 

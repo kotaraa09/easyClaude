@@ -7,6 +7,7 @@ import { test, assert, assertMatch, run, repoRoot, projectDir } from './harness.
 import { readEnv } from '../scripts/env.mjs';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const script = (name) => join(repoRoot, 'scripts', name);
 
@@ -232,6 +233,19 @@ const opener = async (files, args = ['--text']) => {
   }
   return run(script('session-start.mjs'), { cwd: dir, args, env: { CLAUDE_PROJECT_DIR: dir } });
 };
+// Makes dir a git repository and commits everything in it, as a cloned repo would arrive.
+const commitAll = (dir) => {
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'from the repo');
+};
+const writeAll = (dir, files) => {
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(join(dir, dirname(rel)), { recursive: true });
+    writeFileSync(join(dir, rel), body);
+  }
+};
 const STATE = [
   '# State', '', '## Now', '- [ ] Add the contact form', '', '## Next',
   '### Gallery', '- [x] Pick a layout', '- [ ] Upload photos', '', '## Blocked', 'none', '',
@@ -312,6 +326,80 @@ test('session-start: a disabled autoship says nothing', async () => {
     'docs/STATE.md': STATE, '.claude/autoship.json': JSON.stringify({ enabled: false, through: 'merge' }),
   });
   assert(!/Autoship/.test(r.out), `a disabled autoship was announced:\n${r.out}`);
+});
+
+// .gitignore keeps these files out of an honest owner's commits, but a repository can still
+// ship them. A copy that came with the code is not this user's choice. See personal.mjs.
+const PERSONAL = {
+  '.claude/cheap-session': '2026-09-23',
+  '.claude/cheap-contract.md': 'Smallest fix that works.',
+  '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'merge' }),
+};
+const openIn = (dir) => run(script('session-start.mjs'), { cwd: dir, args: ['--text'], env: { CLAUDE_PROJECT_DIR: dir } });
+
+test('session-start: autoship and cheap files the repo commits arm nothing, and the user is told', async () => {
+  const dir = projectDir();
+  writeAll(dir, { 'docs/STATE.md': STATE, ...PERSONAL });
+  commitAll(dir);
+  const r = await openIn(dir);
+  assert(!/Autoship is armed/.test(r.out), `a committed autoship.json armed autoship:\n${r.out}`);
+  assert(!/cheap mode is on|Smallest fix that works/.test(r.out),
+    `a committed contract rode along as standing instructions:\n${r.out}`);
+  assertMatch(r.out, /ignored these files: \.claude\/autoship\.json, \.claude\/cheap-session, \.claude\/cheap-contract\.md/,
+    'the user must hear that the files were ignored.');
+  assertMatch(r.out, /git rm --cached/, 'and how to make them their own again.');
+});
+
+test('session-start: the same files, untracked in a git repo, still arm', async () => {
+  const dir = projectDir();
+  writeAll(dir, { 'docs/STATE.md': STATE });
+  commitAll(dir);
+  writeAll(dir, PERSONAL);
+  const r = await openIn(dir);
+  assertMatch(r.out, /Autoship is armed through "merge"/, "the user's own autoship.json must still arm.");
+  assertMatch(r.out, /cheap mode is on[\s\S]*Smallest fix that works/, 'and their own cheap session.');
+  assert(!/ignored these files/.test(r.out), `nothing here came with the repo:\n${r.out}`);
+});
+
+test('session-start: a committed autoship.json that is off is not worth a line', async () => {
+  const dir = projectDir();
+  writeAll(dir, { 'docs/STATE.md': STATE, '.claude/autoship.json': JSON.stringify({ enabled: false }) });
+  commitAll(dir);
+  const r = await openIn(dir);
+  assert(!/ignored these files|Autoship/.test(r.out), `it would have armed nothing:\n${r.out}`);
+});
+
+// Only git's own "no" counts as untracked. A refused repository or a timeout used to fall
+// through to "the user's own file", which is the one answer that authorises a push.
+test('personal files: only a clear "not tracked" from git, or no git at all, counts as the user\'s', async () => {
+  const { gitTracks } = await import('../scripts/personal.mjs');
+  const fake = (r) => ({ spawn: () => ({ stdout: '', stderr: '', ...r }) });
+  const cases = [
+    [{ status: 0 }, 'tracked'],
+    [{ status: 1 }, 'untracked'],
+    [{ status: 128, stderr: 'fatal: not a git repository (or any of the parent directories): .git' }, 'untracked'],
+    [{ error: Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' }) }, 'untracked'],
+    [{ status: 128, stderr: "fatal: detected dubious ownership in repository at '/x'" }, 'unknown'],
+    [{ status: 128, stderr: "fatal: pathspec '.claude/autoship.json' is beyond a symbolic link" }, 'unknown'],
+    [{ error: Object.assign(new Error('spawnSync git ETIMEDOUT'), { code: 'ETIMEDOUT' }) }, 'unknown'],
+  ];
+  for (const [answer, want] of cases) {
+    const got = gitTracks('.', '.claude/autoship.json', fake(answer));
+    assert(got === want, `git answering ${JSON.stringify(answer)} must read as ${want}, not ${got}`);
+  }
+});
+
+// The opener, the message hook and the page check must agree on whether cheap mode is on.
+test('personal files: a tracked contract keeps cheap mode off, even with the user\'s own switch', async () => {
+  const { cheapArmed } = await import('../scripts/personal.mjs');
+  const dir = projectDir();
+  writeAll(dir, { '.claude/cheap-contract.md': 'Do as little as you can.' });
+  commitAll(dir);
+  writeAll(dir, { '.claude/cheap-session': '2026-10-04' });
+  assert(!cheapArmed(dir), 'a contract that came with the repo must not run this user\'s session.');
+  const r = await openIn(dir);
+  assert(!/Do as little as you can/.test(r.out), `the tracked contract rode along:\n${r.out}`);
+  assertMatch(r.out, /ignored these files: \.claude\/cheap-contract\.md/, 'and the user must hear why cheap mode is off.');
 });
 
 test('session-start: the hook form is the JSON Claude Code reads', async () => {
@@ -434,6 +522,16 @@ test('prompt hook: an armed cheap session holds any prompt once the conversation
   writeFileSync(join(dir, '.claude', 'cheap-session'), '2026-09-24');
   const r = await promptHook(dir, file, 'add a counter');
   assertMatch(r.out, /Do not start the task/, 'the armed session is cheap mode too.');
+});
+
+// In a long conversation cheap mode holds every task, so a committed cheap-session file
+// would stop work in every clone. See personal.mjs.
+test('prompt hook: a cheap-session file the repo commits does not arm cheap mode', async () => {
+  const { dir, file } = transcript([30_000, 80_000]);
+  writeAll(dir, { '.claude/cheap-session': '2026-09-24' });
+  commitAll(dir);
+  const r = await promptHook(dir, file, 'add a counter');
+  assert(!/Do not start the task/.test(r.out), `a committed cheap-session held the task:\n${r.out}`);
 });
 
 test('prompt hook: a very long normal conversation gets the /clear advice once', async () => {

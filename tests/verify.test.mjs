@@ -373,6 +373,17 @@ test('look: no hold for a test-only edit, a project with no page, "look": false,
   }
 });
 
+test('look: a cheap-session file the repo commits does not switch the page check off', async () => {
+  const dir = lookProject(PASSING, { files: { '.claude/cheap-session': '2026-09-29' } });
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'from the repo');
+  writeFileSync(join(dir, 'index.html'), '<button id="pay">Pay now</button>\n');
+  const r = await lookStop(dir, [prompt('change it'), used('Write', { file_path: join(dir, 'index.html') })]);
+  assert(r.code === BLOCK, `a cheap-session that came with the repo is not this user's cheap mode:\n${r.out}`);
+});
+
 test('look: a React project with no index.html is still a web project', async () => {
   const dir = lookProject(PASSING, { web: false, files: { 'package.json': JSON.stringify({ dependencies: { react: '^19' }, scripts: { dev: 'vite' } }) } });
   const r = await lookStop(dir, [prompt('add a footer'), used('Edit', { file_path: join(dir, 'src', 'App.tsx') })]);
