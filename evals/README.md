@@ -1,6 +1,6 @@
 # Evals
 
-Seventeen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -25,6 +25,7 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `rescue-on-wanting-it-back` | *"...I want yesterday's version back."* | `rescue` fires |
 | `quiet-on-a-typo-fix` | *"fix this typo in the footer"* | **no skill fires** |
 | `asks-on-a-vague-request` | *"make the shop look better"* | it asks what "better" means, with options and a pick, before it changes anything |
+| `asks-on-sort-the-plants` | *"sort the plants"* | it asks which order, with options and a pick, before it changes anything |
 | `quiet-on-a-security-question` | *"is this safe to make public?"* | `security-check` does **not** fire |
 | `quiet-on-how-to-ship` | *"how do I ship this?"* | `ship` does **not** fire |
 | `kickoff-on-an-empty-folder` | *"I want to make a website for my bakery"* | `kickoff` fires, in an empty folder |
@@ -136,6 +137,24 @@ as invented tasks. It now names both as real, and the rerun passed 3/3.
 On `plan-feature`, `ship`, `debug` and the typo case the baseline scores the same, so those
 graders show the skill fires but not yet that it adds anything. Sharper outcome criteria are
 the next step there.
+
+**The ask-when-unclear pair**, 2026-10-04, Claude Code 2.1.284, three runs per arm unless
+the table says six:
+
+| case | asked before any edit, with plugin | same, without plugin | outcome passed, with / without |
+|---|---|---|---|
+| asks-on-a-vague-request | 3/3 | 3/3 | 3/3 / 3/3 |
+| asks-on-sort-the-plants, first rule | 6/6 | 4/6 | 3/6 / 4/6 |
+| asks-on-sort-the-plants, final rule | 3/3 | - | 3/3 / - |
+| build-task-on-keep-going | - | - | 3/3 / 3/3 |
+
+*"Make the shop look better"* is so broad that plain Claude asks too, so it measures nothing.
+*"Sort the plants"* is the case that does: without easyClaude, Claude sorted by price and
+reported it done in 2 runs of 6. With it, Claude asked every time. The first wording, "the
+likely meanings and your pick", left the pick out of 2 questions of 6, and the grader fails
+those; one more failed a good reply for using a list, and both graders now accept a list.
+The rule now says "say which you would pick", and all 3 runs did. `keep going` still builds
+without a question, so the rule's exception holds.
 
 ## The outcome benchmark
 
