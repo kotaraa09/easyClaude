@@ -200,7 +200,8 @@ that should not, and each case either differs between arms or says why it cannot
 - **1.0.0** - The first stable release, after a review for bugs and security holes. A
   project's checks run only after the user approves the commands on their computer, and a
   repository's own autoship or cheap-mode file arms nothing. Claude asks when a request can
-  mean two things: on "sort the plants", 6/6 asked first, against 4/6 without easyClaude.
+  mean two things: on "sort the plants" it asked first in 9 of 9 runs, over two wordings of
+  the rule, against 4 of 6 without easyClaude; the final wording also named its pick, 3/3.
   The message hook stops reading helper reports as the user, the page check's last reply
   says what changed (typo case 0/3 to 3/3), and the unsupported Postgres connector is gone.
   Measured cost: ~1,710 tokens per turn in a set-up project.

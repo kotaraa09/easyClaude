@@ -55,11 +55,12 @@ if (!version) {
 // every difference would come out near zero - a result that looks like good news. This used
 // to stop and ask the user to disable it for their whole account. The settings file below
 // switches it off for these runs only instead; tested on 2026-10-04, it took ~940 tokens
-// out of a run, the plugin's share. If it ever stops working, the check after the runs
-// catches it.
+// out of a run, the plugin's share. If it ever stops working, the check after the second
+// case catches it, before the other three are paid for.
 let installed = [];
 try { installed = JSON.parse(claude(['plugin', 'list', '--json']).stdout); } catch { /* none */ }
-const installedCopies = installed.filter((p) => /^easyclaude@/.test(p.id) && p.enabled).map((p) => p.id);
+const installedCopies = (Array.isArray(installed) ? installed : [])
+  .filter((p) => /^easyclaude@/.test(p?.id ?? '') && p.enabled).map((p) => p.id);
 
 const work = mkdtempSync(join(tmpdir(), 'ec-cost-'));
 const settings = join(work, 'settings.json');
@@ -139,6 +140,18 @@ for (const [name, , dir, withPlugin] of CASES) {
       'nothing was saved. Run it again.');
     process.exit(1);
   }
+  // The plugin's skills, agent and hooks are hundreds of tokens. Next to nothing means both
+  // cases loaded the same plugins: the installed copy got into the baseline, or the per-run
+  // switch also turned off the copy under test. Either way every figure would be wrong, so
+  // stop here, before the other three cases are paid for.
+  if (name === 'plugin' && tokens.plugin - tokens.baseline < 300) {
+    console.error(`measure-cost: the plugin came out at ${tokens.plugin - tokens.baseline} tokens, so ` +
+      'the baseline and the plugin case loaded the same plugins' +
+      `${installedCopies.length ? ` (installed: ${installedCopies.join(', ')})` : ''}. Nothing was saved. ` +
+      'Disable the installed copy for the run: claude plugin disable easyclaude@easyclaude');
+    rmSync(work, { recursive: true, force: true });
+    process.exit(1);
+  }
 }
 rmSync(work, { recursive: true, force: true });
 
@@ -149,14 +162,6 @@ const parts = {
   rules: tokens.rules - tokens.claudeMd,
 };
 let total = tokens.rules - tokens.baseline;
-// The plugin's skills, agent and hooks are hundreds of tokens. Next to nothing means the
-// installed copy loaded in the baseline as well, and every figure below would be wrong.
-if (parts.plugin < 300) {
-  console.error(`measure-cost: the plugin came out at ${parts.plugin} tokens, so the baseline ` +
-    `probably loaded it too${installedCopies.length ? ` (installed: ${installedCopies.join(', ')})` : ''}. ` +
-    'Nothing was saved. Disable it for the run: claude plugin disable easyclaude@easyclaude');
-  process.exit(1);
-}
 const negative = Object.entries(parts).filter(([, n]) => n < 0);
 if (negative.length) {
   console.error(`measure-cost: ${negative.map(([k, n]) => `${k} ${n}`).join(', ')} came out negative, ` +
