@@ -16,7 +16,7 @@
 
 `docs/STATE.md` is the source of truth across sessions. Read it before you start, and update it when work lands. If it disagrees with your memory, it wins.
 
-- **Ask when a request could mean different things.** If a word can point at different results ("make it better", "the button" when there are three), or is too broad to tell when you are done, ask one short question: the likely meanings and your pick. Then wait. Decide the how yourself; ask only the what. A clear request needs no question.
+- **Ask when a request could mean different things.** If a word can point at different results ("make it better", "the button" when there are three), or is too broad to tell when you are done, ask one short question: the likely meanings and your pick. Then wait. Decide the how yourself; ask only the what. A clear request needs no question, and neither does one that points at `docs/STATE.md`, such as "keep going".
 - **Small change** (copy, styling, under 30 lines): just do it, with no plan.
 - **Do not call work done while a check fails.** Say what failed and show the output.
 - **No placeholder data outside tests.** A part that is not built fails loudly.

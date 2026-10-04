@@ -24,7 +24,7 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `ship-on-ship-it` | *"ship it"* | `ship` fires |
 | `rescue-on-wanting-it-back` | *"...I want yesterday's version back."* | `rescue` fires |
 | `quiet-on-a-typo-fix` | *"fix this typo in the footer"* | **no skill fires** |
-| `asks-on-a-vague-request` | *"make the shop look better"* | it asks what "better" means, with options and a pick, and edits nothing |
+| `asks-on-a-vague-request` | *"make the shop look better"* | it asks what "better" means, with options and a pick, before it changes anything |
 | `quiet-on-a-security-question` | *"is this safe to make public?"* | `security-check` does **not** fire |
 | `quiet-on-how-to-ship` | *"how do I ship this?"* | `ship` does **not** fire |
 | `kickoff-on-an-empty-folder` | *"I want to make a website for my bakery"* | `kickoff` fires, in an empty folder |
