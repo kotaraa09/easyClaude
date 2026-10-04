@@ -92,8 +92,13 @@ export function lookBlock(root, payload, { lookSetting } = {}) {
   try { if (JSON.parse(readFileSync(file, 'utf8')).held === turn.id) return null; } catch { /* none yet */ }
   try { writeFileSync(file, JSON.stringify({ held: turn.id })); } catch { return null; }
 
+  // The reply to this hold is the last message of the turn, and the one the user reads as
+  // the answer. In the typo case on 2026-10-04 it said only how to open the page, three runs
+  // of three, so the user was never told which word was fixed. Hence the line about it.
   return 'easyClaude: the checks pass, but this turn changed what a web page shows and nothing ' +
-    'looked at the page. For the user, "done" means they open it and it works. If this session ' +
+    'looked at the page. For the user, "done" means they open it and it works. Your reply to ' +
+    'this is the last message the user reads, so it must stand on its own: start it with one ' +
+    'line on what you changed. If this session ' +
     'has a browser tool, open the page, do what the user would do for this task, take a ' +
     'screenshot, and check it shows what they asked for; fix what it does not. If there is no ' +
     'browser tool, do not search for one or install one: tell the user in one plain line how to ' +

@@ -341,6 +341,8 @@ test('look: a changed page nobody looked at is held once, then let go', async ()
   assertMatch(first.stderr, /browser tool/, 'the hold must say how to look.');
   assertMatch(first.stderr, /no browser tool, do not search for one/, 'with no browser, it must not send Claude hunting.');
   assertMatch(first.stderr, /the page is index\.html/, 'the real page must be named: one run sent a beginner to a checkout.html that does not exist.');
+  assertMatch(first.stderr, /start it with one\s+line on what you changed/,
+    'the reply to the hold is the last message: in the typo case it said only how to open the page, and never which word was fixed.');
   const second = await lookStop(dir, turn, session);
   assert(second.code === ALLOW, `once per message - a turn that cannot look must not loop:\n${second.out}`);
 });
