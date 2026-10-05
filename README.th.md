@@ -279,7 +279,7 @@ node scripts/test.mjs       # ทดสอบตัวตรวจเอง โ�
 node scripts/bench.mjs      # การวัดผลด้านบน (ต้องล็อกอิน และมีค่าใช้จ่าย)
 ```
 
-ไม่มี dependency ใช้แค่ของที่มากับ Node ใน [`evals/README.md`](evals/README.md) มีการวัดผลและกรณีทดสอบการเลือกสกิล [ROADMAP.md](ROADMAP.md) บอกว่าจะทำอะไรต่อและเพราะอะไร [`recipes/`](recipes/) มีการตรวจสำหรับสิบสแตก ตั้งแต่ Go ถึง Unity
+[CONTRIBUTING.md](CONTRIBUTING.md) มีกติกาสำหรับการส่งการแก้ไข และ [SECURITY.md](SECURITY.md) บอกวิธีแจ้งปัญหาด้านความปลอดภัยแบบส่วนตัว ไม่มี dependency ใช้แค่ของที่มากับ Node ใน [`evals/README.md`](evals/README.md) มีการวัดผลและกรณีทดสอบการเลือกสกิล [ROADMAP.md](ROADMAP.md) บอกว่าจะทำอะไรต่อและเพราะอะไร [`recipes/`](recipes/) มีการตรวจสำหรับสิบสแตก ตั้งแต่ Go ถึง Unity
 
 <details>
 <summary><b>สกิลจากที่อื่น</b></summary>

@@ -280,7 +280,7 @@ node scripts/test.mjs       # tests the checks themselves, by breaking one thing
 node scripts/bench.mjs      # the outcome benchmark above (needs a login, costs money)
 ```
 
-No dependencies, only Node's built-ins. [`evals/README.md`](evals/README.md) has the benchmark and the skill-trigger cases. [ROADMAP.md](ROADMAP.md) says what comes next and why. [`recipes/`](recipes/) holds the checks for ten stacks, from Go to Unity.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a change, and [SECURITY.md](SECURITY.md) says how to report a security problem in private. No dependencies, only Node's built-ins. [`evals/README.md`](evals/README.md) has the benchmark and the skill-trigger cases. [ROADMAP.md](ROADMAP.md) says what comes next and why. [`recipes/`](recipes/) holds the checks for ten stacks, from Go to Unity.
 
 <details>
 <summary><b>Third-party skills</b></summary>
