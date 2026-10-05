@@ -17,6 +17,7 @@ import { treeFingerprint, remember } from './tree-state.mjs';
 import { resumeNotice } from './cost-notice.mjs';
 import { missingTools } from './first-run.mjs';
 import { PERSONAL_FILES, personalFile, ignoredNotice } from './personal.mjs';
+import { locations, locationsNotice } from './locations.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -99,8 +100,13 @@ function opener(md) {
 // summary may have dropped, and the language line.
 const COMPACT = payload.source === 'compact';
 const parts = [];
-const state = read('docs/STATE.md');
+const where = locations(root);
+const state = read(where.state);
 const setUp = state !== null && !state.includes(NOT_KICKED_OFF);
+// Before the opener, so the opener's lines are read with the right paths in mind. After a
+// compaction too: the skills still name the defaults, and the summary may drop this.
+const moved = locationsNotice(root, { compact: COMPACT });
+if (moved) parts.push(moved);
 
 if (COMPACT) {
   // Nothing here: see above.
@@ -182,7 +188,7 @@ if (!TEXT && !COMPACT) remember(root, { session: payload.session_id ?? null, tre
 
 // Reopening an old conversation re-sends all of it on the first message. The user sees
 // this before typing that message; Claude never does. See cost-notice.mjs.
-const notice = resumeNotice(payload, setUp);
+const notice = resumeNotice(payload, setUp && where.state);
 
 if (TEXT) {
   console.log(context);

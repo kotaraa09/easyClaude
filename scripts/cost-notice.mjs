@@ -33,26 +33,27 @@ function size(payload) {
   return `${k}, ${rough} $${usd.toFixed(2)}`;
 }
 
-// hasPlan: the project keeps its plan in docs/STATE.md, so a fresh conversation loses
-// nothing, and the notice can say so. Without it, /clear is still cheaper, but not free.
-const planTail = (hasPlan) => hasPlan
-  ? '. Nothing is lost: your plan is in docs/STATE.md, and the next session opens with it.'
+// plan: the path of the project's plan file (docs/STATE.md unless it moved, see
+// locations.mjs), so a fresh conversation loses nothing and the notice can say so. Without
+// one, /clear is still cheaper, but not free.
+const planTail = (plan) => plan
+  ? `. Nothing is lost: your plan is in ${plan === true ? 'docs/STATE.md' : plan}, and the next session opens with it.`
   : '.';
 
 // SessionStart with source "resume" or "fork".
-export function resumeNotice(payload, hasPlan) {
+export function resumeNotice(payload, plan) {
   if (!['resume', 'fork'].includes(payload.source)) return null;
   if (payload.prompt_cache_likely_expired !== true || !worth(payload)) return null;
   return `easyClaude: the saved copy of this conversation has expired, so your first message ` +
     `will send all of it again (${size(payload)}). If you are starting a new task, /clear is ` +
-    `cheaper${planTail(hasPlan)}`;
+    `cheaper${planTail(plan)}`;
 }
 
 // PreModelSwitch. Only while the cache is warm: once it has expired, the next request
 // re-sends everything on either model, so switching costs nothing extra.
-export function switchNotice(payload, hasPlan) {
+export function switchNotice(payload, plan) {
   if (payload.prompt_cache_warm !== true || !worth(payload)) return null;
   return `easyClaude: switching model now sends this whole conversation again (${size(payload)}), ` +
     `because each model keeps its own copy. If you are starting a new task, run /clear first and ` +
-    `then switch${planTail(hasPlan)}`;
+    `then switch${planTail(plan)}`;
 }

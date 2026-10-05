@@ -22,6 +22,7 @@ import { laterBlock } from './later-memo.mjs';
 import { lookBlock, readTurn } from './look-check.mjs';
 import { withLanguage } from './language.mjs';
 import { isTrusted, trust, askedAlready, markAsked, commandList } from './trust.mjs';
+import { locations } from './locations.mjs';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -148,7 +149,9 @@ function loadConfig() {
       tier: s.tier ?? 'fast',
       timeoutMs: Number(s.timeoutMs) > 0 ? Number(s.timeoutMs) : fallback,
     })),
-    docsOnly: Array.isArray(raw.docsOnly) ? raw.docsOnly : DEFAULT_DOCS_ONLY,
+    // Plus easyClaude's own files wherever the project keeps them (see locations.mjs): the
+    // plan is rewritten on every turn, and a moved one must not run the suite either.
+    docsOnly: [...(Array.isArray(raw.docsOnly) ? raw.docsOnly : DEFAULT_DOCS_ONLY), ...Object.values(locations(root))],
     // "look": false turns off the page check in look-check.mjs, for a project whose pages
     // nobody needs to see after each change.
     look: raw.look !== false,

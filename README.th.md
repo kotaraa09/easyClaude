@@ -207,6 +207,14 @@ Claude สร้างของพวกนี้เองไม่ได้ `/e
 
 ได้ มันอ่านโค้ดที่มีอยู่ และถามเฉพาะสิ่งที่โค้ดบอกไม่ได้
 
+ถ้าโปรเจกต์ใช้โฟลเดอร์ `docs/` ทำอย่างอื่นอยู่แล้ว easyClaude เก็บไฟล์ของมันไว้ที่อื่นได้ ระบุที่เก็บใน `.claude/easyclaude.json` ส่วนไฟล์ที่ไม่ได้ระบุจะอยู่ที่เดิม:
+
+```json
+{ "files": { "state": "planning/STATE.md", "decisions": "doc/adr/README.md" } }
+```
+
+ชื่อที่ใช้ได้คือ `state` (แผนงาน), `decisions`, `architecture`, `prd`, `changelog` และ `tokens` (ข้อกำหนดการออกแบบ) ทุกไฟล์ต้องเป็นไฟล์ Markdown ที่อยู่ในโปรเจกต์
+
 </details>
 
 <details>

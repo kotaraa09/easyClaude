@@ -208,6 +208,14 @@ Node.js is almost certainly missing. easyClaude runs on it, and without it a ses
 
 Yes. It reads the existing code, and asks only what the code cannot tell it.
 
+If your project already uses `docs/` for something else, easyClaude can keep its files elsewhere. Name the places in `.claude/easyclaude.json`, and anything you leave out stays in its usual place:
+
+```json
+{ "files": { "state": "planning/STATE.md", "decisions": "doc/adr/README.md" } }
+```
+
+The names are `state` (the plan), `decisions`, `architecture`, `prd`, `changelog` and `tokens` (the design notes). Each path must be a Markdown file inside the project.
+
 </details>
 
 <details>
