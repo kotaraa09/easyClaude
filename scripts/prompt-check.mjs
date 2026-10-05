@@ -27,6 +27,7 @@ import { createHash } from 'node:crypto';
 import { markLater } from './later-memo.mjs';
 import { writesNonLatin, withLanguage } from './language.mjs';
 import { cheapArmed } from './personal.mjs';
+import { locations } from './locations.mjs';
 
 // History, in tokens, beyond what the session's first request carried. That first request
 // is Claude Code's own prompt, tools and project files - a floor no /clear removes - so it
@@ -112,8 +113,8 @@ export const leavesWorkForLater = (prompt) => {
   const words = userWords(prompt);
   return !/^\s*\//.test(words) && LATER.test(words);
 };
-const laterNudge = (date) => 'easyClaude: the user is leaving part of this for another ' +
-  'session, and that session will not see this conversation - only docs/STATE.md carries ' +
+const laterNudge = (date, plan) => 'easyClaude: the user is leaving part of this for another ' +
+  `session, and that session will not see this conversation - only ${plan} carries ` +
   'over. Before you end this turn, put every item they asked for and you did not finish at ' +
   `the top of ## Next, in their words, each ending with "(asked ${date})".`;
 
@@ -175,14 +176,16 @@ function main() {
   // A cheap-session file that came with the repo is not this user's; see personal.mjs.
   const cheap = CHEAP_COMMAND.test(prompt) || cheapArmed(root);
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
-  const later = leavesWorkForLater(prompt) && existsSync(join(root, 'docs', 'STATE.md'));
-  // The Stop hook holds the turn once if docs/STATE.md is still unchanged. See later-memo.mjs.
+  // The plan file is docs/STATE.md unless the project moved it; see locations.mjs.
+  const plan = locations(root).state;
+  const later = leavesWorkForLater(prompt) && existsSync(join(root, plan));
+  // The Stop hook holds the turn once if the plan file is still unchanged. See later-memo.mjs.
   if (later) markLater(root, payload.session_id);
   const nudges = [
     !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null,
     // Only where there is a state file to write to. In cheap mode too: forgetting the rest
     // of the request is not a saving.
-    later ? laterNudge(new Date().toLocaleDateString('en-CA')) : null,
+    later ? laterNudge(new Date().toLocaleDateString('en-CA'), plan) : null,
     // Not in cheap mode, which does one thing per turn on purpose.
     !cheap && asksToFinishSeveral(prompt) ? FINISH_NUDGE : null,
     // In cheap mode too: an existing library is usually the smaller change.
@@ -215,13 +218,13 @@ function main() {
         ? 'Arm the cheap session as the command says, then stop. '
         : '') +
       "In the user's language, tell them in two or three plain sentences: type /clear (their plan " +
-      'is saved in docs/STATE.md, and the next session opens with it) or /compact (keeps a short ' +
+      `is saved in ${plan}, and the next session opens with it) or /compact (keeps a short ` +
       'summary of this conversation), then send the same request again. Keep both commands exactly ' +
       'as written.';
   } else if (!cheap && history > ADVICE_LIMIT && !alreadyAdvised(payload.session_id)) {
     context = `easyClaude: this conversation holds ${k} of history, and every step re-reads it. ` +
       'Do the task as usual. When it is finished, add one line in the user\'s language: before the ' +
-      'next task, /clear makes every step cheaper, and the plan stays in docs/STATE.md. Say this once.';
+      `next task, /clear makes every step cheaper, and the plan stays in ${plan}. Say this once.`;
     markAdvised(payload.session_id, payload.transcript_path ? lastContextTokens(payload.transcript_path) : null);
   }
 

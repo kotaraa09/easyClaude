@@ -1,4 +1,5 @@
-// Work the user left for another session, held until docs/STATE.md records it.
+// Work the user left for another session, held until the plan file records it.
+// The plan file is docs/STATE.md unless the project moved it; see locations.mjs.
 //
 // prompt-check.mjs asks Claude to write unfinished items into docs/STATE.md when a message
 // leaves work "for tomorrow". In the two-session benchmark that line was not enough: the
@@ -15,12 +16,13 @@ import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { locations } from './locations.mjs';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const memoPath = (root, session) =>
   join(tmpdir(), `easyclaude-later-${sha(`${root}\0${session}`).slice(0, 16)}.json`);
 const stateHash = (root) => {
-  try { return sha(readFileSync(join(root, 'docs', 'STATE.md'), 'utf8')); } catch { return null; }
+  try { return sha(readFileSync(join(root, locations(root).state), 'utf8')); } catch { return null; }
 };
 
 // Called when the user's message leaves work for later.
@@ -41,9 +43,10 @@ export function laterBlock(root, session) {
     return null;
   }
   try { writeFileSync(file, JSON.stringify({ ...memo, reminded: true })); } catch { return null; }
-  return 'easyClaude: the user left part of this work for another session, and docs/STATE.md ' +
+  const plan = locations(root).state;
+  return `easyClaude: the user left part of this work for another session, and ${plan} ` +
     'has not changed this turn. That session will not see this conversation. Put every item ' +
-    'they asked for and you did not finish at the top of ## Next in docs/STATE.md, in their ' +
+    `they asked for and you did not finish at the top of ## Next in ${plan}, in their ` +
     'words, each ending with the date they asked, then end the turn. If nothing was left for ' +
     'later, say so in one line and end.';
 }

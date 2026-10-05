@@ -414,6 +414,45 @@ test('gate: work left for later that STATE.md records is not held', async () => 
   assert(r.code === ALLOW, `the plan was written, so nothing to hold:\n${r.out}`);
 });
 
+// --- easyClaude's files kept somewhere else ----------------------------------------
+// A project whose docs/ is already taken names its own places in .claude/easyclaude.json.
+// The plan is rewritten on every turn, so a moved plan must not run the suite either.
+const MOVED = JSON.stringify({ files: { state: 'planning/STATE.md' } });
+
+test('gate: an edit to a moved plan file alone does not run the checks', async () => {
+  const dir = projectDir({ steps: [{ name: 'test', cmd: FAILS }] });
+  mkdirSync(join(dir, 'planning'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'easyclaude.json'), MOVED);
+  writeFileSync(join(dir, 'planning', 'STATE.md'), '# State\n');
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start');
+  writeFileSync(join(dir, 'planning', 'STATE.md'), '# State\n\n## Now\n- [ ] x\n');
+  const r = await stop(dir, `moved-${Date.now()}`);
+  assert(r.code === ALLOW, `only the plan changed, so a failing suite must not block:
+${r.out}`);
+});
+
+test('gate: work left for later is checked against the moved plan file, and names it', async () => {
+  const dir = projectDir({ steps: [{ name: 'ok', cmd: 'node -e ""' }] });
+  mkdirSync(join(dir, 'planning'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'easyclaude.json'), MOVED);
+  writeFileSync(join(dir, 'planning', 'STATE.md'), '# State\n\n## Next\n');
+  const session = `later-moved-${Date.now()}-${Math.random()}`;
+  await askLater(dir, session);
+  const first = await stop(dir, session);
+  assert(first.code === BLOCK, `an unwritten plan must hold the turn:
+${first.out}`);
+  assertMatch(first.out, /planning\/STATE\.md/, 'the block must name the file the project uses.');
+  const other = `later-moved-${Date.now()}-${Math.random()}`;
+  await askLater(dir, other);
+  writeFileSync(join(dir, 'planning', 'STATE.md'), '# State\n\n## Next\n- [ ] the rest (asked 2026-10-05)\n');
+  const written = await stop(dir, other);
+  assert(written.code === ALLOW, `the moved plan was written, so nothing to hold:
+${written.out}`);
+});
+
 // --- a web page that changed must be looked at --------------------------------
 // For a website, a beginner's "done" is "I opened it and it works". The gate holds a turn
 // that changed a page and never looked at it, once per message. See look-check.mjs.

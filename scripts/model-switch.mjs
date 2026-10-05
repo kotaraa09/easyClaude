@@ -16,11 +16,13 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { switchNotice } from './cost-notice.mjs';
+import { locations } from './locations.mjs';
 
 try {
   const payload = JSON.parse(readFileSync(0, 'utf8'));
   const root = process.env.CLAUDE_PROJECT_DIR || payload.cwd || process.cwd();
-  const notice = switchNotice(payload, existsSync(join(root, 'docs', 'STATE.md')));
+  const plan = locations(root).state;
+  const notice = switchNotice(payload, existsSync(join(root, plan)) && plan);
   if (notice) process.stdout.write(JSON.stringify({ systemMessage: notice }));
 } catch { /* see above: say nothing, and let the switch happen */ }
 process.exit(0);

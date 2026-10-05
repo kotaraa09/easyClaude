@@ -297,6 +297,52 @@ test('session-start: a set-up project opens with its state, read by the script',
   assert(!/kickoff/.test(r.out), `a set-up project must not be sent to kickoff:\n${r.out}`);
 });
 
+// --- easyClaude's files kept somewhere else ------------------------------------------
+// A project whose docs/ is already taken names its own places. See locations.mjs.
+test('locations: defaults, a moved file, and every path that must be refused', async () => {
+  const { readLocations, DEFAULTS } = await import('../scripts/locations.mjs');
+  const at = (json) => {
+    const dir = projectDir();
+    mkdirSync(join(dir, '.claude'), { recursive: true });
+    if (json !== undefined) writeFileSync(join(dir, '.claude', 'easyclaude.json'), json);
+    return readLocations(dir);
+  };
+  const none = at(undefined);
+  assert(JSON.stringify(none.paths) === JSON.stringify(DEFAULTS) && !none.moved.length,
+    'with no file, everything stays where it was.');
+  const r = at(JSON.stringify({ files: {
+    state: 'planning\\STATE.md', decisions: 'docs/DECISIONS.md',
+    prd: '../outside.md', changelog: 'C:/x.md', architecture: 'src/app.js', tokens: '.git/x.md', colour: 'a.md',
+  } }));
+  assert(r.paths.state === 'planning/STATE.md', `a Windows path must be read with forward slashes: ${r.paths.state}`);
+  assert(r.moved.length === 1, `a path equal to its default is not a move: ${JSON.stringify(r.moved)}`);
+  for (const key of ['prd', 'changelog', 'architecture', 'tokens', 'colour']) {
+    assert(r.rejected.includes(key), `${key} must be refused: ${JSON.stringify(r.rejected)}`);
+  }
+  assert(r.paths.prd === DEFAULTS.prd, 'a refused path keeps its default.');
+  assert(at('{ not json').rejected.length === 1, 'a broken file must be reported, not ignored.');
+});
+
+test('session-start: a moved plan file opens with its state, and says where it is', async () => {
+  const r = await opener({
+    '.claude/easyclaude.json': JSON.stringify({ files: { state: 'planning/STATE.md' } }),
+    'planning/STATE.md': STATE, 'docs/index.md': '# my docs site', 'index.html': '',
+  });
+  assertMatch(r.out, /\*\*Now:\*\* Add the contact form/, 'the opener must read the moved plan.');
+  assertMatch(r.out, /docs\/STATE\.md -> planning\/STATE\.md/, 'Claude must hear where the plan lives.');
+  assert(!/kickoff/.test(r.out), `a set-up project must not be sent to kickoff:\n${r.out}`);
+});
+
+test('session-start: files in their usual places cost no line; a refused path is named', async () => {
+  const plain = await opener({ 'docs/STATE.md': STATE });
+  assert(!/its own places|cannot use/.test(plain.out), `nothing moved, so nothing to say:\n${plain.out}`);
+  const bad = await opener({
+    '.claude/easyclaude.json': JSON.stringify({ files: { state: '../elsewhere.md' } }), 'docs/STATE.md': STATE,
+  });
+  assertMatch(bad.out, /cannot use[^\n]*state/, 'a path that was refused must be named.');
+  assertMatch(bad.out, /\*\*Now:\*\* Add the contact form/, 'a refused path falls back to the default plan.');
+});
+
 test('session-start: no debt means no Debt line', async () => {
   const r = await opener({ 'docs/STATE.md': STATE.replace(/## Debt[\s\S]*?## Done/, '## Debt\n\n## Done') });
   assert(!/\*\*Debt:\*\*/.test(r.out), `an empty Debt section still printed a line:\n${r.out}`);
