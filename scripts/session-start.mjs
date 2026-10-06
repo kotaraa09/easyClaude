@@ -18,6 +18,8 @@ import { resumeNotice } from './cost-notice.mjs';
 import { missingTools } from './first-run.mjs';
 import { PERSONAL_FILES, personalFile, ignoredNotice } from './personal.mjs';
 import { locations, locationsNotice } from './locations.mjs';
+import { scan as adoptScan, report as adoptReport } from './adopt-scan.mjs';
+import { findApps, report as appsReport } from './find-apps.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -125,6 +127,18 @@ if (COMPACT) {
     'remember the project between sessions, and run its checks after each change. Do not name ' +
     'the skill. If they say yes, run the `kickoff` skill in adopt mode. Do not start its ' +
     'interview unless the user says yes. Then answer whatever they asked.');
+  // kickoff's two scans, run here because a session with no shell - the eval runner on
+  // Windows, or a user who said no to commands - could not run them, and setup then wrote
+  // into a published docs/ folder anyway. Only when they found something, so a plain
+  // project pays nothing for this until it is set up.
+  const scan = adoptScan(root);
+  const apps = findApps(root);
+  const found = scan.config || scan.claudeMd || scan.agentsMd || scan.notes.length;
+  if (found || apps.apps.length) {
+    parts.push("kickoff's scans of this project, for setup if the user says yes. Follow them, " +
+      'and do not run the scan scripts again:\n\n' +
+      [found ? adoptReport(scan) : null, apps.apps.length ? appsReport(apps) : null].filter(Boolean).join('\n\n'));
+  }
 }
 
 // Before setup only, so a set-up project pays nothing for it. kickoff reads the first line

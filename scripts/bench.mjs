@@ -68,9 +68,12 @@ const copyWithoutGit = (from, to) => cpSync(from, to, {
   filter: (src) => !relative(from, src).split(/[\\/]/).some((p) => p === '.git' || p === 'node_modules'),
 });
 
-// 'tests/**' matches everything under tests/; anything else is an exact path.
-const matchesGlob = (file, glob) =>
-  glob.endsWith('/**') ? file.startsWith(glob.slice(0, -2)) : file === glob;
+// 'tests/**' matches everything under tests/, '**/' any folders or none, '*' any part of one
+// name. Anything else is an exact path. Before '*' worked, '**/DECISIONS.md' matched no file
+// at all, so a check that it was absent could never fail.
+export const matchesGlob = (file, glob) => new RegExp(`^${glob
+  .replace(/[.+^${}()|[\]\\?]/g, '\\$&')
+  .replace(/\*\*\/|\/\*\*$|\*/g, (m) => (m === '**/' ? '(?:.*/)?' : m === '/**' ? '/.*' : '[^/]*'))}$`).test(file);
 
 const isTestFile = (f) => /(^|\/)[^/]*\.test\.[cm]?js$/.test(f) || /(^|\/)test\/[^/]+\.[cm]?js$/.test(f);
 

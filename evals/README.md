@@ -1,7 +1,7 @@
 # Evals
 
 Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
-Seven more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+Eight more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
@@ -354,6 +354,26 @@ you found it" fixed that.
 Without the style, one Thai bug-fix run of three still opened with an English note ("This
 is a small, simple decisions log - not worth adding..."), despite the language line from
 0.2.0. With the style on, none did.
+
+**Setup in a project someone else started.** `outcome-adopt-existing` runs setup in a
+recipe site that a friend handed over: `docs/` is a published MkDocs site, decisions are one
+file each in `doc/adr/`, the team wrote its own `CLAUDE.md`, and a front end and a back end
+sit side by side. It needs easyClaude, so run it alone:
+
+```bash
+node scripts/bench.mjs --with-only --case outcome-adopt-existing
+```
+
+2026-10-06, Claude Code 2.1.284, Sonnet 5, three runs, no shell, $0.89 a run: **3/3**. Every
+run kept the plan in `planning/`, wrote nothing onto the site, added a numbered decision to
+`doc/adr/` instead of a log, kept the team's `CLAUDE.md` and added a short section to it, and
+left `CHANGELOG.md` alone. The runner denies every write into `.claude/`, where a real session
+asks the user, so `.claude/easyclaude.json` is graded on the attempt in the trace: all three
+tried to write exactly what the scan said. The first grading scored 0/3 on that file alone,
+and the grader was wrong, not setup. The runs had no shell, so setup could not run the two
+scans itself; the session opener now runs them and sends what they found, which is also what
+a user who declines commands gets. The apps are not graded: with no shell, setup cannot run a
+check once, so it rightly writes none.
 
 **What this does not show yet.** A change that breaks something the user did not mention,
 and getting yesterday's version back. Both need a shell to be fair, see below.
