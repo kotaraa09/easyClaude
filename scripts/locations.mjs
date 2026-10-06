@@ -13,7 +13,9 @@
 //
 // The file is committed with the project, so it can come from someone else's repository.
 // A path is accepted only if it is a Markdown file inside the project. Anything else falls
-// back to its default, and the opener names the entry it ignored.
+// back to its default, and the opener names the entry it ignored. "decisions" may instead
+// be a folder, written with a trailing slash, for a project that keeps one decision record
+// per file (ADRs).
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
 import { readFileSync } from 'node:fs';
@@ -30,13 +32,19 @@ export const DEFAULTS = Object.freeze({
   tokens: 'design/tokens.md',
 });
 
-// A relative Markdown path that stays inside the project, written with forward slashes.
-function clean(value) {
+// Keys that may name a folder instead of a file.
+const FOLDER_KEYS = new Set(['decisions']);
+export const isFolder = (p) => p.endsWith('/');
+
+// A relative Markdown path, or a folder for FOLDER_KEYS, that stays inside the project,
+// written with forward slashes.
+function clean(value, key) {
   if (typeof value !== 'string' || !value.trim()) return null;
   const p = value.trim().replace(/\\/g, '/');
-  if (isAbsolute(p) || /^[a-z]:/i.test(p) || !/\.md$/i.test(p)) return null;
-  const n = normalize(p).split(sep).join('/');
-  if (n === '..' || n.startsWith('../') || n.startsWith('.git/')) return null;
+  const folder = FOLDER_KEYS.has(key) && isFolder(p);
+  if (isAbsolute(p) || /^[a-z]:/i.test(p) || !(folder || /\.md$/i.test(p))) return null;
+  const n = normalize(p).split(sep).join('/').replace(/\/?$/, folder ? '/' : '');
+  if (n === '/' || n === './' || n.startsWith('..') || n.startsWith('.git/')) return null;
   return n;
 }
 
@@ -54,7 +62,7 @@ export function readLocations(root) {
   try { files = JSON.parse(raw)?.files; } catch { return { paths, moved, rejected: ['(the file is not valid JSON)'] }; }
   if (!files || typeof files !== 'object' || Array.isArray(files)) return { paths, moved, rejected };
   for (const [key, value] of Object.entries(files)) {
-    const p = Object.hasOwn(DEFAULTS, key) ? clean(value) : null;
+    const p = Object.hasOwn(DEFAULTS, key) ? clean(value, key) : null;
     if (!p) { rejected.push(key); continue; }
     paths[key] = p;
     if (p !== DEFAULTS[key]) moved.push([key, DEFAULTS[key], p]);
@@ -76,12 +84,13 @@ export function locationsNotice(root, { compact = false } = {}) {
   if (moved.length) {
     text = 'This project keeps some of easyClaude\'s files in its own places. Wherever a skill, ' +
       'rule or hook names the path on the left, read and write the path on the right instead:\n\n' +
-      moved.map(([, from, to]) => `- ${from} -> ${to}`).join('\n');
+      moved.map(([, from, to]) => `- ${from} -> ${to}` + (isFolder(to)
+        ? ' (one new numbered file per decision, in the format of the newest one there)' : '')).join('\n');
   }
   if (rejected.length) {
     text += (text ? '\n\n' : '') + `${LOCATIONS_FILE} has entries easyClaude cannot use, so ` +
       `their defaults apply: ${rejected.join(', ')}. A path must be a Markdown file inside the ` +
-      'project. In your first reply, tell the user this in one plain sentence.';
+      'project (decisions may be a folder ending in /). In your first reply, tell the user this in one plain sentence.';
   }
   return text;
 }

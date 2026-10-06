@@ -151,7 +151,7 @@ function loadConfig() {
     })),
     // Plus easyClaude's own files wherever the project keeps them (see locations.mjs): the
     // plan is rewritten on every turn, and a moved one must not run the suite either.
-    docsOnly: [...(Array.isArray(raw.docsOnly) ? raw.docsOnly : DEFAULT_DOCS_ONLY), ...Object.values(locations(root))],
+    docsOnly: [...(Array.isArray(raw.docsOnly) ? raw.docsOnly : DEFAULT_DOCS_ONLY), ...Object.values(locations(root)).map((p) => (p.endsWith('/') ? `${p}**` : p))],
     // "look": false turns off the page check in look-check.mjs, for a project whose pages
     // nobody needs to see after each change.
     look: raw.look !== false,
