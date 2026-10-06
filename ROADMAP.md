@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-06, at 1.1.1.
+nothing to learn first. Last reviewed on 2026-10-06, at 1.1.2.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -224,3 +224,7 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   marked steps, the costs as figures, and the controls grouped, with **Autoship level** as a
   drop-down and a short explanation on hover. In a folder with no git, Autoship level is a
   Create repo button.
+- **1.1.2** - The panels as they look on screen: the hover help no longer hides under the
+  rows below it, each setting has a short note, divider lines no longer wrap, and the desktop
+  app draws real bars. `scripts/preview-panels.mjs` loads a preview of the panels into a
+  session, and a panel change is looked at before it is released.
