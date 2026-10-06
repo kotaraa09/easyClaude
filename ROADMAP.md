@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-04, at 1.0.0.
+nothing to learn first. Last reviewed on 2026-10-06, at 1.1.0.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -212,3 +212,11 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   The message hook stops reading helper reports as the user, the page check's last reply
   says what changed (typo case 0/3 to 3/3), and the unsupported Postgres connector is gone.
   Measured cost: ~1,710 tokens per turn in a set-up project.
+- **1.1.0** - Projects that already exist. Setup scans first: it keeps planning notes off a
+  published docs site, adds to an existing `CLAUDE.md`, `AGENTS.md`, architecture file or
+  ADR folder instead of replacing them, and gives each app in a multi-app folder its own
+  checks, which run only for the app a change is in. A new task, setup in a project someone
+  else started: 3/3. A commit that would save an API key or a private key is stopped. Autoship
+  is a level you pick (`off`, `commit`, `push`, `pr`, `merge`) and stops the "should I
+  commit?" questions; it is off without git. A progress panel and a control panel, where Claude
+  Code shows plugin panels. Measured cost: ~1,708 tokens per turn, unchanged.
