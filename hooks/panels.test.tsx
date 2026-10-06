@@ -128,7 +128,7 @@ describe('the panels, drawn', () => {
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
     expect(await ui.find({ type: 'Text', text: /^Autoship level/ })).toBeDefined()
     expect(await ui.find({ key: 'autoship' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /How far Claude goes on its own/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /does every step up to this level/ })).toBeDefined()
     expect(await ui.find({ key: 'setup' })).toBeDefined()
     expect(await ui.find({ key: 'create-repo' })).toBeUndefined()
     await ui.unmount()
@@ -141,7 +141,7 @@ describe('the panels, drawn', () => {
     for (const surface of SURFACES) {
       const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
       expect(await ui.find({ key: 'autoship' })).toBeUndefined()
-      expect(await ui.find({ type: 'Text', text: /Autoship needs git/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /Needs a git repository/ })).toBeDefined()
       await ui.press({ key: 'create-repo' })
       await ui.unmount()
     }

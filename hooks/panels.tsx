@@ -139,6 +139,19 @@ export const bar = (part: number, whole: number, width: number): string => {
 export const stepRow = (s: Step): string =>
   s.status === 'completed' ? `✓ ${s.title}` : s.status === 'in_progress' ? `▶ ${s.doing}` : `○ ${s.title}`
 
+const RULE = '─'.repeat(200)
+
+// A rounded bar as an SVG image, for the desktop app. Raw colours from the middle of the
+// palette, so it reads on a light and a dark theme alike; theme keys do not reach an image.
+export const barSvg = (part: number, whole: number, tone: 'accent' | 'neutral'): string => {
+  const w = 280
+  const filled = whole > 0 ? Math.round((Math.max(0, Math.min(part, whole)) / whole) * w) : 0
+  const fill = tone === 'accent' ? '#378ADD' : '#888780'
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="6" viewBox="0 0 ${w} 6">` +
+    `<rect width="${w}" height="6" rx="3" fill="#888780" fill-opacity="0.25"/>` +
+    (filled > 0 ? `<rect width="${filled}" height="6" rx="3" fill="${fill}"/>` : '') + '</svg>'
+}
+
 const paneWidth = (e: any): number => Math.max(24, Number(e?.props?.bodyColumns) || 40)
 
 // The labels for LEVELS, so the two lists cannot drift apart.
@@ -153,13 +166,16 @@ const createRepo = async ($: any) => {
   repoAskedAt = now
   await say($, CREATE_REPO)
 }
-const AUTOSHIP_HELP = 'How far Claude goes on its own when a request is finished and the checks pass. ' +
-  'Off: it asks before each step. Commit, Push, Open a PR or Merge: it does every step up to that one without asking.'
-const NO_GIT_HELP = 'Autoship needs git, and this folder has none yet. Create repo starts one here, so your work ' +
-  'is saved in versions you can go back to.'
-const CHEAP_HELP = 'For the rest of this session, each request gets the fewest steps and a short reply. Cheaper, ' +
-  'and less careful.'
-const PLAIN_HELP = 'Short answers in plain words, without file names or code terms.'
+// Each setting: a short line always shown under its name, and more on hover.
+const AUTOSHIP_NOTE = 'What Claude may do without asking'
+const AUTOSHIP_HELP = 'When a request is finished and the checks pass, Claude does every step up to this ' +
+  'level by itself. Off: it asks first.'
+const NO_GIT_NOTE = 'Needs a git repository'
+const NO_GIT_HELP = 'Create repo starts one in this folder, so your work is saved in versions you can go back to.'
+const CHEAP_NOTE = 'Fewer steps and shorter replies'
+const CHEAP_HELP = 'For this session only. Cheaper, and less careful.'
+const PLAIN_NOTE = 'Short answers without code terms'
+const PLAIN_HELP = 'Replies leave out file names and technical words.'
 const CREATE_REPO = 'This folder has no git repository yet. Start one here with git init, add a .gitignore ' +
   'that keeps out .env and installed packages if there is none, and tell me in one plain line what you did. ' +
   'Do not commit anything.'
@@ -281,18 +297,22 @@ export const register: Register = (on) => {
 
   // --- the progress panel -------------------------------------------------------------
   on('ui.render', { component: 'Pane', requestId: PROGRESS }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
+    const table: any = $.ui.resolve(e)
+    const { Box, Text, Svg } = table
     const r = await read($, request)
     const u = await read($, usage)
     const now = await $.clock.now()
-    const width = paneWidth(e)
+    // A real bar where the surface draws SVG (the desktop app), a line of text elsewhere.
+    const meter = (part: number, whole: number, tone: 'accent' | 'neutral', alt: string) => Svg
+      ? <Svg source={barSvg(part, whole, tone)} alt={alt} />
+      : <Text color={tone === 'accent' ? 'suggestion' : 'inactive'}>{bar(part, whole, 16)}</Text>
     const sizeBar = (
       <Box flexDirection="column">
-        <Text color="subtle">Conversation size</Text>
-        <Box gap={1}>
-          <Text color="inactive">{bar(u.contextTokens ?? 0, u.contextWindow ?? 0, width - 22)}</Text>
-          <Text color="subtle">{tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
+        <Box justifyContent="space-between" gap={1}>
+          <Text color="subtle">Conversation size</Text>
+          <Text color="subtle" wrap="truncate">{tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
         </Box>
+        {meter(u.contextTokens ?? 0, u.contextWindow ?? 0, 'neutral', 'Conversation size')}
       </Box>
     )
     if (!r) {
@@ -314,15 +334,23 @@ export const register: Register = (on) => {
     return (
       <Box flexDirection="column" paddingX={1} gap={1}>
         <Box justifyContent="space-between" gap={2}>
-          <Text bold wrap="truncate-end">{r.text || 'Your request'}</Text>
-          <Text color={running ? 'suggestion' : 'success'}>
-            {running ? `Working ${duration(now - r.startedAt)}` : `Done in ${duration((r.endedAt ?? now) - r.startedAt)}`}
-          </Text>
+          <Box flexShrink={1}>
+            <Text bold wrap="truncate-end">{r.text || 'Your request'}</Text>
+          </Box>
+          {/* Never squeezed: "Done in 2m 56s" broke over two lines in 1.1.1. */}
+          <Box flexShrink={0}>
+            <Text color={running ? 'suggestion' : 'success'} wrap="truncate">
+              {running ? `Working ${duration(now - r.startedAt)}` : `Done in ${duration((r.endedAt ?? now) - r.startedAt)}`}
+            </Text>
+          </Box>
         </Box>
         {r.steps.length > 0 && (
-          <Box gap={1}>
-            <Text color="suggestion">{bar(done, r.steps.length, width - 12)}</Text>
-            <Text color="subtle">{done} of {r.steps.length}</Text>
+          <Box flexDirection="column">
+            <Box justifyContent="space-between" gap={1}>
+              <Text color="subtle">Steps</Text>
+              <Text color="subtle">{done} of {r.steps.length}</Text>
+            </Box>
+            {meter(done, r.steps.length, 'accent', `${done} of ${r.steps.length} steps done`)}
           </Box>
         )}
         {r.steps.length > 0 ? (
@@ -340,7 +368,7 @@ export const register: Register = (on) => {
             {running ? `${r.tools} actions so far. Claude keeps no step list for this request.` : `Finished after ${r.tools} actions.`}
           </Text>
         )}
-        <Text color="promptBorder">{'─'.repeat(Math.max(10, width - 2))}</Text>
+        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
         <Box gap={4}>
           <Box flexDirection="column">
             <Text color="subtle">This request</Text>
@@ -363,16 +391,23 @@ export const register: Register = (on) => {
     const { Box, Text, Button, Select } = table
     const s = await readSettings($)
     const width = paneWidth(e)
-    // A setting's row: its name, its state and control on the right, and what it does,
-    // revealed while the pointer is over the row.
-    const row = (key: string, name: string, help: string, control: any) => (
-      <Box key={key} justifyContent="space-between" alignItems="center" position="relative">
-        <Text>{name} <Text color="subtle">(?)</Text></Text>
-        {control}
-        <Box display="none" hover={{ display: 'flex' }} position="absolute" top={1} left={0}
-          width={Math.max(20, width - 4)} borderStyle="round" borderColor="promptBorder" backgroundColor="background" paddingX={1}>
-          <Text wrap="wrap">{help}</Text>
+    // A setting's row: its name and a short note on the left, its control on the right.
+    // Pointing at the row reveals its help, drawn after all the rows (see helpCard).
+    const row = (key: string, name: string, note: string, control: any) => (
+      <Box key={key} hover={{ scope: `help-${key}` }} justifyContent="space-between" alignItems="center" gap={1}>
+        <Box flexDirection="column" flexShrink={1}>
+          <Text>{name}</Text>
+          <Text color="subtle" wrap="truncate-end">{note}</Text>
         </Box>
+        {control}
+      </Box>
+    )
+    // Each row is two lines and the gap one, so row n starts at line 3n.
+    const helpCard = (key: string, index: number, help: string) => (
+      <Box key={`help-${key}`} display="none" hover={{ scope: `help-${key}`, display: 'flex' }}
+        position="absolute" top={index * 3 + 2} left={0} width={Math.max(20, width - 2)}
+        borderStyle="round" borderColor="promptBorder" backgroundColor="background" paddingX={1}>
+        <Text wrap="wrap">{help}</Text>
       </Box>
     )
     const toggle = (isOn: boolean, onKey: string, offKey: string, turnOn: () => void, turnOff: () => void) => (
@@ -404,15 +439,18 @@ export const register: Register = (on) => {
           <Button key="ship" label="Save my work" onPress={() => say($, 'ship it')} />
           <Button key="undo" label="Undo last change" onPress={() => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.')} />
         </Box>
-        <Text color="promptBorder">{'─'.repeat(Math.max(10, width - 2))}</Text>
-        <Box flexDirection="column" gap={1}>
-          {row('autoship-row', 'Autoship level', s.git ? AUTOSHIP_HELP : NO_GIT_HELP, level)}
-          {row('cheap-row', 'Cheap mode', CHEAP_HELP, toggle(s.cheap, 'cheap-on', 'cheap-off',
+        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
+        <Box flexDirection="column" gap={1} position="relative">
+          {row('autoship-row', 'Autoship level', s.git ? AUTOSHIP_NOTE : NO_GIT_NOTE, level)}
+          {row('cheap-row', 'Cheap mode', CHEAP_NOTE, toggle(s.cheap, 'cheap-on', 'cheap-off',
             () => run($, 'easyclaude:cheap-session'), () => run($, 'easyclaude:full')))}
-          {row('plain-row', 'Plain answers', PLAIN_HELP, toggle(s.plain, 'plain', 'plain',
+          {row('plain-row', 'Plain answers', PLAIN_NOTE, toggle(s.plain, 'plain', 'plain',
             () => run($, 'easyclaude:plain', 'on'), () => run($, 'easyclaude:plain', 'off')))}
+          {helpCard('autoship-row', 0, s.git ? AUTOSHIP_HELP : NO_GIT_HELP)}
+          {helpCard('cheap-row', 1, CHEAP_HELP)}
+          {helpCard('plain-row', 2, PLAIN_HELP)}
         </Box>
-        <Text color="promptBorder">{'─'.repeat(Math.max(10, width - 2))}</Text>
+        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
         <Box flexDirection="column">
           <Text color="subtle">Tools</Text>
           <Box gap={1} flexWrap="wrap">
