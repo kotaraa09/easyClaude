@@ -387,6 +387,63 @@ test('find-apps: undeclared, a front end and a back end side by side are two app
     'the report must tell kickoff to set "dir" on each app\'s steps.');
 });
 
+test('locations: decisions may be a folder of records, and nothing else may', async () => {
+  const { readLocations } = await import('../scripts/locations.mjs');
+  const dir = projectDir();
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  writeFileSync(join(dir, '.claude', 'easyclaude.json'),
+    JSON.stringify({ files: { decisions: 'doc\\adr\\', state: 'planning/' } }));
+  const r = readLocations(dir);
+  assert(r.paths.decisions === 'doc/adr/', `an ADR folder must be kept as a folder: ${r.paths.decisions}`);
+  assert(r.rejected.includes('state'), 'the plan is one file the opener reads, never a folder.');
+  const out = await opener({ '.claude/easyclaude.json': JSON.stringify({ files: { decisions: 'doc/adr/' } }), 'docs/STATE.md': STATE });
+  assertMatch(out.out, /docs\/DECISIONS\.md -> doc\/adr\/ \(one new numbered file per decision/,
+    'Claude must hear to add a record, not to write a log.');
+});
+
+// --- the adopt scan -----------------------------------------------------------------
+// kickoff follows this report in an existing project, so each answer is pinned here.
+const scanOf = async (files) => {
+  const { scan, report } = await import('../scripts/adopt-scan.mjs');
+  const dir = projectDir();
+  writeAll(dir, files);
+  const r = scan(dir);
+  return { r, text: report(r) };
+};
+
+test('adopt scan: a plain project keeps every default and writes no config', async () => {
+  const { r, text } = await scanOf({ 'package.json': '{}', 'src/app.js': '' });
+  assert(r.config === null && !r.site, `nothing here is taken:\n${text}`);
+  assertMatch(text, /Do not write \.claude\/easyclaude\.json/, 'no config means no config file.');
+});
+
+test('adopt scan: a published docs site moves the notes out, even a file that exists there', async () => {
+  const { r, text } = await scanOf({ 'mkdocs.yml': '', 'docs/index.md': '', 'docs/ARCHITECTURE.md': '# for readers' });
+  assert(r.site === 'MkDocs', `the site was not found: ${r.site}`);
+  assert(r.config.files.state === 'planning/STATE.md', `the plan must leave docs/: ${JSON.stringify(r.config)}`);
+  assert(r.files.architecture.path === 'planning/ARCHITECTURE.md',
+    'a page written for the site\'s readers is not where planning notes go.');
+  assertMatch(text, /"docsOnly"/, 'docs/ is built here, so a change there must run the checks.');
+});
+
+test('adopt scan: an existing file is added to, an ADR folder is used, release notes are left alone', async () => {
+  const { r, text } = await scanOf({
+    'go.mod': '', 'Architecture.md': '# ours', 'doc/adr/0001-record.md': '', 'CHANGELOG.md': '',
+  });
+  assert(r.files.architecture.path === 'Architecture.md' && r.files.architecture.how === 'existing',
+    `the project's own architecture file must be found, whatever its case: ${JSON.stringify(r.files.architecture)}`);
+  assert(r.config.files.decisions === 'doc/adr/', `decisions must go to the ADR folder: ${JSON.stringify(r.config)}`);
+  assertMatch(text, /Never replace what is there/, 'an existing file must only be added to.');
+  assertMatch(text, /CHANGELOG\.md is the project's own release notes/, 'release notes are not the plan\'s overflow.');
+});
+
+test('adopt scan: CLAUDE.md is added to; AGENTS.md alone is imported, not copied', async () => {
+  const own = await scanOf({ 'package.json': '{}', 'CLAUDE.md': '# rules we wrote', 'AGENTS.md': '' });
+  assertMatch(own.text, /CLAUDE\.md exists[^\n]*Do not rewrite it/, 'a CLAUDE.md someone wrote must survive setup.');
+  const agents = await scanOf({ 'package.json': '{}', 'AGENTS.md': '# agent rules' });
+  assertMatch(agents.text, /"@AGENTS\.md" as its first line/, 'AGENTS.md must be read every session, by import.');
+});
+
 test('session-start: no debt means no Debt line', async () => {
   const r = await opener({ 'docs/STATE.md': STATE.replace(/## Debt[\s\S]*?## Done/, '## Debt\n\n## Done') });
   assert(!/\*\*Debt:\*\*/.test(r.out), `an empty Debt section still printed a line:\n${r.out}`);
