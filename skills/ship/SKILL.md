@@ -24,13 +24,14 @@ Read `git diff` against the base. Two passes; the second is the one that matters
 
 **Correctness.** This is the gap the verify gate cannot close. You wrote the code, and if the project has tests you wrote those too — so green means the code does what you thought it should do. It does not mean the change is right, and no amount of re-reading your own diff fixes that, because you already know what you meant.
 
-So get eyes that did not write it. Dispatch the `easyclaude-diff-reviewer` subagent with the diff and no other context. It ships with this plugin, it has no shell and no write tools, and it is briefed to report only the three things a reader who wasn't here would notice:
+So get eyes that did not write it. Dispatch the `easyclaude-diff-reviewer` subagent with the diff and no other context. It ships with this plugin, it has no shell and no write tools, and it is briefed to report only the four things a reader who wasn't here would notice:
 
 - what breaks when an input is empty, null, very large, or arrives twice
 - what the change assumes about existing behaviour that nobody actually checked
 - where it reimplements something the codebase already does
+- where a failure goes unreported: an error caught and dropped, or a fallback that hides it
 
-Keep the brief that short. A reviewer asked for everything reports style opinions; a reviewer asked for three things reports bugs. The reviewer cannot edit files, which is deliberate: a reviewer that fixes what it finds ships code past the gate in step 1 that nobody reviewed at all.
+Keep the brief that short. A reviewer asked for everything reports style opinions; a reviewer asked for four things reports bugs. The reviewer cannot edit files, which is deliberate: a reviewer that fixes what it finds ships code past the gate in step 1 that nobody reviewed at all.
 
 **Wait for the report before step 4.** In an interactive session the reviewer runs in the background, so its report arrives in a later message, not as the result of the call. Do not commit, push or open the PR until it has arrived and you have read it. If the turn has to end first, say the review is still running and stop there.
 

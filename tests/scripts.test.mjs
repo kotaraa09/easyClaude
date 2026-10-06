@@ -954,3 +954,58 @@ test('prompt hook: finishing several is caught, one thing and cheap mode are not
   const cheap = await promptHook(dir, file, '/easyclaude:cheap finish the rest');
   assert(!/finish several tasks/.test(cheap.out), `cheap mode does one thing a turn on purpose:\n${cheap.out}`);
 });
+
+// --- secrets in a commit ------------------------------------------------------------
+// Fake keys are built here at run time, so no key-shaped text sits in this repository.
+const FAKE_AWS = 'AKIA' + 'Q'.repeat(16);
+const FAKE_GH = 'ghp' + '_' + 'a1'.repeat(18);
+const repoWith = (files) => {
+  const dir = projectDir();
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  writeAll(dir, { 'README.md': '# x\n', '.gitignore': 'secrets.local\n' });
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start');
+  writeAll(dir, files);
+  return { dir, git };
+};
+const commitHook = (dir, command) => run(script('commit-check.mjs'), {
+  cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+});
+
+test('commit check: only a commit is looked at', async () => {
+  const { isCommit } = await import('../scripts/commit-check.mjs');
+  for (const c of ['git commit -m "x"', 'git -c user.name=a commit -qm x', 'git add -A && git commit -m "x"'])
+    assert(isCommit(c), `a commit was missed: ${c}`);
+  for (const c of ['git status', 'npm test', 'echo commit', 'git log --oneline'])
+    assert(!isCommit(c), `not a commit: ${c}`);
+});
+
+test('commit check: a staged key holds the commit, and the value is never shown whole', async () => {
+  const { dir, git } = repoWith({ 'src/config.js': `export const key = "${FAKE_AWS}";\n` });
+  git('add', '-A');
+  const r = await commitHook(dir, 'git commit -m "add config"');
+  assert(r.code === 2, `a staged AWS key must hold the commit:\n${r.out}`);
+  assertMatch(r.out, /src\/config\.js:1 - an AWS access key/, 'the file and line must be named.');
+  assert(!r.out.includes(FAKE_AWS), 'the key itself must not be repeated back.');
+  const clean = repoWith({ 'src/app.js': 'export const x = 1;\n' });
+  clean.git('add', '-A');
+  assert((await commitHook(clean.dir, 'git commit -m "x"')).code === 0, 'a clean commit must go ahead.');
+});
+
+test('commit check: "git add -A && git commit" is checked before anything is staged', async () => {
+  const { dir } = repoWith({ 'notes.txt': `token ${FAKE_GH}\n`, 'secrets.local': `${FAKE_AWS}\n` });
+  const r = await commitHook(dir, 'git add -A && git commit -m "notes"');
+  assert(r.code === 2, `an unstaged new file with a token must hold a commit that stages it:\n${r.out}`);
+  assertMatch(r.out, /notes\.txt:1 - a GitHub token/, 'the new file must be scanned.');
+  assert(!/secrets\.local/.test(r.out), 'a file .gitignore keeps out is not committed, so not reported.');
+});
+
+test('commit check: a .env file is held; an example file and a confirmed test value are not', async () => {
+  const env = repoWith({ '.env': 'API=1\n' });
+  assertMatch((await commitHook(env.dir, 'git add . && git commit -m x')).out, /\.env - a file that holds secrets/,
+    'a .env that is not ignored must never be committed.');
+  const ok = repoWith({ '.env.example': 'API=\n', 'test/fixture.js': `const k = "${FAKE_AWS}"; // easyclaude: not a secret\n` });
+  const r = await commitHook(ok.dir, 'git add -A && git commit -m x');
+  assert(r.code === 0, `a blank example and a value the user confirmed must go through:\n${r.out}`);
+});
