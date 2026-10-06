@@ -37,6 +37,7 @@
 - **Blocks a few destructive commands**, such as force pushes and reading `.env`.
 - **Stops a commit that would save an API key or a password**, and says which file it is in. A key in a saved version stays in the history for good.
 - **Answers in your language.** Short answers in plain words are one setting away.
+- **Shows its progress, and puts every feature on a button.** A progress panel shows the request in progress, the step it is on ("Step 3 of 6: Building page 2"), and what the request and the session have cost. A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup. The panels run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/easyclaude-panels` opens them again once it does.
 
 None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. easyClaude sets them up for you, and it measures whether the result is better.
 

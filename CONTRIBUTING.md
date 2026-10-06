@@ -21,6 +21,17 @@ node scripts/test.mjs       # the checking machinery, about 25 seconds to 5 minu
 
 Both must pass. CI runs them on Linux and Windows for every pull request.
 
+The panels in `hooks/panels.tsx` are a Claude Code hooks module, and need Claude Code itself
+(2.1.288 or later). CI cannot run these, so run them yourself when you change the panels:
+
+```bash
+claude plugin validate .claude-plugin/plugin.json
+claude plugin test .
+```
+
+The first time Claude Code loads the plugin, it writes the API's types to
+`.claude-plugin/types/` (ignored by git), and `tsc -p .` then type-checks the panels.
+
 ## Rules for a change
 
 - **Keep the per-turn cost down.** Every rule, skill description and agent description is

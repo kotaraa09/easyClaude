@@ -1,7 +1,7 @@
 {
   "_about": "Written by scripts/measure-cost.mjs --write. The README quotes these figures, and validate.mjs warns when \"inputs\" no longer matches the files that set the cost.",
   "measured": "2026-10-06",
-  "claude": "2.1.284 (Claude Code)",
+  "claude": "2.1.288 (Claude Code)",
   "model": "claude-opus-5-5",
   "runs": 2,
   "total": 1710,
@@ -11,5 +11,5 @@
     "claudeMd": 265,
     "rules": 484
   },
-  "inputs": "f0ec090e3c9bf041"
+  "inputs": "4e5ca5ee2effbd70"
 }

@@ -2,8 +2,17 @@
   "name": "easyclaude",
   "version": "1.0.0",
   "description": "A stack-agnostic harness that makes Claude Code work well on any project: persistent state, an enforced verify gate, guardrails, and a token-frugal escape hatch.",
-  "author": { "name": "DegonCore" },
+  "author": {
+    "name": "DegonCore"
+  },
   "homepage": "https://github.com/kotaraa09/easyClaude",
   "license": "MIT",
-  "keywords": ["workflow", "guardrails", "verification", "state", "scaffolding"]
+  "keywords": [
+    "workflow",
+    "guardrails",
+    "verification",
+    "state",
+    "scaffolding"
+  ],
+  "types": "./types/index.d.ts"
 }
