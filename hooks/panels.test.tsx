@@ -1,0 +1,130 @@
+// Run with `claude plugin test .` from the plugin root. The node suite (scripts/test.mjs)
+// does not run these: they need Claude Code's own engine.
+import { describe, expect, mock, test } from 'claude-code/testing'
+import type { On } from 'claude-code'
+
+import { applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
+
+const SURFACES = ['terminal', 'desktop'] as const
+
+// What the engine answers beneath the plugin in a session: a clock, the project folder, its
+// files, and the session's figures.
+const project = (on: On, files: Record<string, string>) => {
+  mock.clock(on, { now: 1_000_000 })
+  on('session.root', async () => ({ value: '/p' }) as any)
+  on('session.usage', async () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: 50_000, window: 200_000, percent: 25 }, cost: { usd: 0.5 } } }) as any)
+  on('fs.read', async (_$, e: any) => {
+    // The engine hands the path over in the platform's own form: D:\p\docs\STATE.md here.
+    const rel = String(e.path).replace(/\\/g, '/').replace(/^([A-Za-z]:)?\/p\//, '')
+    if (rel in files) return { value: files[rel] } as any
+    throw new Error(`not found: ${e.path}`)
+  })
+}
+const pane = (requestId: string) => ({
+  component: 'Pane' as const,
+  requestId,
+  props: {
+    title: requestId, isFocused: false, bodyColumns: 60, placement: 'dock' as const,
+    scroll: { offset: 0, bodyRows: 30 }, view: {},
+  } as any,
+})
+
+describe('the step line', () => {
+  test('names the step in progress, counted from one', async () => {
+    const steps = fromTodos([
+      { content: 'Read the plan', status: 'completed', activeForm: 'Reading the plan' },
+      { content: 'Build page 2', status: 'in_progress', activeForm: 'Building page 2' },
+      { content: 'Build page 3', status: 'pending', activeForm: 'Building page 3' },
+    ])
+    expect(stepLine(steps)).toBe('Step 2 of 3: Building page 2')
+    expect(stepLine([])).toBe(null)
+    expect(stepLine(steps.map((s) => ({ ...s, status: 'completed' as const })))).toBe('All 3 steps done')
+  })
+
+  test('follows the Task tools one change at a time, and drops a deleted step', async () => {
+    let steps = [{ id: '1', title: 'Set up', doing: 'Setting up', status: 'pending' as const }]
+    steps = applyTaskUpdate(steps, { taskId: '1', status: 'in_progress' })
+    expect(stepLine(steps)).toBe('Step 1 of 1: Setting up')
+    expect(applyTaskUpdate(steps, { taskId: '1', status: 'deleted' })).toEqual([])
+  })
+
+  test('says a tiny cost plainly, and an unknown one as a dash', async () => {
+    expect(money(0.004)).toBe('under $0.01')
+    expect(money(1.234)).toBe('$1.23')
+    expect(money(null)).toBe('-')
+  })
+})
+
+describe('the control panel state', () => {
+  test('reads the level, cheap mode, plain answers and setup from the project files', async () => {
+    const s = settingsFrom({
+      autoship: JSON.stringify({ enabled: true, through: 'pr' }),
+      cheap: '2026-10-06',
+      local: JSON.stringify({ outputStyle: 'easyclaude:plain' }),
+      state: '# State\n',
+    })
+    expect(s).toEqual({ autoship: 'pr', cheap: true, plain: true, setUp: true })
+    const fresh = settingsFrom({ autoship: JSON.stringify({ enabled: false, through: 'merge' }), cheap: null, local: null, state: '<!-- easyclaude:not-kicked-off -->' })
+    expect(fresh).toEqual({ autoship: 'off', cheap: false, plain: false, setUp: false })
+    // A level the command does not know arms nothing, so the panel must not show it as set.
+    expect(settingsFrom({ autoship: JSON.stringify({ enabled: true, through: 'everything' }), cheap: null, local: null, state: null }).autoship).toBe('off')
+  })
+})
+
+describe('the panels, drawn', () => {
+  test('progress shows the step in progress after Claude updates its list', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async () => ({ result: {} }) as any)
+    await $.prompt.submit({ text: 'make a website for my bakery' })
+    await $.tool.call({
+      tool: 'TodoWrite',
+      todos: [
+        { content: 'Read the plan', status: 'completed', activeForm: 'Reading the plan' },
+        { content: 'Build the home page', status: 'in_progress', activeForm: 'Building the home page' },
+      ],
+    } as any)
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-progress') })
+      expect(await ui.find({ type: 'Text', text: /make a website for my bakery/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: 'Step 2 of 2: Building the home page' })).toBeDefined()
+      await ui.unmount()
+    }
+  })
+
+  test('the Task tools build the step list, and their ids never clash with a TodoWrite list', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async (_$, e: any) => ({ result: e.tool === 'TaskCreate' ? { task: { id: '0', subject: e.subject } } : {} }) as any)
+    await $.prompt.submit({ text: 'add a contact page' })
+    await $.tool.call({ tool: 'TaskCreate', subject: 'Write the form', description: '', activeForm: 'Writing the form' } as any)
+    await $.tool.call({ tool: 'TaskUpdate', taskId: '0', status: 'in_progress' } as any)
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-progress') })
+    expect(await ui.find({ type: 'Text', text: 'Step 1 of 1: Writing the form' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('a control panel button runs the command it names', async ($, on) => {
+    project(on, { 'docs/STATE.md': '# State\n', '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'commit' }) })
+    const ran: string[] = []
+    on('command.run', async (_$, e) => {
+      ran.push(`${e.command} ${e.args}`.trim())
+      return { text: '' }
+    })
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
+      await ui.press({ key: 'autoship-pr' })
+      await ui.press({ key: 'skills' })
+      await ui.unmount()
+    }
+    expect(ran).toEqual(['easyclaude:autoship pr', 'easyclaude:skills', 'easyclaude:autoship pr', 'easyclaude:skills'])
+  })
+
+  test('the control panel shows the level the project has, and offers setup only before it', async ($, on) => {
+    project(on, { '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'push' }) })
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
+    expect(await ui.find({ type: 'Text', text: 'Ship without asking: push' })).toBeDefined()
+    expect(await ui.find({ key: 'setup' })).toBeDefined()
+    await ui.unmount()
+  })
+})

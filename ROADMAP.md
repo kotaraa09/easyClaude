@@ -131,37 +131,14 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
 
 ## Later
 
-- **A progress panel, once plugin panels are on for everyone.** A beginner cannot see how
-  much of a feature is done without opening `docs/STATE.md`. Claude Code's function hooks
-  ("mods") can draw a pane beside the conversation, with Buttons that send a prompt
-  (`$.prompt.submit`), in the terminal and the desktop app. Checked on 2026-10-03 with
-  Claude Code 2.1.284/2.1.286, in a copy of this plugin:
-  - One plugin can carry both kinds. `hooks/hooks.json` took `"modules": ["./register.ts"]`
-    beside the existing `"hooks"`, `claude plugin validate` passed, and in one session the
-    module loaded and `session-start.mjs` ran as before. No second install.
-  - An installed plugin's module loads only with `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` in
-    the environment (early access). Without it the debug log says "hooks modules are not
-    turned on for installed plugins" and everything else works. The API also changes
-    between releases. So we wait.
-
-  **Start when** a plugin installed from the marketplace loads its module with no variable
-  set. To check: copy the plugin, add the module line and a `register.ts` that calls
-  `$.ui.status`, run `claude -p "hi" --plugin-dir <copy> --debug`, and look for
-  "hooks module easyclaude@inline loaded" in `~/.claude/debug`. A few cents a run.
-
-  **Decide first.** The panel cannot count "3 of 5 done" today: `build-task` moves each
-  finished task to `## Done` as a loose line, so it leaves its feature's list. Ticking
-  tasks in place (`- [x]`) under the feature heading would fix that, but it changes what
-  every session reads back, so it goes through the benchmark like any behaviour change.
-
-  **What.** A pane with the feature, its tasks done and left, and the last check result
-  (`lastSeen` in `tree-state.mjs` keeps the failed steps); then Buttons for Continue, Fix
-  the problem, Undo the last change and Save my work, each sending the sentence the skills
-  already answer. Without function hooks, nothing changes. **Done when.** A beginner sees
-  progress without asking; the benchmark cannot see a pane, so a session with a person
-  stands in for it. **Effort:** half a day for the format change, 1 day for the pane, 1 day
-  for the Buttons.
-
+- **Panels for everyone.** 1.1.0 ships a progress panel and a control panel as a Claude
+  Code hooks module (`hooks/panels.tsx`). On 2026-10-06 installed plugins' modules loaded on
+  Claude Code 2.1.288 with no variable set, behind a server rollout flag
+  (`tengu_plugin_hooks_modules`) that was off for this account on 2026-10-03; 2.1.284 still
+  needs `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`. The API is early access. **Watch for** the
+  flag reaching every account, and an API change that breaks the panels: `claude plugin
+  test .` from the plugin root runs their tests. A session with a person stands in for a
+  benchmark, which cannot see a panel.
 - **The install, tried on a clean machine.** 0.2.5 found that `/plugin` in the desktop app
   only browses, so 0.2.6 installs by pasting a prompt. Nobody has tried that prompt on a
   computer with nothing installed. `template/` should offer the install when the folder is
