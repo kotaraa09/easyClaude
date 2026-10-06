@@ -32,6 +32,13 @@ claude plugin test .
 The first time Claude Code loads the plugin, it writes the API's types to
 `.claude-plugin/types/` (ignored by git), and `tsc -p .` then type-checks the panels.
 
+**Look at the panels before you release a change to them.** The tests read what a panel
+contains, not how it looks, and two releases went out with faults anyone would see on
+screen. In a Claude Code session, load the `plugin-authoring` skill (it names a dev-mods
+folder for the session), then run `node scripts/preview-panels.mjs <that folder>`. A copy
+called `easyclaude-preview` loads beside your installed easyClaude once you allow hot
+reloading; check it in the desktop app and in a terminal.
+
 ## Rules for a change
 
 - **Keep the per-turn cost down.** Every rule, skill description and agent description is
