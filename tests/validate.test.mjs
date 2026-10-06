@@ -355,10 +355,13 @@ breaks('one of the four copies of the "## Done" cap drifting', '11',
   (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replace('ten most recent', 'twenty most recent')),
   /skills\/ship\/SKILL\.md.*ten most recent/);
 
-// --- 11c. autoship must keep the promise it makes ------------------------------
-breaks('ship no longer checking the state autoship promises', '11c',
-  (d) => editText(d, 'skills/ship/SKILL.md', (t) => t.replaceAll('## Blocked', '## Stuck')),
-  /skills\/ship\/SKILL\.md.*autoship/);
+// --- 11c. autoship says the same levels everywhere ----------------------------
+breaks('the command no longer offering a level the script knows', '11c',
+  (d) => editText(d, 'commands/autoship.md', (t) => t.replace('| pr | merge |', '| merge |')),
+  /commands\/autoship\.md.*"pr"/);
+breaks('the command arming autoship without git', '11c',
+  (d) => editText(d, 'commands/autoship.md', (t) => t.replace('git rev-parse --is-inside-work-tree', 'git status')),
+  /commands\/autoship\.md.*git repository/);
 
 // --- 11b. the template must actually reach kickoff -------------------------
 breaks('a template that can never reach kickoff', '11b',

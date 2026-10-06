@@ -822,22 +822,25 @@ for (const f of [
   }
 }
 
-// --- 11c. autoship must keep the promise it makes ------------------------------
-// /easyclaude:autoship tells the user it fires only when docs/STATE.md has nothing left
-// under Now, Next or Blocked. build-task checked that before it called ship, and ship did
-// not, so any other way into ship's automatic mode pushed with tasks still open. Found on
-// 2026-10-04. The promise and both places that keep it must name all three sections.
-const autoshipPromise = [
-  ['commands/autoship.md', ['Now', 'Next', 'Blocked'].map((s) => new RegExp(`\\b${s}\\b`))],
-  ['skills/build-task/SKILL.md', ['## Now', '## Next', '## Blocked'].map((s) => new RegExp(s))],
-  ['skills/ship/SKILL.md', ['## Now', '## Next', '## Blocked'].map((s) => new RegExp(s))],
-];
-for (const [f, sections] of autoshipPromise) {
-  const text = readOrErr(f, 'missing - it states or keeps the autoship promise');
-  if (text === null) continue;
-  if (!sections.every((re) => re.test(text))) {
-    err(f, 'must name the Now, Next and Blocked sections of docs/STATE.md - /easyclaude:autoship ' +
-      'promises it fires only when all three are empty, and ship and build-task both keep that promise');
+// --- 11c. autoship says the same levels everywhere ----------------------------
+// The user picks a level with /easyclaude:autoship, and scripts/autoship.mjs turns it into
+// the line every session gets. Until 1.1 the command offered "on" and asked a second
+// question, the levels lived only in prose, and autoship fired only at the end of a feature,
+// so "on" announced itself every session and changed nothing. The command must name every
+// level the script knows, and keep "no git, no autoship", which the script also enforces.
+const autoshipScript = readOrErr('scripts/autoship.mjs', 'missing - session-start.mjs reads the autoship level through it');
+const autoshipCommand = readOrErr('commands/autoship.md', 'missing - it is where the user picks the level');
+if (autoshipScript !== null && autoshipCommand !== null) {
+  const levels = (autoshipScript.match(/LEVELS = \[([^\]]*)\]/)?.[1] ?? '').match(/'([a-z]+)'/g)?.map((l) => l.slice(1, -1)) ?? [];
+  if (!levels.length) err('scripts/autoship.mjs', 'no "LEVELS = [...]" line - check 11c reads the levels from it');
+  const hint = autoshipCommand.match(/^argument-hint:(.*)$/m)?.[1] ?? '';
+  for (const level of ['off', ...levels]) {
+    if (!new RegExp(`\\b${level}\\b`).test(hint)) {
+      err('commands/autoship.md', `its argument-hint does not offer "${level}" - scripts/autoship.mjs knows it, so the user must be able to pick it`);
+    }
+  }
+  if (!autoshipCommand.includes('git rev-parse --is-inside-work-tree')) {
+    err('commands/autoship.md', 'must check for a git repository first - autoship cannot work without one, and scripts/autoship.mjs turns it off there');
   }
 }
 
@@ -1047,10 +1050,11 @@ if (tmplIgnore !== null) {
 
 // --- 14b. a tracked autoship.json authorises nothing, everywhere --------------
 // .gitignore cannot stop a repository shipping autoship.json. The scripts ignore a tracked
-// copy (personal.mjs), but the two skills that act on it read the file themselves, so each
-// must run the same git question first. A copy of the rule in prose is the drift check 11
-// exists for, so the question has to appear word for word.
-for (const f of ['skills/ship/SKILL.md', 'skills/build-task/SKILL.md']) {
+// copy (personal.mjs), but ship reads the file itself, so it must run the same git question
+// first. build-task no longer reads it: since 1.1 it acts on the session opener's line, which
+// autoship.mjs only sends for an untracked file. A copy of the rule in prose is the drift
+// check 11 exists for, so the question has to appear word for word.
+for (const f of ['skills/ship/SKILL.md']) {
   const text = readOrErr(f, 'missing - it acts on .claude/autoship.json');
   if (text !== null && !text.includes('git ls-files --error-unmatch .claude/autoship.json')) {
     err(f, 'acts on .claude/autoship.json but never asks `git ls-files --error-unmatch ' +

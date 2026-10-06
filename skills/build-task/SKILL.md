@@ -50,26 +50,16 @@ If you cannot make it pass after a genuine attempt, stop and say exactly what's 
 - **If `## Debt` passes ten entries, say so once in your report.** The fix is to promote a few into `## Next` or drop them deliberately, not to keep appending — a list nobody triages is a slower way of forgetting. Don't start paying it down uninvited.
 - Any decision that will confuse someone in a month goes in `docs/DECISIONS.md` with its reason.
 
-## 5. Ship it, but only if nothing is left
+## 5. Ship it, to the level the user chose
 
-Skip this entirely unless `.claude/autoship.json` exists, is enabled, and is not tracked by git (`git ls-files --error-unmatch .claude/autoship.json` fails). A tracked copy came with the repository, not from this user.
+Skip this unless the session opener said autoship is set, or the user set it with
+`/easyclaude:autoship` in this session. Otherwise say nothing about shipping: do not ask
+"should I commit?", and do not offer it either - the user decides that with the command.
 
-Re-read `docs/STATE.md` after your update and check all four:
-
-- `## Now` — no unchecked task
-- `## Next` — no unchecked `- [ ]`
-- `## Blocked` — empty, or says none, in whatever language the file is written in
-- nothing you found this turn is still unrecorded
-
-A bug you spotted, a half-finished slice, or a follow-up you were about to suggest **is** a
-subsequent task. Write it under `## Next` — which by itself fails this check and ships
-nothing. That is the point: autoship fires at the end of a *feature*, not the end of a
-*task*.
-
-If all four hold, invoke the `ship` skill and let it work to the level in the config. If
-any fail, say nothing about shipping and carry on. If the user asked you to ship in this
-turn, invoke `ship` whatever the four say: they asked, and `/easyclaude:autoship` tells
-them the state rule does not apply then.
+When it is set and this task passed its checks, invoke the `ship` skill and let it work to
+the level. Each finished task is shipped; there is no waiting for the whole feature. Write
+anything you found and did not do under `## Next` first, so the plan is right in what you
+ship. If the user asked you to ship in this turn, invoke `ship` whatever the level says.
 
 ## 6. Report
 

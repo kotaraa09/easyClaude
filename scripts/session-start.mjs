@@ -20,6 +20,7 @@ import { PERSONAL_FILES, personalFile, ignoredNotice } from './personal.mjs';
 import { locations, locationsNotice } from './locations.mjs';
 import { scan as adoptScan, report as adoptReport } from './adopt-scan.mjs';
 import { findApps, report as appsReport } from './find-apps.mjs';
+import { activeLevel, isGitRepo, standingLine } from './autoship.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -179,11 +180,13 @@ if (cheapOn) {
         '/easyclaude:cheap-session again.'));
 }
 
-// A broken autoship.json arms nothing, and autoship reports it when it runs.
-if (autoship?.enabled === true && kind['.claude/autoship.json'] === 'personal' && !COMPACT) {
-  // The user must always know when a session can commit, push or merge on their behalf.
-  parts.push(`Autoship is armed through "${autoship.through ?? 'commit'}". Add one line to your ` +
-    'first reply saying so, and that /easyclaude:autoship off turns it off.');
+// A broken autoship.json arms nothing, and neither does a folder with no git. The rule comes
+// back after a compaction too: it is a standing instruction, and the summary may drop it.
+// The user must always know when a session can commit, push or merge on their behalf, so
+// the first reply says so; see autoship.mjs.
+if (autoship?.enabled === true) {
+  const level = activeLevel(autoship, { kind: kind['.claude/autoship.json'], git: isGitRepo(root) });
+  if (level) parts.push(standingLine(level, autoship.base || 'main', { compact: COMPACT }));
 }
 
 if (ignored.length && !COMPACT) parts.push(ignoredNotice(ignored));

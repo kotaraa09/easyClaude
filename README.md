@@ -157,7 +157,7 @@ You never need these for the common jobs. They cost nothing until you type them.
 /easyclaude:cheap-session      stay in cheap mode until /easyclaude:full
 /easyclaude:full               leave cheap mode
 /easyclaude:plain [off]        short answers in plain words
-/easyclaude:autoship           let it commit, push or merge by itself (off by default)
+/easyclaude:autoship pr        stop asking before commit, push and pull request (off, commit, push, pr, merge)
 ```
 
 </details>
@@ -187,7 +187,7 @@ So far only Replicate images were tested end to end. `node scripts/gen/generate.
 
 <br>
 
-Off until you turn it on with `/easyclaude:autoship`. You choose how far it may go: commit, push, open a pull request, or merge. It acts only when a feature is finished and every check passed, and never on changes to sign-in, payments or database migrations. Each session tells you when it is on.
+Without it, Claude asks "should I commit?", then "should I push?", then "should I open a pull request?", and each answer is one more message. Pick a level once with `/easyclaude:autoship off`, `commit`, `push`, `pr` or `merge`, and Claude does every step up to that level by itself when what you asked is finished and every check passed. It still asks when a check fails, when a change touches sign-in, payments or a database migration, or when you tell it to wait. Off by default, off in a folder with no git, and each session tells you the level.
 
 </details>
 

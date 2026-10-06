@@ -156,7 +156,7 @@ claude plugin install easyclaude@easyclaude
 /easyclaude:cheap-session      อยู่ในโหมดประหยัดจนกว่าจะพิมพ์ /easyclaude:full
 /easyclaude:full               ออกจากโหมดประหยัด
 /easyclaude:plain [off]        คำตอบสั้นภาษาง่าย
-/easyclaude:autoship           ให้มัน commit push หรือ merge เอง (ปิดไว้ตั้งต้น)
+/easyclaude:autoship pr        เลิกถามก่อน commit push และเปิด pull request (off, commit, push, pr, merge)
 ```
 
 </details>
@@ -186,7 +186,7 @@ Claude สร้างของพวกนี้เองไม่ได้ `/e
 
 <br>
 
-ปิดไว้จนกว่าคุณจะเปิดด้วย `/easyclaude:autoship` คุณเลือกได้ว่าให้ไปได้ไกลแค่ไหน คือ commit push เปิด pull request หรือ merge มันทำเฉพาะเมื่อฟีเจอร์เสร็จและการตรวจผ่านทั้งหมด และไม่ทำกับการแก้ระบบล็อกอิน การจ่ายเงิน หรือ migration ของฐานข้อมูล ทุกเซสชันจะบอกคุณเมื่อมันเปิดอยู่
+ถ้าไม่เปิด Claude จะถามว่า "commit ไหม" แล้ว "push ไหม" แล้ว "เปิด pull request ไหม" และทุกคำตอบคือข้อความเพิ่มอีกหนึ่งข้อความ เลือกระดับครั้งเดียวด้วย `/easyclaude:autoship off`, `commit`, `push`, `pr` หรือ `merge` แล้ว Claude จะทำทุกขั้นจนถึงระดับนั้นเอง เมื่องานที่คุณขอเสร็จและการตรวจผ่านทั้งหมด มันยังถามเมื่อการตรวจไม่ผ่าน เมื่อการแก้แตะระบบล็อกอิน การจ่ายเงิน หรือ migration ของฐานข้อมูล หรือเมื่อคุณบอกให้รอ ปิดไว้ตั้งต้น ปิดในโฟลเดอร์ที่ไม่มี git และทุกเซสชันจะบอกระดับที่ตั้งไว้
 
 </details>
 
