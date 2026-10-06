@@ -343,6 +343,50 @@ test('session-start: files in their usual places cost no line; a refused path is
   assertMatch(bad.out, /\*\*Now:\*\* Add the contact form/, 'a refused path falls back to the default plan.');
 });
 
+// --- several apps in one folder -------------------------------------------------------
+// kickoff follows this report, so each answer is pinned here.
+const appsIn = async (files) => {
+  const { findApps } = await import('../scripts/find-apps.mjs');
+  const dir = projectDir();
+  writeAll(dir, files);
+  return findApps(dir).apps.map((a) => a.dir);
+};
+
+test('find-apps: one app at the root, or a site with page folders, is one app', async () => {
+  for (const files of [
+    { 'package.json': '{}', 'src/index.js': '' },
+    { 'index.html': '', 'about/index.html': '', 'contact/index.html': '' },
+    { 'package.json': '{}', 'public/index.html': '' },
+  ]) {
+    const apps = await appsIn(files);
+    assert(!apps.length, `this is one app, not ${JSON.stringify(apps)}: ${Object.keys(files)}`);
+  }
+});
+
+test('find-apps: declared workspaces are read, in npm, pnpm, go and cargo form', async () => {
+  const npm = await appsIn({ 'package.json': JSON.stringify({ workspaces: ['apps/*'] }),
+    'apps/web/package.json': '{}', 'apps/api/package.json': '{}', 'apps/notes/readme.md': '' });
+  assert(npm.join() === 'apps/api,apps/web', `npm workspaces, and a folder with no stack skipped: ${npm}`);
+  const pnpm = await appsIn({ 'package.json': '{}', 'pnpm-workspace.yaml': "packages:\n  - 'packages/*'\n",
+    'packages/ui/package.json': '{}' });
+  assert(pnpm.join() === 'packages/ui', `pnpm workspaces: ${pnpm}`);
+  const go = await appsIn({ 'go.work': 'go 1.22\n\nuse (\n\t./svc/auth\n\t./svc/billing\n)\n',
+    'svc/auth/go.mod': '', 'svc/billing/go.mod': '' });
+  assert(go.join() === 'svc/auth,svc/billing', `go.work: ${go}`);
+  const cargo = await appsIn({ 'Cargo.toml': '[workspace]\nmembers = ["crates/core", "crates/cli"]\n',
+    'crates/core/Cargo.toml': '', 'crates/cli/Cargo.toml': '' });
+  assert(cargo.join() === 'crates/cli,crates/core', `Cargo workspace: ${cargo}`);
+});
+
+test('find-apps: undeclared, a front end and a back end side by side are two apps', async () => {
+  const apps = await appsIn({ 'frontend/package.json': '{}', 'backend/requirements.txt': '', 'README.md': '',
+    'node_modules/x/package.json': '{}' });
+  assert(apps.join() === 'backend,frontend', `two apps, and node_modules is never one: ${apps}`);
+  const { report } = await import('../scripts/find-apps.mjs');
+  assertMatch(report({ declaredBy: null, apps: [{ dir: 'web', markers: ['package.json'] }] }), /"dir"/,
+    'the report must tell kickoff to set "dir" on each app\'s steps.');
+});
+
 test('session-start: no debt means no Debt line', async () => {
   const r = await opener({ 'docs/STATE.md': STATE.replace(/## Debt[\s\S]*?## Done/, '## Debt\n\n## Done') });
   assert(!/\*\*Debt:\*\*/.test(r.out), `an empty Debt section still printed a line:\n${r.out}`);

@@ -67,6 +67,12 @@ Every marker a shipped recipe detects on is in that list, and CI checks that it 
 
 Then read the matching recipe from `${CLAUDE_PLUGIN_ROOT}/recipes/`. If none matches, use `${CLAUDE_PLUGIN_ROOT}/recipes/README.md` to write a new one and tell the user it can be contributed back.
 
+**In adopt mode, look for more than one app.** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/find-apps.mjs`.
+If it lists apps, follow it: a recipe for each app, and that app's steps in step 4 with `"dir"`
+set to its folder. Tell the user in one plain line which apps you found. Markers at the root
+alone missed a front end and a back end side by side, and one root `npm test` checked
+whichever app it happened to reach.
+
 ## 4. Establish the verify contract — the important step
 
 Every project needs one command per check that exits non-zero on failure. Write `.claude/verify.json`:

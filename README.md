@@ -232,7 +232,7 @@ Only as far as your project's checks go, and it says which case you are in. Webs
 
 <br>
 
-No. A failing check sends Claude back while it keeps changing files. If it changes nothing, because the fix is not its to make, the turn ends and the work is marked as not verified. A check that cannot run, for example with no compiler installed, only warns. Slow checks can be marked `"tier": "full"` in `.claude/verify.json`, so they run when a task is finished, not after every turn. The page check on websites asks once per message, and `"look": false` turns it off.
+No. A failing check sends Claude back while it keeps changing files. If it changes nothing, because the fix is not its to make, the turn ends and the work is marked as not verified. A check that cannot run, for example with no compiler installed, only warns. Slow checks can be marked `"tier": "full"` in `.claude/verify.json`, so they run when a task is finished, not after every turn. The page check on websites asks once per message, and `"look": false` turns it off. In a folder with several apps, setup gives each app its own checks with `"dir"`, and a change runs only the checks of the app it is in. A change outside every app runs them all.
 
 </details>
 

@@ -376,6 +376,68 @@ test('gate: a compaction does not wave through an edit made before it', async ()
   assert(after.code === BLOCK, `the edit came before the compaction, and must still be checked:\n${after.out}`);
 });
 
+// --- one folder, several apps ---------------------------------------------------
+// A step with "dir" runs inside that app, and only when a change could affect it.
+const HAS_MARKER = 'node -e "process.exit(require(\'fs\').existsSync(\'marker\') ? 0 : 1)"';
+
+test('apps: a step with a dir runs inside that folder; a dir outside the project is an error', async () => {
+  const dir = projectDir({ steps: [{ name: 'web', cmd: HAS_MARKER, dir: 'apps/web' }] });
+  mkdirSync(join(dir, 'apps', 'web'), { recursive: true });
+  writeFileSync(join(dir, 'apps', 'web', 'marker'), '');
+  const r = await runVerify(dir);
+  assert(r.code === 0, `the step must run in apps/web, where the marker is:\n${r.out}`);
+  const list = await runVerify(dir, ['--list']);
+  assertMatch(list.out, /\(in apps\/web\)/, 'the list must show where each step runs.');
+  for (const bad of ['../other', 'C:/x', '/etc', 'apps//web']) {
+    const out = await human({ steps: [{ name: 'x', cmd: 'node -e ""', dir: bad }] });
+    assertMatch(out.out, /must be a folder inside the project/, `"${bad}" must be refused, not run at the root.`);
+  }
+});
+
+test('apps: moving a step to another folder needs approval again; steps without one keep theirs', async () => {
+  const { fingerprint } = await import('../scripts/trust.mjs');
+  const { createHash } = await import('node:crypto');
+  const old = createHash('sha256').update(JSON.stringify(['npm test'])).digest('hex').slice(0, 16);
+  assert(fingerprint([{ cmd: 'npm test' }]) === old, 'an approval made before "dir" existed must still hold.');
+  assert(fingerprint([{ cmd: 'npm test', dir: 'apps/a' }]) !== fingerprint([{ cmd: 'npm test', dir: 'apps/b' }]),
+    'the same command in another folder runs other scripts, so it must be approved again.');
+});
+
+const twoApps = () => {
+  const dir = projectDir({ steps: [
+    { name: 'web', cmd: 'node -e ""', dir: 'apps/web' },
+    { name: 'api', cmd: FAILS, dir: 'apps/api' },
+  ] });
+  for (const f of ['apps/web/a.js', 'apps/api/a.js', 'lib/shared.js']) {
+    mkdirSync(join(dir, f, '..'), { recursive: true });
+    writeFileSync(join(dir, f), '1;\n');
+  }
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start');
+  const stopAfter = (file) => {
+    writeFileSync(join(dir, file), '2;\n');
+    return run(join(repoRoot, 'scripts', 'verify.mjs'), {
+      cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+      input: JSON.stringify({ session_id: `apps-${Date.now()}-${Math.random()}`, stop_hook_active: false }),
+    });
+  };
+  return stopAfter;
+};
+
+test('apps: a change in one app runs that app\'s checks, not the others\'', async () => {
+  const web = await twoApps()('apps/web/a.js');
+  assert(web.code === ALLOW, `only web changed, so the failing api suite must not run:\n${web.out}`);
+  const api = await twoApps()('apps/api/a.js');
+  assert(api.code === BLOCK, `api changed and its suite fails:\n${api.out}`);
+});
+
+test('apps: a change outside every app runs every app\'s checks', async () => {
+  const shared = await twoApps()('lib/shared.js');
+  assert(shared.code === BLOCK, `shared code can break any app, so api must run:\n${shared.out}`);
+});
+
 // --- work left for later -------------------------------------------------------
 // The two-session benchmark: a gate block on a test pulled the turn away, and day one
 // ended with four requests written nowhere. The Stop hook now holds the turn once.
