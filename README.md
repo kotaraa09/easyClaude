@@ -35,6 +35,7 @@
 - **Runs your project's checks after each change.** You approve the commands once on your computer, and again whenever they change, so a project from someone else cannot run commands you have not seen. If a check fails, Claude has to fix it before it can say "done". On a website it also asks Claude to look at the page.
 - **Suggests a free library** before it hand-writes a calendar, a map or a chart.
 - **Blocks a few destructive commands**, such as force pushes and reading `.env`.
+- **Stops a commit that would save an API key or a password**, and says which file it is in. A key in a saved version stays in the history for good.
 - **Answers in your language.** Short answers in plain words are one setting away.
 
 None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. easyClaude sets them up for you, and it measures whether the result is better.

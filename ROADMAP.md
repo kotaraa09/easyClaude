@@ -99,6 +99,36 @@ search does not find a name, so `explore-code` can fire (0/3 now, and correctly)
 that should not, and each case either differs between arms or says why it cannot.
 **Effort:** 2-3 days, plus about $10 of runs.
 
+### 7. A short review when a task is finished
+
+**Why.** The diff reviewer runs only at `ship`. A beginner who never ships, or ships
+weeks later, gets no second reader at all. ECC (everything-claude-code) reviews every
+change; that is the expense this plugin exists to avoid, so this reviews once a task.
+
+**What.** When `build-task` finishes a task, the `easyclaude-diff-reviewer` reads that
+task's diff once, on a small model, with the same four questions it asks at `ship`.
+Findings it is sure of are fixed before the task is called done; the rest go under
+`## Debt`. No review per edit, and none for a change to notes or the plan.
+
+**Done when.** A benchmark task with a bug a reader catches and the tests do not (an
+empty list, a failure caught and dropped) passes more often with the review than without,
+and the added cost per task is measured and stated. **Effort:** 1 day, plus about $5 of
+runs. Estimated cost: about $0.02 a task.
+
+### 8. Look before you edit, measured first
+
+**Why.** A beginner cannot see what a change broke elsewhere (item 2). ECC's GateGuard
+makes Claude list a file's importers before every edit; it works, and it adds a step to
+every edit. That is worth it only if it catches breakage the checks miss.
+
+**What.** A light form: before the first edit to a file in a turn, Claude names what uses
+that file, from one search. Nothing for new files, notes, or the plan. A hook supplies the
+line, because a rule inside a skill did not change behaviour in earlier tests.
+
+**Done when.** Item 2's task, which breaks a feature nobody mentioned, passes more often
+with it than without, and the added cost per task is stated. If it does not, it is not
+shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurement.
+
 ## Later
 
 - **A progress panel, once plugin panels are on for everyone.** A beginner cannot see how

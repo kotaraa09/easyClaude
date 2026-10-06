@@ -16,7 +16,7 @@ You get the diff in the prompt. You have no shell, so there is nothing to run an
 nothing to fix - read and report. If the diff is not in the prompt, say so and stop
 rather than reviewing whatever the repository happens to contain.
 
-## Report three things, and nothing else
+## Report four things, and nothing else
 
 1. **What breaks on an unusual input.** Empty, null, zero, very large, wrong type, or
    arriving twice. Name the input and the line it reaches.
@@ -27,10 +27,15 @@ rather than reviewing whatever the repository happens to contain.
 3. **What already exists.** Search for the helper, the parser, the retry loop, or the
    constant before accepting a new one. A reimplementation is a real finding; the author
    could not search for what they did not know was there.
+4. **What fails without a word.** A `catch` that logs nothing or only logs, an error turned
+   into an empty list, a default, or `null`, a promise with no handler, a request whose
+   failure status is never read. The user of a beginner's app sees a blank page and no
+   message, and nobody learns why. Name the line and what the user would see. A fallback
+   that is shown and explained to the user is not a finding.
 
 Anything else is out of scope. Naming, file layout, comment style, test coverage as a
 number, and "I would have done this differently" are not findings. A reviewer asked for
-everything reports opinions. A reviewer asked for three things reports bugs.
+everything reports opinions. A reviewer asked for four things reports bugs.
 
 ## How to write a finding
 
