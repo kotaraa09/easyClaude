@@ -444,6 +444,16 @@ test('adopt scan: CLAUDE.md is added to; AGENTS.md alone is imported, not copied
   assertMatch(agents.text, /"@AGENTS\.md" as its first line/, 'AGENTS.md must be read every session, by import.');
 });
 
+// With no shell - the eval runner on Windows, or a user who declined commands - kickoff
+// could not run its scans, so the opener sends them. Only when they found something.
+test('session-start: the setup offer carries the scans when they found something, and only then', async () => {
+  const plain = await opener({ 'package.json': '{}', 'src/app.js': '' });
+  assert(!/kickoff's scans/.test(plain.out), `a plain project must pay nothing for the scans:\n${plain.out}`);
+  const site = await opener({ 'mkdocs.yml': '', 'docs/index.md': '', 'web/package.json': '{}', 'api/go.mod': '' });
+  assertMatch(site.out, /kickoff's scans[\s\S]*planning\/STATE\.md[\s\S]*2 apps/,
+    'a docs site and two apps must reach kickoff even when it cannot run a command.');
+});
+
 test('session-start: no debt means no Debt line', async () => {
   const r = await opener({ 'docs/STATE.md': STATE.replace(/## Debt[\s\S]*?## Done/, '## Debt\n\n## Done') });
   assert(!/\*\*Debt:\*\*/.test(r.out), `an empty Debt section still printed a line:\n${r.out}`);

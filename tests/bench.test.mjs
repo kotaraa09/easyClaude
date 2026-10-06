@@ -320,3 +320,52 @@ test('bench: each task has its own cache key, and the run settings are part of i
   assert(a !== caseKey('outcome-fix-checkout', 'v2', opts), 'a new Claude Code must invalidate it');
   assert(a !== caseKey('outcome-fix-checkout', 'v1', { ...opts, model: 'claude-opus-5-5' }), 'so must a new model');
 });
+
+// --- setup in a project someone else started --------------------------------------------
+// Its own scaffold, not the shop: a published docs site, an ADR folder, the team's CLAUDE.md.
+function adopted(change) {
+  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchtest-'));
+  const r = spawnSync('bash', [join(caseDir('outcome-adopt-existing'), 'setup.sh')], {
+    cwd: dir, encoding: 'utf8',
+    env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
+  });
+  if (r.status !== 0) throw new Error(`adopt setup.sh failed:\n${r.stdout}${r.stderr}`);
+  if (change) change(dir);
+  return dir;
+}
+const put = (dir, rel, text) => { mkdirSync(join(dir, dirname(rel)), { recursive: true }); writeFileSync(join(dir, rel), text); };
+async function gradeAdopt(change) {
+  const dir = adopted(change);
+  try { return await gradeWorkspace(caseDir('outcome-adopt-existing'), dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('bench: adopt-existing fails untouched, passes a careful setup, fails the old one', async () => {
+  someFail('the untouched project', await gradeAdopt());
+  allPass('a setup that adds to what is there', await gradeAdopt((dir) => {
+    put(dir, 'planning/STATE.md', '# State\n\n## Now\n(nothing)\n\n## Next\n- [ ] post a recipe\n');
+    put(dir, 'doc/adr/0003-keep-plans-in-planning.md', '# 3. Keep plans in planning/\n');
+    edit(dir, 'CLAUDE.md', (t) => `${t}\n## easyClaude\nThe user writes in English.\n`);
+  }));
+  for (const [label, change] of [
+    ['the plan on the site', (dir) => put(dir, 'docs/STATE.md', '# State\n\n## Next\n- [ ] x\n')],
+    ['a second decision log', (dir) => put(dir, 'planning/DECISIONS.md', '# Decisions\n')],
+    ['a replaced CLAUDE.md', (dir) => put(dir, 'CLAUDE.md', '# Recipe Club\n')],
+  ]) {
+    const checks = await gradeAdopt((dir) => {
+      put(dir, 'planning/STATE.md', '# State\n\n## Next\n- [ ] x\n');
+      put(dir, 'doc/adr/0003-x.md', '# 3. x\n');
+      change(dir);
+    });
+    someFail(label, checks);
+  }
+});
+
+test('bench: a check path takes "dir/**", "**/" and "*", and is exact otherwise', async () => {
+  const { matchesGlob: m } = await import('../scripts/bench.mjs');
+  for (const [file, glob, want] of [
+    ['tests/a.js', 'tests/**', true], ['tests', 'tests/**', false], ['index.html', 'index.html', true],
+    ['a/index.html', 'index.html', false], ['DECISIONS.md', '**/DECISIONS.md', true],
+    ['planning/DECISIONS.md', '**/DECISIONS.md', true], ['doc/adr/0003-x.md', 'doc/adr/0003-*.md', true],
+    ['doc/adr/0003-a/b.md', 'doc/adr/0003-*.md', false], ['indexXhtml', 'index.html', false],
+  ]) assert(m(file, glob) === want, `${file} against ${glob} should be ${want}`);
+});

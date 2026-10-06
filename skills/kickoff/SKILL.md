@@ -15,7 +15,8 @@ Sets up the project so every later session starts oriented. Runs once.
 - **Greenfield** — no source files. Interview, then scaffold.
 - **Adopt** — source files already exist. Skip the scaffold. Detect everything you can, and ask only what the code cannot tell you (who it's for, what's next).
 
-**In adopt mode, scan before you write anything.** Run
+**In adopt mode, scan before you write anything.** If the session opener already sent
+kickoff's scans, follow those and run nothing. Otherwise run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/adopt-scan.mjs` and follow its report in steps 4 to 6. It
 says where each file goes, which files exist and must only be added to, how to treat an
 existing `CLAUDE.md` or `AGENTS.md`, and whether to write `.claude/easyclaude.json`. Where it
@@ -76,7 +77,7 @@ Every marker a shipped recipe detects on is in that list, and CI checks that it 
 
 Then read the matching recipe from `${CLAUDE_PLUGIN_ROOT}/recipes/`. If none matches, use `${CLAUDE_PLUGIN_ROOT}/recipes/README.md` to write a new one and tell the user it can be contributed back.
 
-**In adopt mode, look for more than one app.** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/find-apps.mjs`.
+**In adopt mode, look for more than one app.** Unless the opener already sent the list, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/find-apps.mjs`.
 If it lists apps, follow it: a recipe for each app, and that app's steps in step 4 with `"dir"`
 set to its folder. Tell the user in one plain line which apps you found. Markers at the root
 alone missed a front end and a back end side by side, and one root `npm test` checked
