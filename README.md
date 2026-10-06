@@ -206,15 +206,15 @@ Node.js is almost certainly missing. easyClaude runs on it, and without it a ses
 
 <br>
 
-Yes. It reads the existing code, and asks only what the code cannot tell it.
+Yes. It reads the existing code, and asks only what the code cannot tell it. It also adds to the notes you already have instead of replacing them: your own `CLAUDE.md` or `AGENTS.md`, an architecture file, or a folder of decision records. If `docs/` is a published documentation site, it keeps its planning notes in `planning/`, so they never appear on the site.
 
-If your project already uses `docs/` for something else, easyClaude can keep its files elsewhere. Name the places in `.claude/easyclaude.json`, and anything you leave out stays in its usual place:
+Setup writes these places for you. To change them later, edit `.claude/easyclaude.json`. Anything you leave out stays in its usual place:
 
 ```json
-{ "files": { "state": "planning/STATE.md", "decisions": "doc/adr/README.md" } }
+{ "files": { "state": "planning/STATE.md", "decisions": "doc/adr/" } }
 ```
 
-The names are `state` (the plan), `decisions`, `architecture`, `prd`, `changelog` and `tokens` (the design notes). Each path must be a Markdown file inside the project.
+The names are `state` (the plan), `decisions`, `architecture`, `prd`, `changelog` and `tokens` (the design notes). Each path must be a Markdown file inside the project. `decisions` can also be a folder that ends in `/`, and then each decision becomes a new numbered file there.
 
 </details>
 

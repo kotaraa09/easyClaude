@@ -15,6 +15,15 @@ Sets up the project so every later session starts oriented. Runs once.
 - **Greenfield** — no source files. Interview, then scaffold.
 - **Adopt** — source files already exist. Skip the scaffold. Detect everything you can, and ask only what the code cannot tell you (who it's for, what's next).
 
+**In adopt mode, scan before you write anything.** Run
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/adopt-scan.mjs` and follow its report in steps 4 to 6. It
+says where each file goes, which files exist and must only be added to, how to treat an
+existing `CLAUDE.md` or `AGENTS.md`, and whether to write `.claude/easyclaude.json`. Where it
+names a path, use it in place of the `docs/` path in this skill. Without it, setup put
+planning notes on a project's public documentation site, started a second decision log beside
+the real one, and replaced a `CLAUDE.md` that someone wrote on purpose. If it moved anything,
+tell the user in one plain line where their project notes will live, and why.
+
 **Check the tools.** The session opener sends a line that starts "Tools check:", and says there
 what this computer is missing. If it sent none, the opener never ran, which almost always means
 Node.js is not installed. Then run `node --version` and `git --version`. For each that fails, tell
@@ -119,7 +128,7 @@ everyone who clones the repo.
 
 Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 
-- `CLAUDE.md` — **five lines at most**, because it loads on every turn of every session: a title, one line on what this is and who it is for, one line naming the language the user writes in (replies and `docs/STATE.md` use it), and one line on the stack and how to run or preview it. Write it in English whatever the user writes in: only Claude reads it, and English takes the fewest tokens. No list of files and no pointer to the rules: `docs/` is easy to find, and `.claude/rules/` loads without one. Measured, a 30-line version cost ~490 tokens on every turn.
+- `CLAUDE.md` — **five lines at most**, because it loads on every turn of every session: a title, one line on what this is and who it is for, one line naming the language the user writes in (replies and `docs/STATE.md` use it), and one line on the stack and how to run or preview it. Write it in English whatever the user writes in: only Claude reads it, and English takes the fewest tokens. No list of files and no pointer to the rules: `docs/` is easy to find, and `.claude/rules/` loads without one. Measured, a 30-line version cost ~490 tokens on every turn. In adopt mode, the scan says whether to write it, add to it, or point it at `AGENTS.md`.
 - `docs/PRD.md` — the interview answers. One page.
 - `docs/ARCHITECTURE.md` — stack and where things live.
 - `docs/DECISIONS.md` — seed with the choices you made for them, each with a one-line reason.
