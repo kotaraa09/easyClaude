@@ -86,9 +86,10 @@ async function readText($: any, root: string, rel: string): Promise<string | nul
   try { return String(await $.fs.read(`${root}/${rel}`)) } catch { return null }
 }
 
-export type Settings = { autoship: string; cheap: boolean; plain: boolean; setUp: boolean }
+export type Settings = { autoship: string; cheap: boolean; plain: boolean; setUp: boolean; git: boolean }
 
-export function settingsFrom(files: { autoship: string | null; cheap: string | null; local: string | null; state: string | null }): Settings {
+// `git` unknown counts as present: a wrong "Create repo" offer is worse than a missing one.
+export function settingsFrom(files: { autoship: string | null; cheap: string | null; local: string | null; state: string | null; git?: boolean }): Settings {
   let autoship = 'off'
   try {
     const a = JSON.parse(files.autoship ?? 'null')
@@ -98,7 +99,19 @@ export function settingsFrom(files: { autoship: string | null; cheap: string | n
   } catch { /* a broken file arms nothing; the command reports it */ }
   let plain = false
   try { plain = JSON.parse(files.local ?? 'null')?.outputStyle === 'easyclaude:plain' } catch { /* not plain */ }
-  return { autoship, cheap: files.cheap !== null, plain, setUp: files.state !== null && !files.state.includes('easyclaude:not-kicked-off') }
+  return { autoship, cheap: files.cheap !== null, plain, setUp: files.state !== null && !files.state.includes('easyclaude:not-kicked-off'), git: files.git ?? true }
+}
+
+// Whether the project, or a folder above it, is a git repository. Autoship needs one.
+async function hasGit($: any, root: string): Promise<boolean> {
+  let dir = root.replace(/[\\/]+$/, '')
+  for (let i = 0; i < 30 && dir; i++) {
+    try { if (await $.fs.exists(`${dir}/.git`)) return true } catch { return true }
+    const up = dir.replace(/[\\/][^\\/]*$/, '')
+    if (up === dir) break
+    dir = up
+  }
+  return false
 }
 
 async function readSettings($: any): Promise<Settings> {
@@ -111,8 +124,45 @@ async function readSettings($: any): Promise<Settings> {
     cheap: await readText($, root, '.claude/cheap-session'),
     local: await readText($, root, '.claude/settings.local.json'),
     state: await readText($, root, statePath),
+    git: await hasGit($, root),
   })
 }
+
+// --- drawing helpers --------------------------------------------------------------------
+// A bar of `width` cells, filled in proportion: the step count, the conversation's size.
+export const bar = (part: number, whole: number, width: number): string => {
+  const cells = Math.max(6, Math.min(40, Math.round(width)))
+  const full = whole > 0 ? Math.round((Math.max(0, Math.min(part, whole)) / whole) * cells) : 0
+  return '━'.repeat(full) + '─'.repeat(cells - full)
+}
+
+export const stepRow = (s: Step): string =>
+  s.status === 'completed' ? `✓ ${s.title}` : s.status === 'in_progress' ? `▶ ${s.doing}` : `○ ${s.title}`
+
+const paneWidth = (e: any): number => Math.max(24, Number(e?.props?.bodyColumns) || 40)
+
+// The labels for LEVELS, so the two lists cannot drift apart.
+const LEVEL_LABELS: Record<string, string> = { off: 'Off', commit: 'Commit', push: 'Push', pr: 'Open a PR', merge: 'Merge' }
+const LEVEL_OPTIONS = LEVELS.map((value) => ({ value, label: LEVEL_LABELS[value] ?? value }))
+
+// One "Create repo" request at a time: a double click must not cost two turns.
+let repoAskedAt = 0
+const createRepo = async ($: any) => {
+  const now = await $.clock.now()
+  if (now - repoAskedAt < 60_000) return
+  repoAskedAt = now
+  await say($, CREATE_REPO)
+}
+const AUTOSHIP_HELP = 'How far Claude goes on its own when a request is finished and the checks pass. ' +
+  'Off: it asks before each step. Commit, Push, Open a PR or Merge: it does every step up to that one without asking.'
+const NO_GIT_HELP = 'Autoship needs git, and this folder has none yet. Create repo starts one here, so your work ' +
+  'is saved in versions you can go back to.'
+const CHEAP_HELP = 'For the rest of this session, each request gets the fewest steps and a short reply. Cheaper, ' +
+  'and less careful.'
+const PLAIN_HELP = 'Short answers in plain words, without file names or code terms.'
+const CREATE_REPO = 'This folder has no git repository yet. Start one here with git init, add a .gitignore ' +
+  'that keeps out .env and installed packages if there is none, and tell me in one plain line what you did. ' +
+  'Do not commit anything.'
 
 // --- what a button does ---------------------------------------------------------------
 // Each one runs what the user would otherwise type, so it costs the same as typing it.
@@ -235,89 +285,141 @@ export const register: Register = (on) => {
     const r = await read($, request)
     const u = await read($, usage)
     const now = await $.clock.now()
+    const width = paneWidth(e)
+    const sizeBar = (
+      <Box flexDirection="column">
+        <Text color="subtle">Conversation size</Text>
+        <Box gap={1}>
+          <Text color="inactive">{bar(u.contextTokens ?? 0, u.contextWindow ?? 0, width - 22)}</Text>
+          <Text color="subtle">{tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
+        </Box>
+      </Box>
+    )
     if (!r) {
       return (
-        <Box flexDirection="column">
-          <Text dimColor>No request yet in this session.</Text>
-          <Text>Session so far: {money(u.costUsd)}</Text>
+        <Box flexDirection="column" paddingX={1} gap={1}>
+          <Text color="subtle">Send a request, and its progress shows here.</Text>
+          <Box flexDirection="column">
+            <Text color="subtle">This session</Text>
+            <Text bold>{money(u.costUsd)}</Text>
+          </Box>
+          {sizeBar}
         </Box>
       )
     }
+    const running = r.endedAt === null
     const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
-    const line = stepLine(r.steps)
-    const room = Math.max(3, (e.viewport?.rows ?? 24) - 10)
+    const done = r.steps.filter((s) => s.status === 'completed').length
+    const room = Math.max(3, (e.viewport?.rows ?? 24) - 14)
     return (
-      <Box flexDirection="column">
-        <Text bold>{r.text || '(no text)'}</Text>
-        <Text dimColor>
-          {r.endedAt === null ? `Working for ${duration(now - r.startedAt)}` : `Finished in ${duration(r.endedAt - r.startedAt)}`}
-          {' · '}{r.tools} actions
-        </Text>
-        <Text> </Text>
-        <Text>{line ?? (r.endedAt === null ? 'No step list for this request.' : 'Done.')}</Text>
-        {r.steps.slice(0, room).map((s) => (
-          <Text key={s.id} dimColor={s.status === 'completed'}>
-            {s.status === 'completed' ? '  [x] ' : s.status === 'in_progress' ? '  [>] ' : '  [ ] '}{s.title}
+      <Box flexDirection="column" paddingX={1} gap={1}>
+        <Box justifyContent="space-between" gap={2}>
+          <Text bold wrap="truncate-end">{r.text || 'Your request'}</Text>
+          <Text color={running ? 'suggestion' : 'success'}>
+            {running ? `Working ${duration(now - r.startedAt)}` : `Done in ${duration((r.endedAt ?? now) - r.startedAt)}`}
           </Text>
-        ))}
-        {r.steps.length > room && <Text dimColor>  ...and {r.steps.length - room} more</Text>}
-        <Text> </Text>
-        <Text>This request: {money(spent)}</Text>
-        <Text>This session: {money(u.costUsd)}</Text>
-        <Text dimColor>
-          Conversation size: {tokens(u.contextTokens)} of {tokens(u.contextWindow)} tokens
-          {u.contextPercent !== null ? ` (${u.contextPercent}%)` : ''}
-        </Text>
-        <Text dimColor>Costs are list prices, as /cost shows them. On a Claude plan they count toward plan usage.</Text>
+        </Box>
+        {r.steps.length > 0 && (
+          <Box gap={1}>
+            <Text color="suggestion">{bar(done, r.steps.length, width - 12)}</Text>
+            <Text color="subtle">{done} of {r.steps.length}</Text>
+          </Box>
+        )}
+        {r.steps.length > 0 ? (
+          <Box flexDirection="column">
+            {r.steps.slice(0, room).map((s) => (
+              <Text key={s.id} wrap="truncate-end" bold={s.status === 'in_progress'}
+                color={s.status === 'completed' ? 'subtle' : s.status === 'in_progress' ? 'suggestion' : 'inactive'}>
+                {stepRow(s)}
+              </Text>
+            ))}
+            {r.steps.length > room && <Text color="subtle">  and {r.steps.length - room} more</Text>}
+          </Box>
+        ) : (
+          <Text color="subtle">
+            {running ? `${r.tools} actions so far. Claude keeps no step list for this request.` : `Finished after ${r.tools} actions.`}
+          </Text>
+        )}
+        <Text color="promptBorder">{'─'.repeat(Math.max(10, width - 2))}</Text>
+        <Box gap={4}>
+          <Box flexDirection="column">
+            <Text color="subtle">This request</Text>
+            <Text bold>{money(spent)}</Text>
+          </Box>
+          <Box flexDirection="column">
+            <Text color="subtle">This session</Text>
+            <Text bold>{money(u.costUsd)}</Text>
+          </Box>
+        </Box>
+        {sizeBar}
+        <Text color="subtle" dimColor>List prices, as /cost shows them</Text>
       </Box>
     )
   })
 
   // --- the control panel --------------------------------------------------------------
   on('ui.render', { component: 'Pane', requestId: CONTROLS }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const table: any = $.ui.resolve(e)
+    const { Box, Text, Button, Select } = table
     const s = await readSettings($)
+    const width = paneWidth(e)
+    // A setting's row: its name, its state and control on the right, and what it does,
+    // revealed while the pointer is over the row.
+    const row = (key: string, name: string, help: string, control: any) => (
+      <Box key={key} justifyContent="space-between" alignItems="center" position="relative">
+        <Text>{name} <Text color="subtle">(?)</Text></Text>
+        {control}
+        <Box display="none" hover={{ display: 'flex' }} position="absolute" top={1} left={0}
+          width={Math.max(20, width - 4)} borderStyle="round" borderColor="promptBorder" backgroundColor="background" paddingX={1}>
+          <Text wrap="wrap">{help}</Text>
+        </Box>
+      </Box>
+    )
+    const toggle = (isOn: boolean, onKey: string, offKey: string, turnOn: () => void, turnOff: () => void) => (
+      <Box gap={1} alignItems="center">
+        <Text color={isOn ? 'success' : 'subtle'}>{isOn ? 'On' : 'Off'}</Text>
+        {isOn
+          ? <Button key={offKey} label="Turn off" onPress={turnOff} />
+          : <Button key={onKey} label="Turn on" onPress={turnOn} />}
+      </Box>
+    )
+    const level = !s.git
+      ? <Button key="create-repo" label="Create repo" onPress={() => createRepo($)} />
+      : Select
+        ? <Select key="autoship" options={LEVEL_OPTIONS} value={s.autoship} onSelect={(v: string) => run($, 'easyclaude:autoship', v)} />
+        : <Box gap={1}>{LEVELS.map((l) => (
+            <Button key={`autoship-${l}`} label={l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'easyclaude:autoship', l)} />
+          ))}</Box>
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" paddingX={1} gap={1}>
         {!s.setUp && (
-          <Box flexDirection="column">
-            <Text bold>This project is not set up yet</Text>
-            <Button key="setup" variant="primary" label="Set up this project" onPress={() => run($, 'easyclaude:start')} />
-            <Text> </Text>
+          <Box flexDirection="column" borderStyle="round" borderColor="suggestion" paddingX={1}>
+            <Text bold>Set up this project</Text>
+            <Text color="subtle" wrap="wrap">easyClaude then remembers it between sessions and runs its checks after each change.</Text>
+            <Box><Button key="setup" variant="primary" label="Set up" onPress={() => run($, 'easyclaude:start')} /></Box>
           </Box>
         )}
-        <Text bold>Work</Text>
-        <Box>
-          <Button key="continue" label="Continue" onPress={() => say($, 'keep going')} />
+        <Box gap={1} flexWrap="wrap">
+          <Button key="continue" label="Continue" variant={s.setUp ? 'primary' : 'secondary'} onPress={() => say($, 'keep going')} />
           <Button key="ship" label="Save my work" onPress={() => say($, 'ship it')} />
-          <Button key="undo" label="Undo the last change" onPress={() => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.')} />
+          <Button key="undo" label="Undo last change" onPress={() => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.')} />
         </Box>
-        <Text> </Text>
-        <Text bold>Ship without asking: {s.autoship}</Text>
-        <Box>
-          {LEVELS.map((level) => (
-            <Button key={`autoship-${level}`} label={level} variant={level === s.autoship ? 'primary' : 'secondary'}
-              onPress={() => run($, 'easyclaude:autoship', level)} />
-          ))}
+        <Text color="promptBorder">{'─'.repeat(Math.max(10, width - 2))}</Text>
+        <Box flexDirection="column" gap={1}>
+          {row('autoship-row', 'Autoship level', s.git ? AUTOSHIP_HELP : NO_GIT_HELP, level)}
+          {row('cheap-row', 'Cheap mode', CHEAP_HELP, toggle(s.cheap, 'cheap-on', 'cheap-off',
+            () => run($, 'easyclaude:cheap-session'), () => run($, 'easyclaude:full')))}
+          {row('plain-row', 'Plain answers', PLAIN_HELP, toggle(s.plain, 'plain', 'plain',
+            () => run($, 'easyclaude:plain', 'on'), () => run($, 'easyclaude:plain', 'off')))}
         </Box>
-        <Text> </Text>
-        <Text bold>Cheap mode: {s.cheap ? 'on' : 'off'}</Text>
-        <Box>
-          {s.cheap
-            ? <Button key="cheap-off" label="Turn off" onPress={() => run($, 'easyclaude:full')} />
-            : <Button key="cheap-on" label="Turn on for this session" onPress={() => run($, 'easyclaude:cheap-session')} />}
-        </Box>
-        <Text> </Text>
-        <Text bold>Plain answers: {s.plain ? 'on' : 'off'}</Text>
-        <Box>
-          <Button key="plain" label={s.plain ? 'Turn off' : 'Turn on'} onPress={() => run($, 'easyclaude:plain', s.plain ? 'off' : 'on')} />
-        </Box>
-        <Text> </Text>
-        <Text bold>Tools</Text>
-        <Box>
-          <Button key="skills" label="Find skills" onPress={() => run($, 'easyclaude:skills')} />
-          <Button key="connect" label="Connect tools" onPress={() => run($, 'easyclaude:connect')} />
-          <Button key="security" label="Security check" onPress={() => run($, 'easyclaude:security-check')} />
+        <Text color="promptBorder">{'─'.repeat(Math.max(10, width - 2))}</Text>
+        <Box flexDirection="column">
+          <Text color="subtle">Tools</Text>
+          <Box gap={1} flexWrap="wrap">
+            <Button key="skills" label="Find skills" onPress={() => run($, 'easyclaude:skills')} />
+            <Button key="connect" label="Connect tools" onPress={() => run($, 'easyclaude:connect')} />
+            <Button key="security" label="Security check" onPress={() => run($, 'easyclaude:security-check')} />
+          </Box>
         </Box>
       </Box>
     )
