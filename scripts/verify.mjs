@@ -16,7 +16,7 @@
 // No dependencies: node: builtins only, same rule as validate.mjs.
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, isAbsolute } from 'node:path';
 import { treeFingerprint, lastSeen, remember } from './tree-state.mjs';
 import { laterBlock } from './later-memo.mjs';
 import { lookBlock, readTurn } from './look-check.mjs';
@@ -122,6 +122,28 @@ function changedPaths() {
 }
 
 // --- contract ----------------------------------------------------------------
+// "dir" runs a step inside one app of a project that holds several. Relative, inside the
+// project, forward slashes, no trailing slash.
+function cleanDir(d) {
+  if (typeof d !== 'string' || !d.trim()) return null;
+  const p = d.trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+  if (!p || isAbsolute(p) || /^[a-z]:/i.test(p) || p.split('/').some((part) => part === '..' || part === '')) return null;
+  return p;
+}
+
+// Which steps a turn's changes call for. A step with a "dir" runs when a change is inside
+// that folder, or outside every step's folder - a shared library or a root config can
+// break any app. Steps without one always run. Without git there is no list, so all run.
+// In a project of five apps, a fix in one used to run all five suites on every turn.
+function stepsFor(steps, changed, docsOnly = []) {
+  if (!changed) return steps;
+  const code = changed.filter((p) => !matchesAny(p, docsOnly));
+  const inside = (p, dir) => p === dir || p.startsWith(`${dir}/`);
+  const dirs = steps.map((s) => s.dir).filter(Boolean);
+  const shared = code.some((p) => !dirs.some((d) => inside(p, d)));
+  return steps.filter((s) => !s.dir || shared || code.some((p) => inside(p, s.dir)));
+}
+
 function loadConfig() {
   if (!existsSync(CONFIG)) return null;
   let raw;
@@ -140,6 +162,10 @@ function loadConfig() {
     if (s.tier !== undefined && !TIERS.includes(s.tier)) {
       return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has tier "${s.tier}" - must be ${TIERS.join(' or ')}` };
     }
+    // An error rather than "run it at the root": the command was written for that folder.
+    if (s.dir !== undefined && !cleanDir(s.dir)) {
+      return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has dir "${s.dir}" - it must be a folder inside the project` };
+    }
   }
   const fallback = Number(raw.timeoutMs) > 0 ? Number(raw.timeoutMs) : DEFAULT_TIMEOUT_MS;
   return {
@@ -148,6 +174,7 @@ function loadConfig() {
       cmd: s.cmd,
       tier: s.tier ?? 'fast',
       timeoutMs: Number(s.timeoutMs) > 0 ? Number(s.timeoutMs) : fallback,
+      ...(s.dir !== undefined ? { dir: cleanDir(s.dir) } : {}),
     })),
     // Plus easyClaude's own files wherever the project keeps them (see locations.mjs): the
     // plan is rewritten on every turn, and a moved one must not run the suite either.
@@ -231,7 +258,7 @@ function looksUnrunnable(status, output, cmd) {
 function runStep(step) {
   const started = Date.now();
   const r = spawnSync(step.cmd, {
-    cwd: root,
+    cwd: step.dir ? join(root, step.dir) : root,
     shell: true,
     encoding: 'utf8',
     timeout: step.timeoutMs,
@@ -351,11 +378,14 @@ if (HOOK) {
 
   // Fast tier only. On an untiered contract that is every step, so nothing changes
   // for a project that never opted in.
-  const due = cfg.steps.filter((s) => s.tier === 'fast');
+  const fast = cfg.steps.filter((s) => s.tier === 'fast');
+  const due = stepsFor(fast, changed, cfg.docsOnly);
   // Every step tiered "full" means the per-turn gate now runs nothing, every turn, for the
   // life of the project - the exact failure tiering was supposed to prevent, arrived at by
   // the other route. It cannot block on it (there is nothing to fail), so it says so out
   // loud instead. A gate that stops checking silently is the one nobody notices.
+  // Only apps nothing touched: no step is due, and that is not the all-full-tier warning.
+  if (fast.length && !due.length) allowAfterLook(undefined, cfg);
   if (!due.length) {
     allowAfterLook(`Every step in .claude/verify.json is tier "full", so the per-turn gate is checking ` +
       'nothing. At least one step should be fast, or the contract only runs when someone ' +
@@ -481,7 +511,7 @@ if (TRUST) {
 
 if (LIST) {
   console.log(`verify contract - ${cfg.steps.length} step(s)\n`);
-  for (const s of cfg.steps) console.log(`  ${tierLabel(s)}${pad(s.name)}  ${s.cmd}`);
+  for (const s of cfg.steps) console.log(`  ${tierLabel(s)}${pad(s.name)}  ${s.dir ? `(in ${s.dir}) ` : ''}${s.cmd}`);
   if (tiered) {
     console.log('\n  fast runs on every turn, at the Stop hook. full runs here, and at ship.');
   }
