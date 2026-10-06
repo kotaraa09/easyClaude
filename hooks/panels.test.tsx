@@ -4,13 +4,15 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
+import type { Step } from '../types'
 
 const SURFACES = ['terminal', 'desktop'] as const
 
 // What the engine answers beneath the plugin in a session: a clock, the project folder, its
 // files, and the session's figures.
-const project = (on: On, files: Record<string, string>) => {
+const project = (on: On, files: Record<string, string>, { git = true } = {}) => {
   mock.clock(on, { now: 1_000_000 })
+  on('fs.exists', async (_$, e: any) => ({ value: git && /[\\/]\.git$/.test(String(e.path)) }) as any)
   on('session.root', async () => ({ value: '/p' }) as any)
   on('session.usage', async () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: 50_000, window: 200_000, percent: 25 }, cost: { usd: 0.5 } } }) as any)
   on('fs.read', async (_$, e: any) => {
@@ -42,7 +44,7 @@ describe('the step line', () => {
   })
 
   test('follows the Task tools one change at a time, and drops a deleted step', async () => {
-    let steps = [{ id: '1', title: 'Set up', doing: 'Setting up', status: 'pending' as const }]
+    let steps: Step[] = [{ id: '1', title: 'Set up', doing: 'Setting up', status: 'pending' as const }]
     steps = applyTaskUpdate(steps, { taskId: '1', status: 'in_progress' })
     expect(stepLine(steps)).toBe('Step 1 of 1: Setting up')
     expect(applyTaskUpdate(steps, { taskId: '1', status: 'deleted' })).toEqual([])
@@ -63,9 +65,9 @@ describe('the control panel state', () => {
       local: JSON.stringify({ outputStyle: 'easyclaude:plain' }),
       state: '# State\n',
     })
-    expect(s).toEqual({ autoship: 'pr', cheap: true, plain: true, setUp: true })
+    expect(s).toEqual({ autoship: 'pr', cheap: true, plain: true, setUp: true, git: true })
     const fresh = settingsFrom({ autoship: JSON.stringify({ enabled: false, through: 'merge' }), cheap: null, local: null, state: '<!-- easyclaude:not-kicked-off -->' })
-    expect(fresh).toEqual({ autoship: 'off', cheap: false, plain: false, setUp: false })
+    expect(fresh).toEqual({ autoship: 'off', cheap: false, plain: false, setUp: false, git: true })
     // A level the command does not know arms nothing, so the panel must not show it as set.
     expect(settingsFrom({ autoship: JSON.stringify({ enabled: true, through: 'everything' }), cheap: null, local: null, state: null }).autoship).toBe('off')
   })
@@ -76,7 +78,7 @@ describe('the panels, drawn', () => {
     project(on, {})
     on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
     on('tool.call', async () => ({ result: {} }) as any)
-    await $.prompt.submit({ text: 'make a website for my bakery' })
+    await $.prompt.submit({ text: 'make a website for my bakery' } as any)
     await $.tool.call({
       tool: 'TodoWrite',
       todos: [
@@ -87,7 +89,8 @@ describe('the panels, drawn', () => {
     for (const surface of SURFACES) {
       const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-progress') })
       expect(await ui.find({ type: 'Text', text: /make a website for my bakery/ })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: 'Step 2 of 2: Building the home page' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '▶ Building the home page' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '1 of 2' })).toBeDefined()
       await ui.unmount()
     }
   })
@@ -96,11 +99,11 @@ describe('the panels, drawn', () => {
     project(on, {})
     on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
     on('tool.call', async (_$, e: any) => ({ result: e.tool === 'TaskCreate' ? { task: { id: '0', subject: e.subject } } : {} }) as any)
-    await $.prompt.submit({ text: 'add a contact page' })
+    await $.prompt.submit({ text: 'add a contact page' } as any)
     await $.tool.call({ tool: 'TaskCreate', subject: 'Write the form', description: '', activeForm: 'Writing the form' } as any)
     await $.tool.call({ tool: 'TaskUpdate', taskId: '0', status: 'in_progress' } as any)
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-progress') })
-    expect(await ui.find({ type: 'Text', text: 'Step 1 of 1: Writing the form' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '▶ Writing the form' })).toBeDefined()
     await ui.unmount()
   })
 
@@ -113,18 +116,37 @@ describe('the panels, drawn', () => {
     })
     for (const surface of SURFACES) {
       const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
-      await ui.press({ key: 'autoship-pr' })
+      await ui.select({ key: 'autoship', value: 'pr' })
       await ui.press({ key: 'skills' })
       await ui.unmount()
     }
     expect(ran).toEqual(['easyclaude:autoship pr', 'easyclaude:skills', 'easyclaude:autoship pr', 'easyclaude:skills'])
   })
 
-  test('the control panel shows the level the project has, and offers setup only before it', async ($, on) => {
+  test('the control panel shows the level the project has, explains it, and offers setup only before it', async ($, on) => {
     project(on, { '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'push' }) })
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
-    expect(await ui.find({ type: 'Text', text: 'Ship without asking: push' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^Autoship level/ })).toBeDefined()
+    expect(await ui.find({ key: 'autoship' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /How far Claude goes on its own/ })).toBeDefined()
     expect(await ui.find({ key: 'setup' })).toBeDefined()
+    expect(await ui.find({ key: 'create-repo' })).toBeUndefined()
     await ui.unmount()
+  })
+
+  test('with no git, the level is a Create repo button that asks Claude to start one', async ($, on) => {
+    project(on, { 'docs/STATE.md': '# State\n' }, { git: false })
+    const sent: string[] = []
+    on('prompt.submit', async (_$, e: any) => { sent.push(e.text); return { text: e.text } as any })
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
+      expect(await ui.find({ key: 'autoship' })).toBeUndefined()
+      expect(await ui.find({ type: 'Text', text: /Autoship needs git/ })).toBeDefined()
+      await ui.press({ key: 'create-repo' })
+      await ui.unmount()
+    }
+    // Pressed once on each surface within a minute: one request, not two turns.
+    expect(sent.length).toBe(1)
+    expect(sent[0]).toMatch(/git init/)
   })
 })
