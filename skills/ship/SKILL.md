@@ -35,7 +35,7 @@ Keep the brief that short. A reviewer asked for everything reports style opinion
 
 **Wait for the report before step 4.** In an interactive session the reviewer runs in the background, so its report arrives in a later message, not as the result of the call. Do not commit, push or open the PR until it has arrived and you have read it. If the turn has to end first, say the review is still running and stop there.
 
-If you cannot dispatch a subagent, do the pass yourself against the same three questions and **say in your report that the review had no fresh eyes**. Never skip it silently — an unreviewed diff that claims review is worse than one that admits it.
+If you cannot dispatch a subagent, do the pass yourself against the same four questions and **say in your report that the review had no fresh eyes**. Never skip it silently — an unreviewed diff that claims review is worse than one that admits it.
 
 Findings are not automatically work. Fix what is wrong, put what is merely arguable under `## Debt`, and say which you did. Anything you left unresolved blocks the automatic path in step 8.
 
@@ -56,22 +56,27 @@ for them - it is opt-in precisely so it costs nothing on the turns it isn't need
 
 ## 7. Confirm before anything leaves the machine
 
-Pushing and opening a PR are outward-facing. Say what you're about to push and where, and get a yes — unless the user already told you to push in this turn.
+Pushing and opening a PR are outward-facing. Say what you're about to push and where, and get a yes — unless the user already told you to push in this turn, or the autoship level in step 8 covers it.
 
 ## 8. Automatic mode
 
-`.claude/autoship.json` — written by `/easyclaude:autoship`, absent by default — is standing
-authorisation for this project, but only while git does not track it. If
-`git ls-files --error-unmatch .claude/autoship.json` succeeds, the file came with the
-repository, not from this user, and it authorises nothing: ask as step 7 says. When it is enabled, run the steps above up to and including
-its `through` level without asking again. That file **is** the yes step 7 asks for: the user
-armed it deliberately and can revoke it with `/easyclaude:autoship off`.
+`.claude/autoship.json` — written by `/easyclaude:autoship`, absent by default — is the user's
+standing yes for this project, but only inside a git repository and only while git does not
+track the file. If `git ls-files --error-unmatch .claude/autoship.json` succeeds, the file
+came with the repository, not from this user, and it authorises nothing: ask as step 7 says.
+When it is enabled, its `through` level (`commit`, `push`, `pr` or `merge`) is how far you
+go without asking. The session opener sends the same rule, so it also applies to a finished
+request that never came through this skill.
 
 Stop at the level. `push` means push and stop — do not open a pull request because it seemed
-helpful.
+helpful. One branch per piece of work: a later finished request on the same work commits to
+the same branch, and at `pr` updates the pull request that is already open instead of
+opening another. The review in step 3 runs once, before the pull request opens or the
+merge, not on every commit or push.
 
 At `merge`:
 
+- Wait for the pull request's checks first (`gh pr checks <n> --watch`).
 - `gh pr merge <n> --rebase` when the history is linear, `--squash` when the branch has messy
   intermediate commits. Match what the repo already does rather than imposing a preference.
 - If the server refuses — branch protection, required reviews, failing checks — report the
@@ -83,16 +88,11 @@ At `merge`:
 **Refuse the automatic path** and hand back, even though the config says yes, when:
 
 - any verify step failed
-- the user did not ask to ship in this turn, and `docs/STATE.md` - read after step 5 has
-  moved finished work to `## Done` - still has an unchecked task under `## Now` or `## Next`,
-  or `## Blocked` lists something. An empty `## Blocked`, or one that says none in the
-  file's own language, lists nothing. `/easyclaude:autoship` promises the user it fires only
-  at the end of a feature. build-task checks this before it calls you, and every other way
-  in must check it too. It does not apply when the user said "ship it", since they asked, or
-  when there is no `docs/STATE.md` to read
-- the change touched authentication, payments, or a data migration
-- `.claude/cheap-session` exists — cheap turns deliberately skip depth, which is the wrong
-  input to an unreviewed merge
+- the work is not finished: what the user asked for this time is only partly done
+- the user said to wait, or to keep it local
+- the change touched sign-in, payments, or a data migration
+- the level is `merge` and `.claude/cheap-session` exists — cheap turns deliberately skip
+  depth, which is the wrong input to an unreviewed merge
 - step 3's review turned up anything you did not actually fix — or, at `pr` and `merge`, ran
   without fresh eyes at all. A weaker safety net is exactly when a human should be asked;
   at `commit` it doesn't matter, since nothing has left the machine

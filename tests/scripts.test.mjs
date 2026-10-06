@@ -460,30 +460,53 @@ test('session-start: no debt means no Debt line', async () => {
 });
 
 test('session-start: armed cheap mode and autoship are both announced', async () => {
-  const r = await opener({
-    'docs/STATE.md': STATE,
+  const dir = projectDir();
+  writeAll(dir, { 'docs/STATE.md': STATE });
+  commitAll(dir);
+  writeAll(dir, {
     '.claude/cheap-session': '2026-09-23',
     '.claude/cheap-contract.md': 'Smallest fix that works.',
-    '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'pr' }),
+    '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'pr', base: 'trunk' }),
   });
+  const r = await openIn(dir);
   assertMatch(r.out, /cheap mode is on[\s\S]*Smallest fix that works/, 'the contract must ride along.');
-  assertMatch(r.out, /Autoship is armed through "pr"/, 'a session that can push must say so.');
+  assertMatch(r.out, /Autoship is set to "pr"/, 'a session that can push must say so.');
+  assertMatch(r.out, /commit it on a work branch \(never on trunk[\s\S]*push the branch[\s\S]*open a pull request against trunk/,
+    'each step the level covers must be named, against the base the user has.');
+  assertMatch(r.out, /Never ask "should I commit\?"/, 'the point of autoship is the questions it removes.');
+  assert(!/merge it/.test(r.out), `"pr" must not merge:\n${r.out}`);
+});
+
+test('session-start: no git, no autoship, whatever the file says', async () => {
+  const r = await opener({ 'docs/STATE.md': STATE, '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'merge' }) });
+  assert(!/Autoship/.test(r.out), `a folder with no git armed autoship:\n${r.out}`);
+});
+
+test('autoship: each level names its own steps, and an unknown level arms nothing', async () => {
+  const { standingLine, activeLevel } = await import('../scripts/autoship.mjs');
+  const commit = standingLine('commit');
+  assert(!/push the branch|pull request against/.test(commit), `"commit" must stop at the commit:\n${commit}`);
+  assertMatch(commit, /Steps past "commit" still need the user's yes/, 'the level above must still be asked.');
+  const merge = standingLine('merge');
+  assertMatch(merge, /wait for its checks, merge it/, '"merge" must merge only after the checks.');
+  assertMatch(merge, /easyclaude-diff-reviewer/, 'a merge must have a second reader first.');
+  assert(!/still need the user's yes/.test(merge), 'nothing is past "merge".');
+  assert(activeLevel({ enabled: true, through: 'everything' }, { kind: 'personal', git: true }) === null, 'a typo must arm nothing.');
+  assert(activeLevel({ enabled: true }, { kind: 'personal', git: true }) === 'commit', 'a file from before levels arms the safest one.');
+  assert(!/first reply/.test(standingLine('pr', 'main', { compact: true })), 'no first-reply line after a compaction.');
 });
 
 // After a compaction Claude is mid-task, often mid-turn. "Start your first reply with"
 // there put the Now/Next block in the middle of the work.
 test('session-start: after a compaction only the standing rules come back', async () => {
   const dir = projectDir();
-  const files = {
-    'docs/STATE.md': STATE,
+  writeAll(dir, { 'docs/STATE.md': STATE });
+  commitAll(dir);
+  writeAll(dir, {
     '.claude/cheap-session': '2026-09-23',
     '.claude/cheap-contract.md': 'Smallest fix that works.',
     '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'pr' }),
-  };
-  for (const [rel, body] of Object.entries(files)) {
-    mkdirSync(join(dir, dirname(rel)), { recursive: true });
-    writeFileSync(join(dir, rel), body);
-  }
+  });
   const r = await run(script('session-start.mjs'), {
     cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 's1', source: 'compact' }),
   });
@@ -492,6 +515,7 @@ test('session-start: after a compaction only the standing rules come back', asyn
   assert(!/\*\*Now:\*\*/.test(context), `a compaction repeated the opener:\n${context}`);
   assertMatch(context, /Smallest fix that works/, 'the cheap contract must survive the compaction.');
   assertMatch(context, /language of the user's own messages/, 'the language rule must survive the compaction.');
+  assertMatch(context, /Autoship is set to "pr"/, 'the autoship rule must survive the compaction, or Claude starts asking again.');
 });
 
 test('session-start: a disabled autoship says nothing', async () => {
@@ -515,7 +539,7 @@ test('session-start: autoship and cheap files the repo commits arm nothing, and 
   writeAll(dir, { 'docs/STATE.md': STATE, ...PERSONAL });
   commitAll(dir);
   const r = await openIn(dir);
-  assert(!/Autoship is armed/.test(r.out), `a committed autoship.json armed autoship:\n${r.out}`);
+  assert(!/Autoship is set/.test(r.out), `a committed autoship.json armed autoship:\n${r.out}`);
   assert(!/cheap mode is on|Smallest fix that works/.test(r.out),
     `a committed contract rode along as standing instructions:\n${r.out}`);
   assertMatch(r.out, /ignored these files: \.claude\/autoship\.json, \.claude\/cheap-session, \.claude\/cheap-contract\.md/,
@@ -529,7 +553,7 @@ test('session-start: the same files, untracked in a git repo, still arm', async 
   commitAll(dir);
   writeAll(dir, PERSONAL);
   const r = await openIn(dir);
-  assertMatch(r.out, /Autoship is armed through "merge"/, "the user's own autoship.json must still arm.");
+  assertMatch(r.out, /Autoship is set to "merge"/, "the user's own autoship.json must still arm.");
   assertMatch(r.out, /cheap mode is on[\s\S]*Smallest fix that works/, 'and their own cheap session.');
   assert(!/ignored these files/.test(r.out), `nothing here came with the repo:\n${r.out}`);
 });
