@@ -19,6 +19,9 @@ export type Request = {
   // Set when the turn ended; until then the request is running.
   endedAt: number | null
   steps: Step[]
+  // The last few actions, in plain words ("Changed checkout.js"), newest last. The panel
+  // shows these when Claude keeps no step list, so a request is never only "working".
+  recent: string[]
   tools: number
   // The session's cost when the request began, so the request's own cost is the difference.
   costAtStart: number | null

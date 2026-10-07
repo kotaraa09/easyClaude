@@ -14,6 +14,7 @@ Read `docs/STATE.md`. If the user said which work they mean — "the rest of wha
 
 ## 2. Build it as a slice
 
+- Before the first change, write this task's steps into your task list (TodoWrite or TaskCreate), in plain words the user understands, and mark each one in progress and done as you go. The user follows them in the progress panel; with no list it could only say "working", then "done".
 - Make it run end to end, however thinly. A task is not done if it needs a later task to be observable.
 - Follow the existing code's conventions over your own preferences — naming, file layout, error handling, comment density.
 - Reuse what's there. Search before you write: a duplicate implementation is worse than an ugly reused one.

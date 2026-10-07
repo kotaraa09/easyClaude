@@ -37,6 +37,18 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/steps-check.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreModelSwitch": [
       {
         "hooks": [
