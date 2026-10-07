@@ -494,6 +494,12 @@ test('autoship: each level names its own steps, and an unknown level arms nothin
   assert(activeLevel({ enabled: true, through: 'everything' }, { kind: 'personal', git: true }) === null, 'a typo must arm nothing.');
   assert(activeLevel({ enabled: true }, { kind: 'personal', git: true }) === 'commit', 'a file from before levels arms the safest one.');
   assert(!/first reply/.test(standingLine('pr', 'main', { compact: true })), 'no first-reply line after a compaction.');
+  // Plain words: the report and the first-reply line used to ask for the branch and the level's name.
+  const pr = standingLine('pr');
+  assertMatch(pr, /one plain line/, 'the report must be in plain words.');
+  assertMatch(pr, /Do not name the branch/, 'the report must not name the branch.');
+  assertMatch(pr, /open it for review/, 'the first-reply line must say what the level does, in plain words.');
+  assert(!/with the branch/.test(pr), 'the old report asked for the branch.');
 });
 
 // After a compaction Claude is mid-task, often mid-turn. "Start your first reply with"
