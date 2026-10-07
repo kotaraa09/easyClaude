@@ -50,8 +50,12 @@ anything else. Ask only what you cannot detect:
 Do not ask about architecture, testing philosophy, or deployment. Decide those and record them in `docs/DECISIONS.md`.
 
 **The first form also asks about plain answers:** should your answers be short and in plain
-words, without file names or code terms? Options "Yes" and "No", with "Yes" first. They can
-switch it later with `/easyclaude:plain`. Only a "Yes" turns it on in step 6.
+words, without file names or code terms? Options "Yes" (recommended) and "No", with "Yes"
+first. They can switch it later with `/easyclaude:plain`. Plain answers are on unless they pick
+"No": most people here do not read code. Write the setting as soon as they answer, as step 6
+says, so the rest of setup is already in plain words. It works from the next message. A
+user who tested 1.1.2 went through all of setup in technical words: the offer was one easy
+line to miss, and the setting came only at the end.
 
 **The first form that knows what kind of project this is asks about skills.** Usually that
 is the first form, since their first message says what they are building. Pick the skills as
@@ -154,8 +158,9 @@ Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 - `docs/DECISIONS.md` — seed with the choices you made for them, each with a one-line reason.
 - `docs/STATE.md` — from the template below.
 - `design/tokens.md` — colors, type scale, spacing, radii. Only if the project has a UI.
-- `.claude/settings.local.json` with `{ "outputStyle": "easyclaude:plain" }` — only if they said
-  yes to plain answers. Add `.claude/settings.local.json` to `.gitignore`: it is one person's choice.
+- `.claude/settings.local.json` with `{ "outputStyle": "easyclaude:plain" }` — unless they said
+  no to plain answers, and right after the first form rather than here. Keep any other key the
+  file has. Add `.claude/settings.local.json` to `.gitignore`: it is one person's choice.
 
 If git works and the folder is not a git repository yet, run `git init`: without history there
 is no version to go back to. In greenfield, when git has a name and email, also commit what setup
