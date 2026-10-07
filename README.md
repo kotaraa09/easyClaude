@@ -30,7 +30,7 @@
 ## What it does
 
 - **Asks when your words are unclear.** If a request like "make it better" can mean several things, it names the likely meanings, says which it would pick, and waits for you.
-- **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions, each with a default you can accept.
+- **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions in a form, each with a default you can accept. It builds nothing until you pick "start building": only you decide when the questions are over.
 - **Keeps the plan in a file.** `docs/STATE.md` holds what is in progress, what is next and what was skipped. A new session reads it, so "finish the rest" works the next day.
 - **Runs your project's checks after each change.** You approve the commands once on your computer, and again whenever they change, so a project from someone else cannot run commands you have not seen. If a check fails, Claude has to fix it before it can say "done". On a website it also asks Claude to look at the page.
 - **Suggests a free library** before it hand-writes a calendar, a map or a chart.
@@ -105,7 +105,7 @@ Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/eas
 
 ## The first time
 
-Open a project and say what you want. If the project is not set up yet, easyClaude asks up to four questions: what you build, who uses it, and what must work. It works out the rest from your files. Then it writes a few files into `docs/`, and offers at most two extra skills that fit your project, each with its cost.
+Open a project and say what you want. If the project is not set up yet, easyClaude asks its questions in a form: what you build, who uses it, and what must work. The same form offers at most two extra skills that fit your project, each with its cost. Each form ends with "is the plan clear enough to start?", and nothing is built until you say yes. Then it writes a few files into `docs/`.
 
 After that, each session starts like this:
 

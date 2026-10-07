@@ -1,14 +1,14 @@
 ---
 name: kickoff
 description: Set up a project for easyClaude with a short interview, then write its state file, checks and rules. Use when the session opener says to, or when the user asks to set up easyClaude or start a new project.
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
 # Kickoff
 
 Sets up the project so every later session starts oriented. Runs once.
 
-**Tone:** most users here are beginners. Ask few questions, in plain language, and make the obvious call yourself rather than presenting a menu. Never ask about anything you can detect. Every word you write reaches the user, so write no notes to yourself, such as "Next question: must-have", and write everything in the language the user writes in.
+**Tone:** most users here are beginners. Ask few questions at a time, in plain language, and make the obvious call yourself rather than presenting a menu. Never ask about anything you can detect. Every word you write reaches the user, so write no notes to yourself, such as "Next question: must-have", and write everything in the language the user writes in.
 
 ## 1. Decide the mode
 
@@ -36,36 +36,49 @@ the user in plain words what they lose and the fix, in their language:
 
 Then carry on with setup. The files it writes start working once the tool is installed.
 
-## 2. Interview — maximum four questions
+## 2. Interview — in the question form, until the user says start
 
-Ask these one message at a time, not as a wall. Do not number or label them in your reply -
-the user sees "Question 3" as a form to fill in, and the numbers below skip whatever you
-could already answer:
+Ask with the `AskUserQuestion` form, not in chat. Each question gets two to four short
+options, with your recommendation first and marked as recommended; the form adds "Other" for
+anything else. Ask only what you cannot detect:
 
-1. What are you building, in a sentence?
+1. What are you building, in a sentence? *(skip it when their first message says)*
 2. Who uses it?
 3. Is there anything it absolutely must do to count as working? *(this becomes the first milestone)*
-4. Only if greenfield and undetectable: what are you building it with? Offer a recommendation rather than a list — if they don't know, pick for them and say why in one line.
+4. Only if greenfield and undetectable: what are you building it with? Recommend one.
 
 Do not ask about architecture, testing philosophy, or deployment. Decide those and record them in `docs/DECISIONS.md`.
 
-**End your last question with the permission warning.** Steps 4 to 6 write into `.claude/`,
-and Claude Code asks permission for every file there, even when edits are allowed. Add one or
-two plain sentences below the question: after their answer you will set the project up, Claude
-Code will ask a few times to save settings files, those hold the working rules, the safety
-blocks and the list of checks, and saying yes is safe. In adopt mode with nothing to ask, say
-it in your first message instead.
+**The first form also asks about plain answers:** should your answers be short and in plain
+words, without file names or code terms? Options "Yes" and "No", with "Yes" first. They can
+switch it later with `/easyclaude:plain`. Only a "Yes" turns it on in step 6.
 
-**In the same message, offer plain answers.** One yes-or-no line: should your answers be short
-and in plain words, without file names or code terms? Say they can switch it later with
-`/easyclaude:plain`. Only a clear yes turns it on in step 6; no answer means off. It is offered,
-never assumed: a user who reads code loses detail they want.
+**The first form that knows what kind of project this is asks about skills.** Usually that
+is the first form, since their first message says what they are building. Pick the skills as
+step 7 says, and ask one question with `multiSelect`: one option for each pick, named, with
+what it adds and its cost on every turn in tokens in the description, and a last option for
+none. Leave it out when no entry fits. A user in testing never heard this offer: it sat at the
+end of setup, and setup ran straight into building.
 
-A beginner who meets five unexplained prompts about `settings.json` either refuses them all or
-learns to click yes on anything - and the second habit is the one that hurts them later. The
-warning is here, in a turn that is only text, because an instruction to say it just before
-the first write was skipped in testing: the writes happen in a run of tool calls, and nothing
-in between gets said.
+In adopt mode with nothing to ask, the form holds only these and the ready question.
+
+**Every form ends with the ready question.** Its header is exactly `Ready?`, in English,
+whatever language the rest is in. The question asks whether the plan is clear enough to set
+the project up and start building. The first option means "yes, start" and the second "not
+yet, I have more to say", both in the user's language. In the first option's description, say
+that Claude Code will then ask a few times to save settings files, which hold the working
+rules, the safety blocks and the list of checks, and that yes is safe.
+
+You never decide that the questions are over. The user does, with that first option. Until
+then easyClaude holds every change outside `docs/` and `.claude/`, and every command that
+creates or installs a project. When they pick "not yet" or write their own answer, take what
+they said, and show a new form with what is still open and the ready question again. A user in
+testing answered for three rounds and more, still thought the plan was unclear, and Claude
+started building anyway because it judged it had enough.
+
+If the form cannot be shown, ask the same questions in chat, one message at a time, and end
+each with the ready question in words. A short typed "start building" or "go ahead" opens the
+gate as the first option does.
 
 ## 3. Detect the stack
 
@@ -191,11 +204,12 @@ that fit what they told you and what you detected: the engine's own plugin for a
 pick for a website or app, a testing pick when the verify contract is weak. Never a design skill
 for a game.
 
-Offer them in the same closing message, after the three lines: each by name, what it adds in
-one plain line, and what it costs on every turn from then on, as a number of tokens. Work the
+Step 2 asks this in the form. Only if no form asked it, offer them in the closing message,
+after the three lines: each by name, what it adds in one plain line, and what it costs on
+every turn from then on, as a number of tokens. Work the
 number out from the catalogue's skill count at 25 to 60 tokens a skill. "A little" is not a
 cost: in testing it was the word two replies of three used, and nobody can compare it. Ask one yes-or-no question. On a
-yes, follow steps 5 and 6 of `commands/skills.md` under `${CLAUDE_PLUGIN_ROOT}`: scan, then
+yes, or for each skill picked in the form, follow steps 5 and 6 of `commands/skills.md` under `${CLAUDE_PLUGIN_ROOT}`: scan, then
 install. Install nothing without that yes, and nothing they did not pick. If no entry fits, say
 nothing about skills.
 
