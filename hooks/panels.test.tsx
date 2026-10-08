@@ -4,24 +4,34 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { actionLabel, addRecent, applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
-import type { Step } from '../types'
+import { ADVICE_LIMIT, afterTurn, freshGuard, holdText, shouldHold } from './clear-reminder'
+import { flowOf, label, side } from './savvy-progress/register'
+import type { Request, Step } from '../types'
 
 const SURFACES = ['terminal', 'desktop'] as const
 
 // What the engine answers beneath the plugin in a session: a clock, the project folder, its
 // files, and the session's figures.
+// The conversation's size the engine reports; a test sets it to make a conversation long.
+let contextTokens = 50_000
 const project = (on: On, files: Record<string, string>, { git = true } = {}) => {
-  mock.clock(on, { now: 1_000_000 })
+  contextTokens = 50_000
+  const clock = mock.clock(on, { now: 1_000_000 })
   on('fs.exists', async (_$, e: any) => ({ value: git && /[\\/]\.git$/.test(String(e.path)) }) as any)
   on('session.root', async () => ({ value: '/p' }) as any)
-  on('session.usage', async () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: 50_000, window: 200_000, percent: 25 }, cost: { usd: 0.5 } } }) as any)
+  on('session.usage', async () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: contextTokens, window: 200_000, percent: 25 }, cost: { usd: 0.5 } } }) as any)
   on('fs.read', async (_$, e: any) => {
     // The engine hands the path over in the platform's own form: D:\p\docs\STATE.md here.
     const rel = String(e.path).replace(/\\/g, '/').replace(/^([A-Za-z]:)?\/p\//, '')
     if (rel in files) return { value: files[rel] } as any
     throw new Error(`not found: ${e.path}`)
   })
+  return clock
 }
+const band = () => ({
+  component: 'AbovePrompt' as const,
+  props: { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} } as any,
+})
 const pane = (requestId: string) => ({
   component: 'Pane' as const,
   requestId,
@@ -78,6 +88,53 @@ describe('the recent actions', () => {
   })
 })
 
+describe('the progress bar', () => {
+  const r: Request = { text: 'make a website', startedAt: 0, endedAt: null, steps: [], recent: [], tools: 0, costAtStart: null }
+  test('counts the steps done, and says Working before Claude keeps a list', async () => {
+    const steps = fromTodos([
+      { content: 'Read the plan', status: 'completed' },
+      { content: 'Build the page', status: 'in_progress' },
+    ])
+    const f = flowOf({ ...r, steps, tools: 3 }, { dismissedAt: -1 })!
+    expect(label(f)).toBe('1/2 steps')
+    expect(side(f)).toBe('50%')
+    const bare = flowOf({ ...r, tools: 4 }, { dismissedAt: -1 })!
+    expect(label(bare)).toBe('Working')
+    expect(side(bare)).toBe('4 actions')
+  })
+
+  test('says how long a finished request took, and hides one the user closed', async () => {
+    const done = flowOf({ ...r, endedAt: 134_000 }, { dismissedAt: -1 })!
+    expect(label(done)).toBe('Done')
+    expect(side(done)).toBe('2m 14s')
+    expect(flowOf(r, { dismissedAt: 0 })).toBe(null)
+    expect(flowOf(null, { dismissedAt: -1 })).toBe(null)
+  })
+})
+
+describe('the /clear reminder', () => {
+  test('holds a message once a conversation is long, and never a command', async () => {
+    const g = afterTurn(afterTurn(freshGuard(), 30_000), 30_000 + ADVICE_LIMIT + 1_000)
+    expect(g.floor).toBe(30_000)
+    expect(shouldHold(g, 'add a footer', false)).toBe(true)
+    expect(shouldHold(g, '/clear', false)).toBe(false)
+    expect(shouldHold(g, 'add a footer', true)).toBe(false)
+    // Held once in this stretch; a stretch that shrank to half is a new one.
+    const held = { ...g, heldAt: g.ctx }
+    expect(shouldHold(held, 'add a footer', false)).toBe(false)
+    expect(shouldHold(afterTurn(held, 30_000 + ADVICE_LIMIT / 4), 'add a footer', false)).toBe(false)
+    // Nobody at the screen (-p, the SDK): nobody could send it again.
+    expect(shouldHold({ ...g, isInteractive: false }, 'add a footer', false)).toBe(false)
+  })
+
+  test('speaks Thai to a Thai message, and names the plan only when there is one', async () => {
+    expect(holdText(120_000, 'docs/STATE.md', 'add a footer')).toMatch(/about 120k tokens.*\/clear first: your plan stays in docs\/STATE\.md.*send your message again/)
+    expect(holdText(120_000, null, 'add a footer')).not.toMatch(/plan/)
+    expect(holdText(120_000, 'docs/STATE.md', 'เพิ่ม')).toMatch(/\/clear.*docs\/STATE\.md/)
+    expect(holdText(120_000, 'docs/STATE.md', 'เพิ่ม')).toMatch(/[฀-๿]/)
+  })
+})
+
 describe('the control panel state', () => {
   test('reads the level, cheap mode, plain answers and setup from the project files', async () => {
     const s = settingsFrom({
@@ -95,7 +152,7 @@ describe('the control panel state', () => {
 })
 
 describe('the panels, drawn', () => {
-  test('progress shows the step in progress after Claude updates its list', async ($, on) => {
+  test('the bar above the prompt shows the request and its steps after Claude updates its list', async ($, on) => {
     project(on, {})
     on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
     on('tool.call', async () => ({ result: {} }) as any)
@@ -108,40 +165,55 @@ describe('the panels, drawn', () => {
       ],
     } as any)
     for (const surface of SURFACES) {
-      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-progress') })
-      expect(await ui.find({ type: 'Text', text: /make a website for my bakery/ })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: '▶ Building the home page' })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: '1 of 2' })).toBeDefined()
+      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...band() })
+      // The desktop draws the bar as one picture; the terminal as text.
+      if (surface === 'terminal') {
+        expect(await ui.find({ type: 'Text', text: /make a website for my bakery/ })).toBeDefined()
+        expect(await ui.find({ type: 'Text', text: '1/2 steps' })).toBeDefined()
+      }
+      expect(await ui.find({ key: 'easyclaude-dismiss' })).toBeDefined()
       await ui.unmount()
     }
   })
 
-  test('with no step list, progress shows the latest actions in plain words', async ($, on) => {
-    project(on, {})
+  test('closing the bar hides it until the next request', async ($, on) => {
+    const clock = project(on, {})
     on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
     on('tool.call', async () => ({ result: {} }) as any)
+    // What the band draws with nothing of easyClaude's to show.
+    on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
+      const { Box } = $.ui.resolve(e)
+      return <Box />
+    })
     await $.prompt.submit({ text: 'fix the footer' } as any)
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    await ui.press({ key: 'easyclaude-dismiss' })
+    await ui.unmount()
+    const closed = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    expect(await closed.find({ type: 'Text', text: /fix the footer/ })).toBeUndefined()
+    await closed.unmount()
+    await clock.advance(60_000)
+    await $.prompt.submit({ text: 'and the header' } as any)
+    // A tool call waits for the request's record, which is written in the background.
     await $.tool.call({ tool: 'Read', file_path: '/p/index.html' } as any)
-    await $.tool.call({ tool: 'Edit', file_path: '/p/index.html', old_string: 'a', new_string: 'b' } as any)
-    for (const surface of SURFACES) {
-      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-progress') })
-      expect(await ui.find({ type: 'Text', text: '✓ Read index.html' })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: '▶ Changed index.html' })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: /no step list/ })).toBeUndefined()
-      await ui.unmount()
-    }
+    const again = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    expect(await again.find({ type: 'Text', text: /and the header/ })).toBeDefined()
+    await again.unmount()
   })
 
-  test('the Task tools build the step list, and their ids never clash with a TodoWrite list', async ($, on) => {
+  test('a helper Claude starts shows in the helpers panel, and is marked done when its turn ends', async ($, on) => {
     project(on, {})
-    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
-    on('tool.call', async (_$, e: any) => ({ result: e.tool === 'TaskCreate' ? { task: { id: '0', subject: e.subject } } : {} }) as any)
-    await $.prompt.submit({ text: 'add a contact page' } as any)
-    await $.tool.call({ tool: 'TaskCreate', subject: 'Write the form', description: '', activeForm: 'Writing the form' } as any)
-    await $.tool.call({ tool: 'TaskUpdate', taskId: '0', status: 'in_progress' } as any)
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-progress') })
-    expect(await ui.find({ type: 'Text', text: '▶ Writing the form' })).toBeDefined()
-    await ui.unmount()
+    on('agent.spawn', async () => ({ agentId: 'a1', model: 'claude-sonnet-5-5' }) as any)
+    on('turn.complete', async () => ({ text: '' }) as any)
+    await $.agent.spawn({ prompt: 'look', description: 'Find the checkout code', subagentType: 'Explore' } as any)
+    const running = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    expect(await running.find({ type: 'Text', text: /Find the checkout code/ })).toBeDefined()
+    expect(await running.find({ type: 'Text', text: '●' })).toBeDefined()
+    await running.unmount()
+    await $.turn.complete({ agentId: 'a1', reason: 'answer', answer: '', durationMs: 1000, isAborted: false, turnId: 't1' } as any)
+    const done = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    expect(await done.find({ type: 'Text', text: '✓' })).toBeDefined()
+    await done.unmount()
   })
 
   test('a control panel button runs the command it names', async ($, on) => {

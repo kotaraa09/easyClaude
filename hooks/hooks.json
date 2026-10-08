@@ -1,6 +1,6 @@
 {
   "modules": [
-    "./panels.tsx"
+    "./register.tsx"
   ],
   "hooks": {
     "SessionStart": [

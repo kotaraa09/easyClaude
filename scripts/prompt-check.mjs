@@ -7,23 +7,20 @@
 // Every step of a turn re-reads the whole conversation. Measured on one small task, a
 // fresh conversation cost $0.18 and a long one $1.25, and the reading alone was nine times
 // more. easyClaude keeps the plan in docs/STATE.md and the opener reads it back, so a fresh
-// conversation loses nothing - but only the user can type /clear or /compact. This hook
-// measures the conversation from the session file and hands Claude the facts:
+// conversation loses nothing - but only the user can type /clear or /compact. In cheap mode
+// (/easyclaude:cheap, /easyclaude:cheap-session, or an armed cheap session) this hook
+// measures the conversation from the session file, and in a long one tells Claude not to
+// start the task and to ask for /clear or /compact first.
 //
-//   cheap mode (/easyclaude:cheap, /easyclaude:cheap-session, or an armed cheap session)
-//     in a long conversation: do not start the task, ask for /clear or /compact first.
-//   any other prompt, once per session, in a very long conversation: finish the task in
-//     hand, then suggest a fresh conversation in one line.
+// The /clear reminder outside cheap mode is hooks/clear-reminder.ts: it holds the message
+// with a note before it is sent, and costs no tokens. Until then this hook asked Claude to
+// say it after the task, which cost tokens in a conversation that was already expensive.
 //
-// It prints nothing on every other prompt, so it costs no tokens there. It never blocks a
-// prompt itself: a blocked prompt can only carry a fixed English message, and the user may
-// write in any language, so Claude says it instead.
+// It prints nothing on every other prompt, so it costs no tokens there.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
-import { readFileSync, existsSync, writeFileSync, rmSync, openSync, readSync, fstatSync, closeSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
 import { markLater } from './later-memo.mjs';
 import { writesNonLatin, withLanguage } from './language.mjs';
 import { cheapArmed } from './personal.mjs';
@@ -34,7 +31,6 @@ import { isGo, isOpen as planningOpen, isSetup, close as closePlanning, SETUP_GO
 // is Claude Code's own prompt, tools and project files - a floor no /clear removes - so it
 // is subtracted rather than guessed, and a user with many MCP servers is not penalised.
 export const CHEAP_LIMIT = 20_000;
-export const ADVICE_LIMIT = 80_000;
 
 const CHEAP_COMMAND = /^\s*\/easyclaude:cheap(-session)?\b/;
 
@@ -202,25 +198,15 @@ function main() {
     asksForSolvedPiece(prompt) ? LIBRARY_NUDGE : null,
   ].filter(Boolean);
   const nudgeText = withLanguage(nudges.join('\n\n'), prompt) || null;
-  // Nothing left to say this session, so the transcript - which can run to megabytes - is
-  // not read on every prompt.
-  if (!cheap && alreadyAdvised(payload.session_id)) {
-    // Once per conversation, not once per session. /clear and /compact keep the session, so
-    // a user who took the advice never heard it again, however long the next stretch grew.
-    // Only the end of the transcript is read: the last request's size is enough to see it
-    // shrank.
-    const advisedAt = advisedContext(payload.session_id);
-    const now = payload.transcript_path ? lastContextTokens(payload.transcript_path) : null;
-    if (!(advisedAt && now !== null && now < advisedAt / 2)) return say(nudgeText);
-    forgetAdvice(payload.session_id);
-  }
-
+  // Outside cheap mode there is nothing to measure, so the transcript - which can run to
+  // megabytes - is not read.
+  if (!cheap) return say(nudgeText);
   const history = payload.transcript_path ? historyTokens(payload.transcript_path) : null;
   if (history === null) return say(nudgeText);
   const k = `about ${Math.round(history / 1000)}k tokens`;
 
   let context = null;
-  if (cheap && history > CHEAP_LIMIT) {
+  if (history > CHEAP_LIMIT) {
     context = `easyClaude cheap mode: this conversation already holds ${k} of history, and every ` +
       'step re-reads all of it, so it now costs more than the cheap rules save. Do not start ' +
       'the task, and do not read or edit anything this turn. ' +
@@ -231,50 +217,9 @@ function main() {
       `is saved in ${plan}, and the next session opens with it) or /compact (keeps a short ` +
       'summary of this conversation), then send the same request again. Keep both commands exactly ' +
       'as written.';
-  } else if (!cheap && history > ADVICE_LIMIT && !alreadyAdvised(payload.session_id)) {
-    context = `easyClaude: this conversation holds ${k} of history, and every step re-reads it. ` +
-      'Do the task as usual. When it is finished, add one line in the user\'s language: before the ' +
-      `next task, /clear makes every step cheaper, and the plan stays in ${plan}. Say this once.`;
-    markAdvised(payload.session_id, payload.transcript_path ? lastContextTokens(payload.transcript_path) : null);
   }
 
   say([nudgeText, context].filter(Boolean).join('\n\n'));
-}
-
-// Once per session: advice repeated on every prompt is noise, and costs tokens each time.
-const adviceMemo = (session) =>
-  join(tmpdir(), `easyclaude-advised-${createHash('sha256').update(String(session)).digest('hex').slice(0, 16)}`);
-const alreadyAdvised = (session) => Boolean(session) && existsSync(adviceMemo(session));
-const markAdvised = (session, context) => {
-  if (!session) return;
-  try { writeFileSync(adviceMemo(session), JSON.stringify({ context })); } catch { /* advice may repeat; nothing breaks */ }
-};
-const advisedContext = (session) => {
-  try { return Number(JSON.parse(readFileSync(adviceMemo(session), 'utf8')).context) || null; } catch { return null; }
-};
-const forgetAdvice = (session) => rmSync(adviceMemo(session), { force: true });
-
-// The size of the last main-thread request, from the end of the transcript only. A session
-// file runs to megabytes, and this runs on every prompt once advice was given.
-export function lastContextTokens(transcriptPath, tailBytes = 512 * 1024) {
-  let fd;
-  try {
-    fd = openSync(transcriptPath, 'r');
-    const size = fstatSync(fd).size;
-    const len = Math.min(size, tailBytes);
-    const buf = Buffer.alloc(len);
-    readSync(fd, buf, 0, len, size - len);
-    const lines = buf.toString('utf8').split('\n');
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (!lines[i].includes('"usage"')) continue;
-      let entry;
-      try { entry = JSON.parse(lines[i]); } catch { continue; }
-      const u = entry?.message?.usage;
-      if (entry.type !== 'assistant' || entry.isSidechain || !u) continue;
-      return (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
-    }
-    return null;
-  } catch { return null; } finally { if (fd !== undefined) closeSync(fd); }
 }
 
 // Run as the hook; imported by the tests for historyTokens.

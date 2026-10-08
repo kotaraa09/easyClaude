@@ -21,13 +21,26 @@ node scripts/test.mjs       # the checking machinery, about 25 seconds to 5 minu
 
 Both must pass. CI runs them on Linux and Windows for every pull request.
 
-The panels in `hooks/panels.tsx` are a Claude Code hooks module, and need Claude Code itself
-(2.1.288 or later). CI cannot run these, so run them yourself when you change the panels:
+The panels are Claude Code hooks modules, and need Claude Code itself (2.1.288 or later):
+easyClaude's own in `hooks/` (`register.tsx` starts the control panel, the progress bar and
+the /clear reminder), and the file tree and Blast Radius, each a plugin of its own in
+`plugins/` that easyClaude lists as a dependency. CI cannot run these, so run them yourself
+when you change one:
 
 ```bash
 claude plugin validate .claude-plugin/plugin.json
 claude plugin test .
+claude plugin validate plugins/blast-radius
+claude plugin test plugins/blast-radius
+claude plugin validate plugins/filetree
 ```
+
+Three rules of the engine shape `hooks/`. A plugin loads one hooks module. It takes one
+hook per event from it, so `session.start`, `prompt.submit` and `turn.complete` are hooked
+in `panels.tsx` alone, which calls the other parts. And the validator follows `$` only into
+functions in the same file, so a part another file calls takes plain values, never `$`.
+A mod from someone else with its own events goes in `plugins/` instead, with its licence
+and a `PROVENANCE.md`, as a third-party skill does.
 
 The first time Claude Code loads the plugin, it writes the API's types to
 `.claude-plugin/types/` (ignored by git), and `tsc -p .` then type-checks the panels.

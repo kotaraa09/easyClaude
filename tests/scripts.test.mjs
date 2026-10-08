@@ -738,32 +738,12 @@ test('prompt hook: a cheap-session file the repo commits does not arm cheap mode
   assert(!/Do not start the task/.test(r.out), `a committed cheap-session held the task:\n${r.out}`);
 });
 
-test('prompt hook: a very long normal conversation gets the /clear advice once', async () => {
+// The /clear reminder outside cheap mode is a mod now (hooks/clear-reminder.ts): it holds
+// the message with a note, before any token is paid. The hook must add nothing for it.
+test('prompt hook: outside cheap mode a long conversation gets no /clear line', async () => {
   const { dir, file } = transcript([30_000, 150_000]);
-  const session = `advice-${Date.now()}-${Math.random()}`;
-  const first = await promptHook(dir, file, 'add a counter', session);
-  assertMatch(first.out, /\/clear makes every step cheaper/, 'the advice must come once.');
-  assert(!/Do not start/.test(first.out), 'outside cheap mode the task goes ahead.');
-  const second = await promptHook(dir, file, 'and a footer', session);
-  assert(second.out.trim() === '', `the advice must not repeat in one session:\n${second.out}`);
-});
-
-// /clear and /compact keep the session. A user who took the advice on 2026-09-30 never
-// heard it again, because "once" meant once per session.
-test('prompt hook: after /clear the advice comes back once the conversation is long again', async () => {
-  const { dir, file } = transcript([30_000, 150_000]);
-  const session = `advice-${Date.now()}-${Math.random()}`;
-  const grow = (sizes) => writeFileSync(file, sizes.map((n, i) => JSON.stringify({
-    type: 'assistant', isSidechain: false, uuid: `u${i}`,
-    message: { usage: { input_tokens: 2, cache_creation_input_tokens: 0, cache_read_input_tokens: n - 2 } },
-  })).join('\n') + '\n');
-  assertMatch((await promptHook(dir, file, 'add a counter', session)).out, /\/clear makes/, 'first long stretch');
-  grow([30_000, 150_000, 31_000]);
-  const fresh = await promptHook(dir, file, 'and a footer', session);
-  assert(!/\/clear makes/.test(fresh.out), `right after /clear there is nothing to advise:\n${fresh.out}`);
-  grow([30_000, 150_000, 31_000, 125_000]);
-  assertMatch((await promptHook(dir, file, 'and a header', session)).out, /\/clear makes/,
-    'a second long stretch after /clear must get the advice again.');
+  const r = await promptHook(dir, file, 'add a counter', `advice-${Date.now()}-${Math.random()}`);
+  assert(r.out.trim() === '', `the /clear reminder belongs to the mod now:\n${r.out}`);
 });
 
 test('prompt hook: a calendar, a map or a chart gets the library line; code does not', async () => {
@@ -903,12 +883,12 @@ test('prompt hook: a helper report wrapped by Claude Code is not the user speaki
   assert(!held.out.trim(), `a report in a long cheap session must not be held:\n${held.out}`);
 });
 
-test('prompt hook: the debug line rides with the long-conversation advice', async () => {
+test('prompt hook: the debug line comes alone in a long conversation', async () => {
   const { dir, file } = transcript([30_000, 150_000]);
   const r = await promptHook(dir, file, 'the checkout breaks', `bug-${Date.now()}-${Math.random()}`);
   const context = JSON.parse(r.out).hookSpecificOutput.additionalContext;
-  assert(/debug skill/.test(context) && /\/clear makes every step cheaper/.test(context),
-    `both lines must arrive together:\n${context}`);
+  assert(/debug skill/.test(context) && !/\/clear/.test(context),
+    `the debug line must come without any /clear advice:\n${context}`);
 });
 
 // The Thai bug-fix task in the outcome benchmark: with the English debug line added, two

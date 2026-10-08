@@ -1,9 +1,10 @@
-// easyClaude's two panels: what the request in progress has done and cost, and a button for
-// each easyClaude feature.
+// easyClaude's control panel, a button for each easyClaude feature, and the record of the
+// request in progress: its steps, its recent actions and its cost.
 //
 // A beginner could not see how far a request had got, or what it cost, without asking -
-// and asking is another paid message. And each feature was a command to remember. Both
-// panels run outside the model: they add nothing to any request.
+// and asking is another paid message. And each feature was a command to remember. The
+// record feeds the status line here and the progress bar above the prompt
+// (hooks/savvy-progress). All of it runs outside the model: it adds nothing to any request.
 //
 // This is a Claude Code hooks module (early access). Where installed plugins may not load
 // one - an older Claude Code, or an account the feature has not reached - nothing here
@@ -12,14 +13,18 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Request, Step, Usage } from '../types'
+import { clearHeld, clearHistory, clearOnStart, clearOnTurnEnd, holdText } from './clear-reminder'
+import { HELPERS_DESCRIPTION, helperEnded } from './savvy-progress/register'
 
-const PROGRESS = 'easyclaude-progress'
 const CONTROLS = 'easyclaude-controls'
 
 const request = atom({ plugin: 'easyclaude', key: 'request' } as const, null)
 const usage = atom({ plugin: 'easyclaude', key: 'usage' } as const, {
   costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null,
 })
+// The helpers panel's list and clock (savvy-progress/), written here when a helper's turn ends.
+const helpers = atom({ plugin: 'easyclaude', key: 'agents' } as const, [])
+const helpersNow = atom({ plugin: 'easyclaude', key: 'agentsNow' } as const, 0)
 
 export const LEVELS = ['off', 'commit', 'push', 'pr', 'merge'] as const
 
@@ -163,29 +168,20 @@ async function readSettings($: any): Promise<Settings> {
   })
 }
 
+// The plan file, if the project has one, and whether cheap mode is on: for the /clear note.
+async function planAndCheap($: any): Promise<{ plan: string | null; cheap: boolean }> {
+  let root: string
+  try { root = await $.session.root() } catch { return { plan: null, cheap: false } }
+  let plan = 'docs/STATE.md'
+  try { plan = JSON.parse((await readText($, root, '.claude/easyclaude.json')) ?? 'null')?.files?.state ?? plan } catch { /* default */ }
+  return {
+    plan: (await readText($, root, plan)) !== null ? plan : null,
+    cheap: (await readText($, root, '.claude/cheap-session')) !== null,
+  }
+}
+
 // --- drawing helpers --------------------------------------------------------------------
-// A bar of `width` cells, filled in proportion: the step count, the conversation's size.
-export const bar = (part: number, whole: number, width: number): string => {
-  const cells = Math.max(6, Math.min(40, Math.round(width)))
-  const full = whole > 0 ? Math.round((Math.max(0, Math.min(part, whole)) / whole) * cells) : 0
-  return '━'.repeat(full) + '─'.repeat(cells - full)
-}
-
-export const stepRow = (s: Step): string =>
-  s.status === 'completed' ? `✓ ${s.title}` : s.status === 'in_progress' ? `▶ ${s.doing}` : `○ ${s.title}`
-
 const RULE = '─'.repeat(200)
-
-// A rounded bar as an SVG image, for the desktop app. Raw colours from the middle of the
-// palette, so it reads on a light and a dark theme alike; theme keys do not reach an image.
-export const barSvg = (part: number, whole: number, tone: 'accent' | 'neutral'): string => {
-  const w = 280
-  const filled = whole > 0 ? Math.round((Math.max(0, Math.min(part, whole)) / whole) * w) : 0
-  const fill = tone === 'accent' ? '#378ADD' : '#888780'
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="6" viewBox="0 0 ${w} 6">` +
-    `<rect width="${w}" height="6" rx="3" fill="#888780" fill-opacity="0.25"/>` +
-    (filled > 0 ? `<rect width="${filled}" height="6" rx="3" fill="${fill}"/>` : '') + '</svg>'
-}
 
 const paneWidth = (e: any): number => Math.max(24, Number(e?.props?.bodyColumns) || 40)
 
@@ -245,6 +241,8 @@ const refresh = async ($: any, atStart: boolean) => {
   if (atStart) await update($, request, (r) => (r && r.costAtStart === null ? { ...r, costAtStart: u.costUsd } : r))
   const r = await read($, request)
   if (!r) return
+  // The conversation's size once a request has ended: the /clear reminder's measure.
+  if (r.endedAt !== null) clearOnTurnEnd(u.contextTokens)
   const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
   $.ui.status(r.endedAt === null
     ? `easyClaude: ${stepLine(r.steps) ?? r.recent?.[r.recent.length - 1] ?? `${r.tools} actions`} · ${money(spent)}`
@@ -285,30 +283,53 @@ const endRequest = async ($: any) => {
   refreshLater($, false)
 }
 
-const openBoth = async ($: any) => {
-  void $.ui.open({ id: PROGRESS, title: 'easyClaude: progress' })
+const openControls = async ($: any) => {
   void $.ui.open({ id: CONTROLS, title: 'easyClaude: controls' })
 }
 
+// Claude Code takes one hook per event from a plugin, so the three events the other parts
+// also need - session.start, prompt.submit and turn.complete - are hooked here alone, and
+// call into clear-reminder.ts and savvy-progress/ for their share.
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'easyclaude-panels', description: 'Open the easyClaude progress and control panels' })
+    clearOnStart(e.isInteractive !== false)
+    await $.command.register({ name: 'easyclaude-helpers', description: HELPERS_DESCRIPTION })
+    // Ticks the running helpers' clocks in their panel; quiet when none runs.
+    $.clock.every(1000, () => {
+      void (async () => {
+        if (!(await read($, helpers)).some((a) => a.status === 'running')) return
+        const at = await $.clock.now()
+        await update($, helpersNow, () => at)
+      })()
+    })
+    await $.command.register({ name: 'easyclaude-panels', description: 'Open the easyClaude control panel' })
     await update($, usage, () => ({ costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null }))
     // A resumed or reloaded session starts with no request in progress.
     await update($, request, () => null)
-    await openBoth($)
+    await openControls($)
     return next(e)
   })
 
   on('command.run', { command: 'easyclaude-panels' }, async ($) => {
-    await openBoth($)
-    return { text: 'easyClaude panels opened.' }
+    await openControls($)
+    return { text: 'easyClaude control panel opened.' }
   })
 
   // Nothing here is awaited before the request goes on: awaiting the figures held every
   // request back by about a second, and the state write alone by 0.4s. No response has
-  // arrived yet, so the cost read a moment later is still the starting cost.
-  on('prompt.submit', ($, e, next) => {
+  // arrived yet, so the cost read a moment later is still the starting cost. The /clear
+  // reminder reads files only on the one message it holds.
+  on('prompt.submit', async ($, e, next) => {
+    const text = typeof e.text === 'string' ? e.text : ''
+    const history = clearHistory(text, e.origin?.kind === 'plugin')
+    if (history !== null) {
+      const { plan, cheap } = await planAndCheap($)
+      // Cheap mode holds a long conversation itself, more strictly: prompt-check.mjs.
+      if (!cheap) {
+        clearHeld()
+        return { drop: holdText(history, plan, text) }
+      }
+    }
     void inOrder(() => startRequest($, e.text))
     return next(e)
   })
@@ -324,117 +345,16 @@ export const register: Register = (on) => {
   })
 
   on('turn.complete', async ($, e, next) => {
+    // A helper's turn: the helpers panel marks it done or failed.
+    if (e.agentId !== undefined) {
+      const at = await $.clock.now()
+      await update($, helpers, (list) => helperEnded(list, e, at))
+      await update($, helpersNow, () => at)
+    }
     const result = await next(e)
     if (e.agentId !== undefined) return result
     await inOrder(() => endRequest($))
     return result
-  })
-
-  // --- the progress panel -------------------------------------------------------------
-  on('ui.render', { component: 'Pane', requestId: PROGRESS }, async ($, e) => {
-    const table: any = $.ui.resolve(e)
-    const { Box, Text, Svg } = table
-    const r = await read($, request)
-    const u = await read($, usage)
-    const now = await $.clock.now()
-    // A real bar where the surface draws SVG (the desktop app), a line of text elsewhere.
-    const meter = (part: number, whole: number, tone: 'accent' | 'neutral', alt: string) => Svg
-      ? <Svg source={barSvg(part, whole, tone)} alt={alt} />
-      : <Text color={tone === 'accent' ? 'suggestion' : 'inactive'}>{bar(part, whole, 16)}</Text>
-    const sizeBar = (
-      <Box flexDirection="column">
-        <Box justifyContent="space-between" gap={1}>
-          <Text color="subtle">Conversation size</Text>
-          <Text color="subtle" wrap="truncate">{tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
-        </Box>
-        {meter(u.contextTokens ?? 0, u.contextWindow ?? 0, 'neutral', 'Conversation size')}
-      </Box>
-    )
-    if (!r) {
-      return (
-        <Box flexDirection="column" paddingX={1} gap={1}>
-          <Text color="subtle">Send a request, and its progress shows here.</Text>
-          <Box flexDirection="column">
-            <Text color="subtle">This session</Text>
-            <Text bold>{money(u.costUsd)}</Text>
-          </Box>
-          {sizeBar}
-        </Box>
-      )
-    }
-    const running = r.endedAt === null
-    const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
-    const done = r.steps.filter((s) => s.status === 'completed').length
-    const room = Math.max(3, (e.viewport?.rows ?? 24) - 14)
-    // A record from before 1.1.3 has no list of recent actions.
-    const recent = r.recent ?? []
-    return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Box justifyContent="space-between" gap={2}>
-          <Box flexShrink={1}>
-            <Text bold wrap="truncate-end">{r.text || 'Your request'}</Text>
-          </Box>
-          {/* Never squeezed: "Done in 2m 56s" broke over two lines in 1.1.1. */}
-          <Box flexShrink={0}>
-            <Text color={running ? 'suggestion' : 'success'} wrap="truncate">
-              {running ? `Working ${duration(now - r.startedAt)}` : `Done in ${duration((r.endedAt ?? now) - r.startedAt)}`}
-            </Text>
-          </Box>
-        </Box>
-        {r.steps.length > 0 && (
-          <Box flexDirection="column">
-            <Box justifyContent="space-between" gap={1}>
-              <Text color="subtle">Steps</Text>
-              <Text color="subtle">{done} of {r.steps.length}</Text>
-            </Box>
-            {meter(done, r.steps.length, 'accent', `${done} of ${r.steps.length} steps done`)}
-          </Box>
-        )}
-        {r.steps.length > 0 ? (
-          <Box flexDirection="column">
-            {r.steps.slice(0, room).map((s) => (
-              <Text key={s.id} wrap="truncate-end" bold={s.status === 'in_progress'}
-                color={s.status === 'completed' ? 'subtle' : s.status === 'in_progress' ? 'suggestion' : 'inactive'}>
-                {stepRow(s)}
-              </Text>
-            ))}
-            {r.steps.length > room && <Text color="subtle">  and {r.steps.length - room} more</Text>}
-          </Box>
-        ) : recent.length > 0 ? (
-          <Box flexDirection="column">
-            <Box justifyContent="space-between" gap={1}>
-              <Text color="subtle">{running ? 'Latest actions' : 'Last actions'}</Text>
-              <Text color="subtle">{r.tools} in all</Text>
-            </Box>
-            {recent.slice(-room).map((a, i, shown) => {
-              const latest = running && i === shown.length - 1
-              return (
-                <Text key={`recent-${i}`} wrap="truncate-end" bold={latest} color={latest ? 'suggestion' : 'subtle'}>
-                  {latest ? `▶ ${a}` : `✓ ${a}`}
-                </Text>
-              )
-            })}
-          </Box>
-        ) : (
-          <Text color="subtle">
-            {running ? (r.tools ? `${r.tools} actions so far.` : 'Starting...') : `Finished after ${r.tools} actions.`}
-          </Text>
-        )}
-        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        <Box gap={4}>
-          <Box flexDirection="column">
-            <Text color="subtle">This request</Text>
-            <Text bold>{money(spent)}</Text>
-          </Box>
-          <Box flexDirection="column">
-            <Text color="subtle">This session</Text>
-            <Text bold>{money(u.costUsd)}</Text>
-          </Box>
-        </Box>
-        {sizeBar}
-        <Text color="subtle" dimColor>List prices, as /cost shows them</Text>
-      </Box>
-    )
   })
 
   // --- the control panel --------------------------------------------------------------
@@ -442,6 +362,7 @@ export const register: Register = (on) => {
     const table: any = $.ui.resolve(e)
     const { Box, Text, Button, Select } = table
     const s = await readSettings($)
+    const u = await read($, usage)
     const width = paneWidth(e)
     // A setting's row: its name and a short note on the left, its control on the right.
     // Pointing at the row reveals its help, drawn after all the rows (see helpCard).
@@ -509,7 +430,15 @@ export const register: Register = (on) => {
             <Button key="skills" label="Find skills" onPress={() => run($, 'easyclaude:skills')} />
             <Button key="connect" label="Connect tools" onPress={() => run($, 'easyclaude:connect')} />
             <Button key="security" label="Security check" onPress={() => run($, 'easyclaude:security-check')} />
+            <Button key="filetree" label="File tree" onPress={() => run($, 'filetree')} />
+            <Button key="helpers" label="Helpers" onPress={() => run($, 'easyclaude-helpers')} />
           </Box>
+        </Box>
+        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
+        {/* The old progress panel showed these; the bar above the prompt has no room for them. */}
+        <Box justifyContent="space-between" gap={1}>
+          <Text color="subtle" wrap="truncate">This session {money(u.costUsd)}</Text>
+          <Text color="subtle" wrap="truncate">Conversation {tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
         </Box>
       </Box>
     )

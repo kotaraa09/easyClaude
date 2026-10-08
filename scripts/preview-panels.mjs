@@ -1,21 +1,22 @@
 #!/usr/bin/env node
-// Writes a copy of the panels as a separate mod, to see them in a running session before a
+// Writes a copy of the panels as separate mods, to see them in a running session before a
 // release.
 //
 //   node scripts/preview-panels.mjs <folder>
 //
 // <folder> is a dev-mods folder Claude Code watches: the plugin-authoring skill names it
 // (~/.claude/dev-mods/<session id>), and the session asks once to turn hot reloading on.
-// The copy is called easyclaude-preview, with its own pane ids, state and command
-// (/easyclaude-preview), so it runs beside an installed easyClaude without clashing. Its
-// buttons run the installed plugin's commands.
+// The copy is called easyclaude-preview, with its own pane ids, state and commands
+// (/easyclaude-preview, /easyclaude-preview-helpers), so it runs beside an installed
+// easyClaude without clashing. Its buttons run the installed plugin's commands. The file tree
+// and Blast Radius are copied as they are, as the plugins filetree and blast-radius.
 //
 // Why: the panel tests read the drawn tree, not the pixels. 1.1.0 and 1.1.1 both went out
 // with faults anyone would see on screen - a help box under the rows below it, divider
 // lines that wrapped - because nobody looked before the release. Run this, look, then ship.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,28 +29,32 @@ if (!target) {
 const NAME = 'easyclaude-preview';
 const mod = join(target, NAME);
 
+// easyClaude's hooks module: the entry and the files it starts.
+const FILES = ['register.tsx', 'panels.tsx', 'clear-reminder.ts', 'savvy-progress/register.tsx'];
 const swaps = [
   [/plugin: 'easyclaude'/g, `plugin: '${NAME}'`],
-  [/'easyclaude-progress'/g, `'${NAME}-progress'`],
   [/'easyclaude-controls'/g, `'${NAME}-controls'`],
+  [/'easyclaude-helpers'/g, `'${NAME}-helpers'`],
   [/'easyclaude-panels'/g, `'${NAME}'`],
-  [/'easyClaude: progress'/g, `'Preview: progress'`],
   [/'easyClaude: controls'/g, `'Preview: controls'`],
+  [/'easyClaude: helpers'/g, `'Preview: helpers'`],
 ];
-let source = readFileSync(join(root, 'hooks', 'panels.tsx'), 'utf8');
-// Every swap must hit: one that missed would leave the real plugin's state, pane ids or
-// command in the copy, and the preview would clash with the installed easyClaude.
+const sources = Object.fromEntries(FILES.map((f) => [f, readFileSync(join(root, 'hooks', f), 'utf8')]));
+// Every swap must hit somewhere: one that missed would leave the real plugin's state, pane ids
+// or commands in the copy, and the preview would clash with the installed easyClaude.
 for (const [from, to] of swaps) {
-  if (!from.test(source)) throw new Error(`hooks/panels.tsx no longer contains ${from} - update the swaps in this script`);
-  from.lastIndex = 0;
-  source = source.replace(from, to);
+  if (!FILES.some((f) => { from.lastIndex = 0; return from.test(sources[f]); })) {
+    throw new Error(`hooks/ no longer contains ${from} - update the swaps in this script`);
+  }
+  for (const f of FILES) { from.lastIndex = 0; sources[f] = sources[f].replace(from, to); }
 }
-// Preview only: /easyclaude-preview-demo fills the progress pane with a sample request, so
+let source = sources['panels.tsx'];
+// Preview only: /easyclaude-preview-demo fills the progress bar with a sample request, so
 // the step bar and the step marks can be looked at in a session where Claude keeps no step
 // list. The released plugin never has this command.
 const REGISTER = `await $.command.register({ name: '${NAME}', `;
 if (!source.includes(REGISTER)) throw new Error('hooks/panels.tsx: no command.register line to add the demo beside');
-source = source.replace(REGISTER, `await $.command.register({ name: '${NAME}-demo', description: 'Fill the preview progress panel with a sample request' })\n    ${REGISTER}`);
+source = source.replace(REGISTER, `await $.command.register({ name: '${NAME}-demo', description: 'Fill the preview progress bar with a sample request' })\n    ${REGISTER}`);
 const DEMO = `
   on('command.run', { command: '${NAME}-demo' }, async ($) => {
     const now = await $.clock.now()
@@ -67,7 +72,7 @@ const DEMO = `
       ],
     }))
     await update($, usage, () => u)
-    return { text: 'The preview progress panel now shows a sample request.' }
+    return { text: 'The preview progress bar now shows a sample request.' }
   })
 }
 `;
@@ -85,6 +90,16 @@ write('.claude-plugin/plugin.json', JSON.stringify({
   name: NAME, version: '0.0.0', description: 'A preview of the easyClaude panels', types: './types/index.d.ts',
 }, null, 2) + '\n');
 write('hooks/hooks.json', JSON.stringify({ modules: ['./register.tsx'] }, null, 2) + '\n');
-write('hooks/register.tsx', source);
+sources['panels.tsx'] = source;
+for (const f of FILES) write(`hooks/${f}`, sources[f]);
 write('types/index.d.ts', types);
-console.log(`Wrote ${mod}. It loads when this turn ends, once hot reloading is on; /${NAME} reopens it.`);
+// The file tree and Blast Radius are plugins of their own, which an installed easyClaude has
+// not had until now, so they load under their own names.
+for (const plugin of ['filetree', 'blast-radius']) {
+  cpSync(join(root, 'plugins', plugin), join(target, plugin), {
+    recursive: true,
+    filter: (src) => !/[\\/]\.claude-plugin[\\/]types([\\/]|$)/.test(src) && !src.endsWith('.test.ts'),
+  });
+}
+console.log(`Wrote ${mod}, with filetree and blast-radius beside it. They load when this turn ends, ` +
+  `once hot reloading is on; /${NAME} reopens the control panel.`);
