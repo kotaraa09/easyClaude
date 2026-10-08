@@ -235,3 +235,9 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   from the first form. The progress panel shows the latest actions in plain words when
   Claude keeps no step list, and a hook asks Claude for a step list on the second change of
   a request. Autoship reports in plain words, without branch names. #87, #88, #89.
+- **1.2.0** - The progress panel becomes a bar above the prompt (Savvy Progress, adapted),
+  with a panel of the helpers Claude starts. A file tree beside the conversation, and Blast
+  Radius, which holds a risky delete with Proceed and Cancel and works on Windows and in
+  PowerShell; both are plugins of their own that install with easyClaude. The /clear
+  reminder holds the first message of a long stretch with a note, as Cache Tax does,
+  instead of asking Claude to say it. Every control panel button says what it does. #92.
