@@ -53,6 +53,34 @@ reloading; check it in the desktop app and in a terminal.
 - **Third-party skills** need a `PROVENANCE.md` and their licence. See
   [`skills/slopmonster/`](skills/slopmonster/) for an example.
 
+## Commit messages
+
+Start the first line of every commit message, and every pull request title, with one tag:
+
+| Tag | Use it for |
+| --- | --- |
+| `[feature]` | Something new a user can do |
+| `[bugfix]` | Something that was broken and now works |
+| `[changes]` | A change to how something already works |
+| `[docs]` | Documentation only |
+| `[tests]` | Tests, evals or the checking scripts only |
+| `[release]` | A version bump and its notes |
+
+Then a short summary in the imperative: `[bugfix] Keep the planning hook when two hook lists merge`.
+GitHub's own merge commits keep their default message.
+
+## Releases
+
+Release notes are public. Write them for people who use easyClaude, in a neutral tone:
+
+- Group the entries under **Added**, **Changed** and **Fixed**, and leave out an empty group.
+- Describe what changes for the user, not how it was found. No stories about testing, no
+  names, and no blame.
+- Link each entry to its pull request.
+- End with the update commands.
+
+The title is the version and a short summary: `v1.1.3 - Waits for your go-ahead before building`.
+
 ## Pull requests
 
 Keep one change in one pull request, based on `main`. Say what changed for the user,
