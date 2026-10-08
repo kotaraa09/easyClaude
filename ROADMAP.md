@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-06, at 1.1.2.
+nothing to learn first. Last reviewed on 2026-10-08, at 1.1.3.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -228,3 +228,10 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   rows below it, each setting has a short note, divider lines no longer wrap, and the desktop
   app draws real bars. `scripts/preview-panels.mjs` loads a preview of the panels into a
   session, and a panel change is looked at before it is released.
+- **1.1.3** - Fixes from a test in a new folder. Setup and planning ask in Claude Code's
+  question form, and every form ends with "Ready?": only the user's "start building" ends
+  the questions, and until then a hook holds every change outside the planning notes. The
+  skill offer is a question in the setup form. Plain answers are on unless the user says no,
+  from the first form. The progress panel shows the latest actions in plain words when
+  Claude keeps no step list, and a hook asks Claude for a step list on the second change of
+  a request. Autoship reports in plain words, without branch names. #87, #88, #89.
