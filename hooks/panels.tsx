@@ -194,8 +194,11 @@ const RULE = '─'.repeat(200)
 
 const paneWidth = (e: any): number => Math.max(24, Number(e?.props?.bodyColumns) || 40)
 
-// The labels for LEVELS, so the two lists cannot drift apart.
-const LEVEL_LABELS: Record<string, string> = { off: 'Off', commit: 'Commit', push: 'Push', pr: 'Open a PR', merge: 'Merge' }
+// The labels for LEVELS, so the two lists cannot drift apart. Said as what happens to the
+// user's work, not in git's words: a beginner does not know what "Push" or "Merge" does.
+const LEVEL_LABELS: Record<string, string> = {
+  off: 'Ask me first', commit: 'Save a version', push: 'Save and upload', pr: 'Upload for review', merge: 'Add to main version',
+}
 const LEVEL_OPTIONS = LEVELS.map((value) => ({ value, label: LEVEL_LABELS[value] ?? value }))
 
 // One "Create repo" request at a time: a double click must not cost two turns.
@@ -207,15 +210,27 @@ const createRepo = async ($: any) => {
   await say($, CREATE_REPO)
 }
 // Each setting: a short line always shown under its name, and more on hover.
-const AUTOSHIP_NOTE = 'What Claude may do without asking'
-const AUTOSHIP_HELP = 'When a request is finished and the checks pass, Claude does every step up to this ' +
-  'level by itself. Off: it asks first.'
-const NO_GIT_NOTE = 'Needs a git repository'
-const NO_GIT_HELP = 'Create repo starts one in this folder, so your work is saved in versions you can go back to.'
+const AUTOSHIP_NAME = 'When a task is done'
+const AUTOSHIP_NOTE = 'What Claude does without asking'
+const AUTOSHIP_HELP = 'When a task is finished and its checks pass, Claude does this much by itself, and each ' +
+  'choice includes the ones above it. "Ask me first" saves and uploads nothing without asking you.'
+const NO_GIT_NOTE = 'Saved versions are not set up yet'
+const NO_GIT_HELP = 'Turn on versions starts a git repository in this folder, so every version you save can ' +
+  'be brought back. Nothing is uploaded.'
 const CHEAP_NOTE = 'Fewer steps and shorter replies'
-const CHEAP_HELP = 'For this session only. Cheaper, and less careful.'
-const PLAIN_NOTE = 'Short answers without code terms'
+const CHEAP_HELP = 'For this session only. It costs less, and Claude checks less.'
+const PLAIN_NOTE = 'Short answers without code words'
 const PLAIN_HELP = 'Replies leave out file names and technical words.'
+
+// Each button says what it does on a line beside it, and whether it changes anything: a
+// beginner should neither press one by mistake nor be afraid to press it. "Save my work"
+// and "Helpers" said neither what nor where.
+// The buttons' column when the note sits beside them: the longest label and its brackets.
+const ACTION_COLUMNS = 22
+const SAVE_NOTE = (autoship: string, git: boolean): string =>
+  !git ? 'Turn on versions first, below'
+    : ['push', 'pr', 'merge'].includes(autoship) ? 'Runs the checks, saves, then uploads it'
+      : 'Runs the checks and saves. Asks before uploading'
 const CREATE_REPO = 'This folder has no git repository yet. Start one here with git init, add a .gitignore ' +
   'that keeps out .env and installed packages if there is none, and tell me in one plain line what you did. ' +
   'Do not commit anything.'
@@ -403,12 +418,25 @@ export const register: Register = (on) => {
           : <Button key={onKey} label="Turn on" onPress={turnOn} />}
       </Box>
     )
+    // A button, and beside it what pressing it does. In a narrow pane the line goes under the
+    // button instead, so it is never cut short: it is the part that makes the button safe.
+    const wide = width >= 56
+    const action = (key: string, label: string, note: string, onPress: () => void, primary = false) => (
+      <Box key={`${key}-row`} flexDirection={wide ? 'row' : 'column'} alignItems={wide ? 'center' : 'flex-start'} gap={wide ? 1 : 0}>
+        <Box width={wide ? ACTION_COLUMNS : undefined} flexShrink={0}>
+          <Button key={key} label={label} variant={primary ? 'primary' : 'secondary'} onPress={onPress} />
+        </Box>
+        <Box flexShrink={1}>
+          <Text color="subtle" wrap="wrap">{note}</Text>
+        </Box>
+      </Box>
+    )
     const level = !s.git
-      ? <Button key="create-repo" label="Create repo" onPress={() => createRepo($)} />
+      ? <Button key="create-repo" label="Turn on versions" onPress={() => createRepo($)} />
       : Select
         ? <Select key="autoship" options={LEVEL_OPTIONS} value={s.autoship} onSelect={(v: string) => run($, 'easyclaude:autoship', v)} />
         : <Box gap={1}>{LEVELS.map((l) => (
-            <Button key={`autoship-${l}`} label={l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'easyclaude:autoship', l)} />
+            <Button key={`autoship-${l}`} label={LEVEL_LABELS[l] ?? l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'easyclaude:autoship', l)} />
           ))}</Box>
     return (
       <Box flexDirection="column" paddingX={1} gap={1}>
@@ -419,14 +447,17 @@ export const register: Register = (on) => {
             <Box><Button key="setup" variant="primary" label="Set up" onPress={() => run($, 'easyclaude:start')} /></Box>
           </Box>
         )}
-        <Box gap={1} flexWrap="wrap">
-          <Button key="continue" label="Continue" variant={s.setUp ? 'primary' : 'secondary'} onPress={() => say($, 'keep going')} />
-          <Button key="ship" label="Save my work" onPress={() => say($, 'ship it')} />
-          <Button key="undo" label="Undo last change" onPress={() => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.')} />
+        <Box flexDirection="column" gap={wide ? 0 : 1}>
+          <Text color="subtle">Your work</Text>
+          {action('continue', 'Build next step', s.setUp ? 'Builds the next task in your plan' : 'Carries on with what Claude was doing',
+            () => say($, 'keep going'), s.setUp)}
+          {action('ship', 'Save a version', SAVE_NOTE(s.autoship, s.git), () => say($, 'ship it'))}
+          {action('undo', 'Undo last change', 'Shows what it would undo, then asks you',
+            () => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.'))}
         </Box>
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
         <Box flexDirection="column" gap={1} position="relative">
-          {row('autoship-row', 'Autoship level', s.git ? AUTOSHIP_NOTE : NO_GIT_NOTE, level)}
+          {row('autoship-row', AUTOSHIP_NAME, s.git ? AUTOSHIP_NOTE : NO_GIT_NOTE, level)}
           {row('cheap-row', 'Cheap mode', CHEAP_NOTE, toggle(s.cheap, 'cheap-on', 'cheap-off',
             () => run($, 'easyclaude:cheap-session'), () => run($, 'easyclaude:full')))}
           {row('plain-row', 'Plain answers', PLAIN_NOTE, toggle(s.plain, 'plain', 'plain',
@@ -436,15 +467,18 @@ export const register: Register = (on) => {
           {helpCard('plain-row', 2, PLAIN_HELP)}
         </Box>
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        <Box flexDirection="column">
-          <Text color="subtle">Tools</Text>
-          <Box gap={1} flexWrap="wrap">
-            <Button key="skills" label="Find skills" onPress={() => run($, 'easyclaude:skills')} />
-            <Button key="connect" label="Connect tools" onPress={() => run($, 'easyclaude:connect')} />
-            <Button key="security" label="Security check" onPress={() => run($, 'easyclaude:security-check')} />
-            <Button key="filetree" label="File tree" onPress={() => run($, 'filetree')} />
-            <Button key="helpers" label="Helpers" onPress={() => run($, 'easyclaude-helpers')} />
-          </Box>
+        <Box flexDirection="column" gap={wide ? 0 : 1}>
+          <Text color="subtle">Look and add</Text>
+          {action('filetree', 'Show project files', 'A list of your files beside the chat. Changes nothing',
+            () => run($, 'filetree'))}
+          {action('helpers', 'Show helpers', 'When Claude splits up the work: each part and its cost',
+            () => run($, 'easyclaude-helpers'))}
+          {action('security', 'Check security', 'Looks for leaked passwords and keys. Changes nothing',
+            () => run($, 'easyclaude:security-check'))}
+          {action('skills', 'Find skills', 'Suggests add-ons. Installs only the ones you pick',
+            () => run($, 'easyclaude:skills'))}
+          {action('connect', 'Connect services', 'Advanced: links outside services with an API key',
+            () => run($, 'easyclaude:connect'))}
         </Box>
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
         {/* The old progress panel showed these; the bar above the prompt has no room for them. */}

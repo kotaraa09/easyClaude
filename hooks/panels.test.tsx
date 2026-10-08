@@ -249,9 +249,12 @@ describe('the panels, drawn', () => {
   test('the control panel shows the level the project has, explains it, and offers setup only before it', async ($, on) => {
     project(on, { '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'push' }) })
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
-    expect(await ui.find({ type: 'Text', text: /^Autoship level/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^When a task is done/ })).toBeDefined()
     expect(await ui.find({ key: 'autoship' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /does every step up to this level/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /does this much by itself/ })).toBeDefined()
+    // Each button says what it does beside it: at Save and upload, saving uploads too.
+    expect(await ui.find({ type: 'Text', text: 'Runs the checks, saves, then uploads it' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Changes nothing/ })).toBeDefined()
     expect(await ui.find({ key: 'setup' })).toBeDefined()
     expect(await ui.find({ key: 'create-repo' })).toBeUndefined()
     await ui.unmount()
@@ -264,7 +267,8 @@ describe('the panels, drawn', () => {
     for (const surface of SURFACES) {
       const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
       expect(await ui.find({ key: 'autoship' })).toBeUndefined()
-      expect(await ui.find({ type: 'Text', text: /Needs a git repository/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /Saved versions are not set up yet/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: 'Turn on versions first, below' })).toBeDefined()
       await ui.press({ key: 'create-repo' })
       await ui.unmount()
     }

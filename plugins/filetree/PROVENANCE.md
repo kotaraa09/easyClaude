@@ -23,8 +23,15 @@ and updates with easyClaude.
 
 ## What was vendored, and what was left behind
 
-Taken, unchanged: `.claude-plugin/plugin.json`, `hooks/` (six source files and
-`hooks.json`), `types/index.d.ts` and `LICENSE`. Only the line endings changed, to LF.
+Taken: `.claude-plugin/plugin.json`, `hooks/` (six source files and `hooks.json`),
+`types/index.d.ts` and `LICENSE`, with the line endings changed to LF.
+
+## Changed from upstream
+
+One change, marked with a comment in `hooks/register.tsx`: `/filetree` refused to open in
+the Claude desktop app. It checked the terminal's layout (fullscreen, 110 columns), and the
+desktop app places the pane beside the conversation whatever that layout is. The two checks
+now apply when the session draws on no desktop surface.
 
 Left behind: `README.md`, `media/` (6.5MB of GIFs), `tests/`, `scripts/`, `.githooks/`,
 the CI workflow and the marketplace file.
@@ -43,5 +50,6 @@ and at least 110 columns.
 
 ## Updating
 
-Copy the same files from a newer commit, update the commit here, and read the diff of every
+Copy the same files from a newer commit, apply the change above again, update the commit
+here, and read the diff of every
 file before accepting it. Never track a branch.
