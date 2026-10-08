@@ -51,5 +51,4 @@ and at least 110 columns.
 ## Updating
 
 Copy the same files from a newer commit, apply the change above again, update the commit
-here, and read the diff of every
-file before accepting it. Never track a branch.
+here, and read the diff of every file before accepting it. Never track a branch.
