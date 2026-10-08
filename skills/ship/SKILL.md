@@ -101,5 +101,6 @@ At `merge`:
 Say which one stopped you, in one line. A refusal costs the user a turn; a wrong automatic
 merge costs them a revert on a branch other people have already pulled.
 
-Report the branch name and the PR URL. Never report a push or a merge you have not confirmed
-landed.
+Report in one plain line what happened - saved, uploaded, open for review, or added to the
+main version - with the PR URL if there is one. Name the branch only if the user asks. Never
+report a push or a merge you have not confirmed landed.

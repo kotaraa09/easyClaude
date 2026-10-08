@@ -41,6 +41,14 @@ export function activeLevel(config, { kind, git }) {
   return LEVELS.includes(level) ? level : null;
 }
 
+// What each level does, in the words the user is told.
+const PLAIN = {
+  commit: 'save each finished change as a version',
+  push: 'save each finished change and upload it to the online copy of the project',
+  pr: 'save each finished change, upload it to the online copy of the project, and open it for review',
+  merge: 'save each finished change and add it to the main version once its checks pass',
+};
+
 export function standingLine(level, base = 'main', { compact = false } = {}) {
   const n = LEVELS.indexOf(level);
   const steps = [
@@ -53,12 +61,17 @@ export function standingLine(level, base = 'main', { compact = false } = {}) {
   return `Autoship is set to "${level}" in this project. When you have finished what the user ` +
     `asked and the checks pass, ${list} - without asking. Never ask "should I commit?", ` +
     '"should I push?" or "should I open a pull request?" for a step this level covers: do it, ' +
-    'and report it in one line, with the branch' + (n >= 2 ? ' and the pull request link' : '') + '. ' +
+    // In plain words: a user testing 1.1.2 found replies full of terms, and this line asked for
+    // a branch name in every report.
+    'and report it in one plain line the user understands: what happened to their work (saved, ' +
+    'uploaded, open for review, or added to the main version), only what you confirmed' +
+    (n >= 2 ? ', with the pull request link' : '') + '. Do not name the branch, ' +
+    'commands or commit ids unless they ask. ' +
     (n >= 2 ? 'Before you open a pull request or merge, have the easyclaude-diff-reviewer ' +
       'subagent read the branch diff once, and fix what it finds. ' : '') +
     'Stop and ask instead when a check fails, when the change touches sign-in, payments or a ' +
     'database migration, or when the user said to wait.' +
     (n < LEVELS.length - 1 ? ` Steps past "${level}" still need the user's yes.` : '') +
-    (compact ? '' : ` Add one line to your first reply: autoship is set to "${level}", and ` +
-      '/easyclaude:autoship off turns it off.');
+    (compact ? '' : ' Add one plain line to your first reply: what you will now do without asking ' +
+      `(${PLAIN[level]}), and that /easyclaude:autoship off turns it off.`);
 }
