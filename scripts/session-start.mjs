@@ -21,6 +21,7 @@ import { locations, locationsNotice } from './locations.mjs';
 import { scan as adoptScan, report as adoptReport } from './adopt-scan.mjs';
 import { findApps, report as appsReport } from './find-apps.mjs';
 import { activeLevel, isGitRepo, standingLine } from './autoship.mjs';
+import { openForNewProject } from './plan-gate.mjs';
 
 const TEXT = process.argv.includes('--text');
 
@@ -120,6 +121,8 @@ if (COMPACT) {
     '`kickoff` skill before doing anything else, including before answering in detail. If the ' +
     "user's first message already says what they want to build, treat that as the answer to " +
     "kickoff's first question and do not ask it again.");
+  // Nothing is built in a new folder until the user says to start; see plan-gate.mjs.
+  if (!TEXT) openForNewProject(root);
 } else {
   // A beginner in testing was offered "kickoff in adopt mode", which named nothing they
   // knew. The offer now says what they would get, and leaves the names to Claude.
