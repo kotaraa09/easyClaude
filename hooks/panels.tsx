@@ -176,8 +176,17 @@ async function planAndCheap($: any): Promise<{ plan: string | null; cheap: boole
   try { plan = JSON.parse((await readText($, root, '.claude/easyclaude.json')) ?? 'null')?.files?.state ?? plan } catch { /* default */ }
   return {
     plan: (await readText($, root, plan)) !== null ? plan : null,
-    cheap: (await readText($, root, '.claude/cheap-session')) !== null,
+    cheap: (await readText($, root, '.claude/cheap-session')) !== null && !(await tracked($, root, '.claude/cheap-session')),
   }
+}
+
+// Whether git tracks the file. A cheap-session file that came with the repository is not this
+// user's, and prompt-check.mjs ignores it (personal.mjs); so does the /clear note.
+async function tracked($: any, root: string, rel: string): Promise<boolean> {
+  try {
+    const run = await $.process.run(['git', 'ls-files', '--error-unmatch', rel], { cwd: root, timeoutMs: 5000 })
+    return run.exitCode === 0
+  } catch { return false }
 }
 
 // --- drawing helpers --------------------------------------------------------------------
@@ -321,7 +330,10 @@ export const register: Register = (on) => {
   // reminder reads files only on the one message it holds.
   on('prompt.submit', async ($, e, next) => {
     const text = typeof e.text === 'string' ? e.text : ''
-    const history = clearHistory(text, e.origin?.kind === 'plugin')
+    // Only a person's own message is held: a helper's report or a scheduled prompt cannot be
+    // sent again. A test's submission carries no origin.
+    const fromPerson = !e.origin || e.origin.kind === 'composer' || e.origin.kind === 'bridge'
+    const history = clearHistory(text, fromPerson)
     if (history !== null) {
       const { plan, cheap } = await planAndCheap($)
       // Cheap mode holds a long conversation itself, more strictly: prompt-check.mjs.

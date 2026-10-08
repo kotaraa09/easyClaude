@@ -1,6 +1,7 @@
 // Run with `claude plugin test plugins/blast-radius`. These cover what easyClaude changed
 // (PROVENANCE.md): PowerShell commands, measuring through $.fs on a Windows path, and no
-// hold when nobody is at the screen.
+// hold when nobody is at the screen. `claude plugin test .` at the repository root runs this
+// file too, with easyClaude as the plugin under test; there the hold test steps aside.
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
@@ -37,29 +38,62 @@ const pane = {
   props: { title: 'Blast Radius', isFocused: true, bodyColumns: 80, placement: 'dock' as const, scroll: { offset: 0, bodyRows: 20 }, view: {} } as any,
 }
 
+// Sends a command and waits for its hold's pane. Null under easyClaude (the repository
+// root's run), where Blast Radius is not the plugin under test: nothing holds it there.
+const held = async ($: any, ran: string[], tool: string, command: string) => {
+  const call = $.tool.call({ tool, command })
+  let settled = false
+  void call.then(() => { settled = true })
+  // The pane is drawn once the measure is done; until then the hold has nothing to show.
+  let why = ''
+  for (let i = 0; i < 200; i++) {
+    if (settled && ran.length === 0) return null
+    try {
+      const ui = await $.ui.mount({ plugin: 'blast-radius', surface: 'terminal', ...pane })
+      if (await ui.find({ key: 'proceed' })) return { ui, call }
+      await ui.unmount()
+    } catch (err) { why = String(err) /* not drawn yet */ }
+  }
+  throw new Error(`the pane with Proceed never drew: ${why}`)
+}
+
 test('a PowerShell Remove-Item -Recurse is held, measured on a Windows path, and runs on Proceed', async ($, on) => {
   const ran: string[] = []
   windows(on, ran)
-  const call = $.tool.call({ tool: 'PowerShell', command: 'Remove-Item -Recurse -Force .\\dist' } as any)
-  // The pane is drawn once the measure is done; until then the hold has nothing to show.
-  let ui: any
-  let why = ''
-  for (let i = 0; i < 200 && !ui; i++) {
-    try {
-      const mounted = await $.ui.mount({ plugin: 'blast-radius', surface: 'terminal', ...pane })
-      if (await mounted.find({ key: 'proceed' })) ui = mounted
-      else await mounted.unmount()
-    } catch (err) { why = String(err) /* not drawn yet */ }
-  }
-  if (!ui) throw new Error(`the pane with Proceed never drew: ${why}`)
-  expect(await ui.find({ type: 'Text', text: /delete 3 files \(about 7\.0 KB\)/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /dist\/img\/logo\.png/ })).toBeDefined()
-  await ui.press({ key: 'proceed' })
-  await ui.unmount()
-  const result: any = await call
+  const hold = await held($, ran, 'PowerShell', 'Remove-Item -Recurse -Force .\\dist')
+  if (!hold) return
+  expect(await hold.ui.find({ type: 'Text', text: /delete 3 files \(about 7\.0 KB\)/ })).toBeDefined()
+  expect(await hold.ui.find({ type: 'Text', text: /dist\/img\/logo\.png/ })).toBeDefined()
+  await hold.ui.press({ key: 'proceed' })
+  await hold.ui.unmount()
+  const result: any = await hold.call
   expect(result.deny).toBeUndefined()
   // Nothing ran bash or sleep: neither works on Windows.
   expect(ran.some((r) => /^(bash|sleep)\b/.test(r))).toBe(false)
+})
+
+test('a Remove-Item inside a PowerShell block is held too, and Cancel refuses it', async ($, on) => {
+  const ran: string[] = []
+  windows(on, ran)
+  const hold = await held($, ran, 'PowerShell', 'if (Test-Path dist) { Remove-Item -Recurse:$true dist }')
+  if (!hold) return
+  expect(await hold.ui.find({ type: 'Text', text: /delete 3 files/ })).toBeDefined()
+  await hold.ui.press({ key: 'cancel' })
+  await hold.ui.unmount()
+  const result: any = await hold.call
+  expect(result.deny).toMatch(/the user pressed Cancel/)
+})
+
+test('a path the shell fills in is not reported as deleting nothing', async ($, on) => {
+  const ran: string[] = []
+  windows(on, ran)
+  const hold = await held($, ran, 'PowerShell', 'Remove-Item -Recurse -Force $env:TEMP\\build')
+  if (!hold) return
+  expect(await hold.ui.find({ type: 'Text', text: /could not measure it/ })).toBeDefined()
+  expect(await hold.ui.find({ type: 'Text', text: /delete nothing/ })).toBeUndefined()
+  await hold.ui.press({ key: 'cancel' })
+  await hold.ui.unmount()
+  await hold.call
 })
 
 test('a plain Remove-Item of one file is not held', async ($, on) => {

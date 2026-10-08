@@ -4,7 +4,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { actionLabel, addRecent, applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
-import { ADVICE_LIMIT, afterTurn, freshGuard, holdText, shouldHold } from './clear-reminder'
+import { ADVICE_LIMIT, afterStep, afterTurn, freshGuard, holdText, shouldHold } from './clear-reminder'
 import { flowOf, label, side } from './savvy-progress/register'
 import type { Request, Step } from '../types'
 
@@ -19,6 +19,11 @@ const project = (on: On, files: Record<string, string>, { git = true } = {}) => 
   const clock = mock.clock(on, { now: 1_000_000 })
   on('fs.exists', async (_$, e: any) => ({ value: git && /[\\/]\.git$/.test(String(e.path)) }) as any)
   on('session.root', async () => ({ value: '/p' }) as any)
+  // What the band shows with nothing of easyClaude's: the engine draws it in a session.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
+    const { Box } = $.ui.resolve(e)
+    return <Box />
+  })
   on('session.usage', async () => ({ value: { startedAt: 0, rateLimits: [], context: { tokens: contextTokens, window: 200_000, percent: 25 }, cost: { usd: 0.5 } } }) as any)
   on('fs.read', async (_$, e: any) => {
     // The engine hands the path over in the platform's own form: D:\p\docs\STATE.md here.
@@ -114,17 +119,31 @@ describe('the progress bar', () => {
 
 describe('the /clear reminder', () => {
   test('holds a message once a conversation is long, and never a command', async () => {
-    const g = afterTurn(afterTurn(freshGuard(), 30_000), 30_000 + ADVICE_LIMIT + 1_000)
-    expect(g.floor).toBe(30_000)
-    expect(shouldHold(g, 'add a footer', false)).toBe(true)
-    expect(shouldHold(g, '/clear', false)).toBe(false)
-    expect(shouldHold(g, 'add a footer', true)).toBe(false)
-    // Held once in this stretch; a stretch that shrank to half is a new one.
-    const held = { ...g, heldAt: g.ctx }
-    expect(shouldHold(held, 'add a footer', false)).toBe(false)
-    expect(shouldHold(afterTurn(held, 30_000 + ADVICE_LIMIT / 4), 'add a footer', false)).toBe(false)
-    // Nobody at the screen (-p, the SDK): nobody could send it again.
-    expect(shouldHold({ ...g, isInteractive: false }, 'add a footer', false)).toBe(false)
+    // A fresh conversation: its first model request is the floor, not the end of its first turn.
+    const fresh = afterStep(freshGuard(true, true), 25_000)
+    const g = afterTurn(afterTurn(fresh, 60_000), 25_000 + ADVICE_LIMIT + 1_000)
+    expect(g.floor).toBe(25_000)
+    expect(shouldHold(g, 'add a footer', true)).toBe(true)
+    expect(shouldHold(g, '/clear', true)).toBe(false)
+    expect(shouldHold(g, '', true)).toBe(false)
+    // A helper's report or a scheduled prompt: nobody could send it again.
+    expect(shouldHold(g, 'add a footer', false)).toBe(false)
+    expect(shouldHold({ ...g, isInteractive: false }, 'add a footer', true)).toBe(false)
+    // Held once in this stretch, however long it grows.
+    const held = afterTurn({ ...g, heldAt: g.ctx }, g.ctx! + 20_000)
+    expect(shouldHold(held, 'add a footer', true)).toBe(false)
+    // Shrunk to half (/compact, say) and long again: a new stretch, held once more.
+    const again = afterTurn(afterTurn(held, 40_000), 25_000 + ADVICE_LIMIT + 5_000)
+    expect(shouldHold(again, 'add a footer', true)).toBe(true)
+  })
+
+  test('after a reload or a resume the floor is the guess, never the size of the conversation', async () => {
+    const reloaded = afterTurn(freshGuard(), 150_000)
+    expect(reloaded.floor).toBe(null)
+    expect(shouldHold(reloaded, 'add a footer', true)).toBe(true)
+    // A smaller request than the guess lowers it; a larger one never raises it.
+    expect(afterStep(freshGuard(), 20_000).floor).toBe(20_000)
+    expect(afterStep(freshGuard(), 150_000).floor).toBe(30_000)
   })
 
   test('speaks Thai to a Thai message, and names the plan only when there is one', async () => {
@@ -180,11 +199,6 @@ describe('the panels, drawn', () => {
     const clock = project(on, {})
     on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
     on('tool.call', async () => ({ result: {} }) as any)
-    // What the band draws with nothing of easyClaude's to show.
-    on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
-      const { Box } = $.ui.resolve(e)
-      return <Box />
-    })
     await $.prompt.submit({ text: 'fix the footer' } as any)
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
     await ui.press({ key: 'easyclaude-dismiss' })

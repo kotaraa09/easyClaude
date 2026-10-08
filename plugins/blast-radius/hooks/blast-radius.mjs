@@ -153,7 +153,7 @@ const READ_ONLY = new Set(["ls", "cat", "echo", "printf", "grep", "rg", "find", 
 
 /** A folder a later `cd arg` moves to, given the folder so far (null = the session folder). */
 function joinDir(dir, arg) {
-  if (arg === undefined || arg === "~" || arg.startsWith("/") || arg.startsWith("~/")) {
+  if (arg === undefined || arg === "~" || /^(\/|~[\\/]|[A-Za-z]:[\\/])/.test(arg)) {
     return arg ?? "~";
   }
   return dir ? `${dir}/${arg}` : arg;
@@ -164,7 +164,9 @@ function classify(command, shell = "bash") {
   let dir = null; // where a `cd` earlier on the line moved to; null means the session folder
   const scopes = []; // dir to restore when a ( subshell ) closes
   const pushed = []; // pushd stack, for popd
-  for (const raw of command.split(/&&|\|\||;|\||\n/)) {
+  // A PowerShell block, `if (...) { Remove-Item ... }`, holds commands of its own.
+  const separators = shell === "powershell" ? /&&|\|\||;|\||\n|\{|\}/ : /&&|\|\||;|\||\n/;
+  for (const raw of command.split(separators)) {
     const opens = (raw.match(/^\s*\(+/)?.[0].trim().length) ?? 0;
     // Trailing redirects and & don't hide a closing ) : `(cd sub && make) > log`.
     const tail = raw.replace(/(?:\s*(?:\d*>>?|&>>?|<)\s*\S+|\s*&)+\s*$/, "");
@@ -194,7 +196,7 @@ const PREFIXES = new Set(["command", "exec", "env", "nohup", "time", "then", "do
 const PS_REMOVE = new Set(["remove-item", "ri", "rm", "del", "erase", "rd", "rmdir"]);
 const PS_CD = new Set(["set-location", "sl", "chdir"]);
 // Named parameters whose value is not a path to delete.
-const PS_VALUE_OPTIONS = /^-(filter|include|exclude|stream|credential)$/i;
+const PS_VALUE_OPTIONS = /^-(filter|include|exclude|stream|credential|erroraction|ea|warningaction|wa|informationaction|ia)$/i;
 
 /** One segment: a risk, { cd } for a folder change, or null. */
 function classifySegment(segment, dir, pushed, shell = "bash") {
@@ -233,8 +235,8 @@ function classifySegment(segment, dir, pushed, shell = "bash") {
     }
     if (shell === "powershell" && PS_REMOVE.has(cmd.toLowerCase())) {
       const flags = args.filter((a) => a.startsWith("-"));
-      const recursive = flags.some((f) => /^-r(e(c(u(r(s(e)?)?)?)?)?)?$/i.test(f));
-      const force = flags.some((f) => /^-fo(r(c(e)?)?)?$/i.test(f));
+      const recursive = flags.some((f) => /^-r(e(c(u(r(s(e)?)?)?)?)?)?(:\$true)?$/i.test(f));
+      const force = flags.some((f) => /^-fo(r(c(e)?)?)?(:\$true)?$/i.test(f));
       if (recursive || force) {
         const targets = [];
         for (let i = 0; i < args.length; i += 1) {
@@ -376,23 +378,39 @@ async function measure($, risk, cwd) {
 
 /** The paths a target names: itself if it exists, or what a * ? [ pattern in its last part matches. */
 async function expand($, cwd, target) {
-  const path = await absolute($, cwd, target);
-  if (!/[*?[]/.test(path)) {
-    try {
-      await $.fs.stat(path);
-      return [path];
-    } catch {
-      return [];
-    }
+  // A variable or a command the shell fills in: what it names is not known here.
+  if (/[$`%]/.test(target)) {
+    return null;
   }
-  const at = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-  const dir = path.slice(0, at) || "/";
-  if (/[*?[]/.test(dir)) {
+  const windows = (await $.env.get("OS")) === "Windows_NT";
+  // On Windows, /tmp and the like are Git Bash's own folders, which $.fs cannot find.
+  if (windows && /^\/(?![A-Za-z](\/|$))/.test(target)) {
+    return null;
+  }
+  const path = await absolute($, cwd, target);
+  // A real name first: app/[id] is a folder, not a pattern.
+  try {
+    await $.fs.stat(path);
+    return [path];
+  } catch {
+    // not there by that name
+  }
+  if (!/[*?[]/.test(target)) {
+    return [];
+  }
+  const cut = Math.max(target.lastIndexOf("/"), target.lastIndexOf("\\"));
+  if (/[*?[]/.test(target.slice(0, cut + 1))) {
     return null; // a pattern above the last part: not measured
   }
-  const re = new RegExp(`^${path.slice(at + 1).replace(/[.+^${}()|\\\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`);
+  const at = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  let dir = path.slice(0, at) || "/";
+  if (/^[A-Za-z]:$/.test(dir)) {
+    dir += "/"; // C: alone is the drive's current folder, not its root
+  }
+  // Windows matches names whatever their case.
+  const re = new RegExp(`^${path.slice(at + 1).replace(/[.+^${}()|\\\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`, windows ? "i" : "");
   try {
-    return (await $.fs.list(dir)).filter((e) => re.test(e.name)).map((e) => `${dir}/${e.name}`);
+    return (await $.fs.list(dir)).filter((e) => re.test(e.name)).map((e) => `${dir.replace(/\/$/, "")}/${e.name}`);
   } catch {
     return [];
   }
@@ -429,6 +447,7 @@ async function walk($, path, tally, cwd) {
     try {
       entries = await $.fs.list(dir);
     } catch {
+      tally.isCut = true; // its files are not counted, so the count is a floor
       continue;
     }
     for (const e of entries) {
@@ -449,7 +468,7 @@ async function measureRm($, risk, cwd) {
   for (const target of risk.targets) {
     const matched = await expand($, cwd, target);
     if (matched === null) {
-      return { summary: `${risk.label} (could not measure it)`, lines: [], note: `I can't expand ${target}, so I couldn't measure what this would change.` };
+      return { summary: `${risk.label} (could not measure it)`, lines: [], note: `I can't read what ${target} names, so I couldn't measure what this would change.` };
     }
     paths.push(...matched);
   }

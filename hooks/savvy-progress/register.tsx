@@ -9,6 +9,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRun, Panel, Request } from '../../types'
+import { clearOnStep } from '../clear-reminder'
 
 // Written by hooks/panels.tsx; read here.
 const request = atom({ plugin: 'easyclaude', key: 'request' } as const, null)
@@ -575,7 +576,7 @@ export const register: Register = on => {
 
     const at = await $.clock.now()
     await update($, agents, list => {
-      const round = 1 + list.filter(a => norm(a.description) === norm(e.description) && e.description).length
+      const round = 1 + list.filter(a => e.description && norm(a.description ?? '') === norm(e.description)).length
       const run: AgentRun = {
         id: started.agentId ?? e.tool_use_id,
         agentId: started.agentId,
@@ -598,11 +599,15 @@ export const register: Register = on => {
     return started
   })
 
-  // Each model request of a helper: live context, tokens and cost.
+  // Each model request of a helper: live context, tokens and cost. A request of the main
+  // conversation goes to the /clear reminder instead, which measures the floor from it.
   on('turn.step', async function* ($, e, next) {
     const result = yield* next(e)
     const agentId = e.agentId
     const usage = result.usage
+    if (!agentId && usage) {
+      clearOnStep((usage.input_tokens || 0) + (usage.cache_read_input_tokens || 0) + (usage.cache_creation_input_tokens || 0))
+    }
     if (!agentId || !usage) return result
 
     const model = usage.model || e.model
@@ -614,8 +619,8 @@ export const register: Register = on => {
               ...a,
               model,
               effort: typeof e.effort === 'string' ? e.effort : a.effort,
-              status: 'running' as const,
-              endedAt: undefined,
+              // A step that arrives after the helper's turn ended does not bring it back.
+              status: a.status,
               contextTokens:
                 (usage.input_tokens || 0) +
                 (usage.cache_read_input_tokens || 0) +
@@ -772,6 +777,9 @@ export const register: Register = on => {
     const p = await read($, panel)
     const f = flowOf(r, p)
     if (f === null || r === null) return next(e)
+    // What other plugins draw here stays, above the bar: Blast Radius asks Proceed or Cancel
+    // here when a narrow terminal has no room for its pane.
+    const rest = await next(e)
 
     const ui = $.ui.resolve(e)
     const { Box, Text, Button } = ui
@@ -799,10 +807,13 @@ export const register: Register = on => {
       // and their gaps. No floor above the slot: a row wider than it would wrap.
       const width = Math.max(180, Math.min(1600, (e.props.bodyColumns || 100) * 8 - 96))
       return (
-        <Box flexDirection="row" alignItems="center" gap={1}>
-          <Svg source={rowSvg(f, width, isWorking)} alt={`${f.title}: ${label(f)}${figure ? `, ${figure}` : ''}`} width={width} height={H} />
-          {crewButton}
-          {dismiss}
+        <Box flexDirection="column">
+          {rest}
+          <Box flexDirection="row" alignItems="center" gap={1}>
+            <Svg source={rowSvg(f, width, isWorking)} alt={`${f.title}: ${label(f)}${figure ? `, ${figure}` : ''}`} width={width} height={H} />
+            {crewButton}
+            {dismiss}
+          </Box>
         </Box>
       )
     }
@@ -811,17 +822,20 @@ export const register: Register = on => {
     const titleW = Math.max(8, Math.min(30, f.title.length + 2, Math.floor(cols / 3)))
     const width = Math.max(6, Math.min(40, cols - titleW - 32))
     return (
-      <Box flexDirection="row" gap={2}>
-        <Box width={titleW} flexShrink={0}>
-          <Text color={f.isFinished ? DONE : ACCENT}>● </Text>
-          <Text wrap="truncate-end">{f.title}</Text>
+      <Box flexDirection="column">
+        {rest}
+        <Box flexDirection="row" gap={2}>
+          <Box width={titleW} flexShrink={0}>
+            <Text color={f.isFinished ? DONE : ACCENT}>● </Text>
+            <Text wrap="truncate-end">{f.title}</Text>
+          </Box>
+          <Text color={f.isFinished ? DONE : ACCENT}>{barText(f, width)}</Text>
+          <Text bold>{label(f)}</Text>
+          {figure ? <Text dimColor>{figure}</Text> : null}
+          <Text color={CLAY}>▣</Text>
+          {crewButton}
+          {dismiss}
         </Box>
-        <Text color={f.isFinished ? DONE : ACCENT}>{barText(f, width)}</Text>
-        <Text bold>{label(f)}</Text>
-        {figure ? <Text dimColor>{figure}</Text> : null}
-        <Text color={CLAY}>▣</Text>
-        {crewButton}
-        {dismiss}
       </Box>
     )
   })

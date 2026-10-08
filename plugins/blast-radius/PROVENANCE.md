@@ -29,11 +29,17 @@ refuses the command and tells Claude not to retry it.
   folders are measured through Claude Code's own file calls (`$.fs`). Git Bash paths such
   as `/c/Users` are read as `C:/Users`.
 - **It holds PowerShell commands too:** `Remove-Item` and its aliases (`rm`, `del`, `rd`,
-  `ri`, `erase`, `rmdir`) with `-Recurse` or `-Force`, however shortened, and the same git
-  commands as in Bash.
+  `ri`, `erase`, `rmdir`) with `-Recurse` or `-Force`, however shortened or written
+  (`-Rec`, `-Recurse:$true`), also inside a block such as `if (...) { ... }`, and the same
+  git commands as in Bash.
 - **Nothing is held when nobody is at the screen** (a `-p` run or the SDK). Upstream would
   wait ten minutes and then refuse. Claude Code's own permission rules still apply there.
-- **A very large folder is counted to 20,000 files**, then the report says "at least".
+- **A very large folder is counted to 20,000 files**, then the report says "at least". A
+  folder it cannot list makes the count "at least" too.
+- **A path it cannot read is said, not guessed.** A target with a variable (`$HOME`,
+  `$env:TEMP`), or a Git Bash folder such as `/tmp` on Windows, reports "could not measure
+  it" instead of "delete nothing". A real name with brackets, such as `app/[id]`, is
+  measured as that folder, not read as a pattern, and on Windows a pattern ignores case.
 
 ## Why it is a plugin of its own
 
@@ -47,4 +53,4 @@ changes with `claude plugin test plugins/blast-radius`.
 ## Updating
 
 Compare `classify`, the git measures and the drawing with a newer commit and take their
-fixes by hand. Keep the four changes above. Update the commit here.
+fixes by hand. Keep the changes above. Update the commit here.
