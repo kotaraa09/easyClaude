@@ -1,7 +1,7 @@
 ---
 name: plan-feature
 description: Turn a feature request into a short written spec and a numbered task list before any code is written. Use whenever the user asks for a new feature, page, screen, endpoint, integration, or capability and there is no matching task already in docs/STATE.md.
-allowed-tools: Read, Write, Edit, Glob, Grep
+allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Plan a feature
@@ -39,9 +39,9 @@ discovering it halfway through an implementation.
 
 Count the user's words first. **A short request**, a sentence or less like "add a booking page",
 leaves most of the feature unsaid, and a user who writes little usually answers only what is
-asked. Defaults you pick in silence are guesses about their project. So ask three to five
-questions, in one message, as a short numbered list. Put your default after each one, so "ok"
-keeps it:
+asked. Defaults you pick in silence are guesses about their project. So ask three questions
+in the `AskUserQuestion` form, each with two to four short options and your default first,
+marked as recommended:
 
 - who uses it, and when
 - what must happen for it to count as working - the one thing it must not get wrong
@@ -50,8 +50,14 @@ keeps it:
 - what it should **not** do in this first version
 
 Skip any question the code, `docs/STATE.md` or `docs/PRD.md` already answers. Ask about what the
-user sees and does, never about frameworks or file layout. Then wait for the answers before you
-write the spec.
+user sees and does, never about frameworks or file layout.
+
+**Every form ends with the ready question**, header exactly `Ready?` in English: is the plan
+clear enough to start building? First option "yes, start", second "not yet, I have more to
+say", in the user's language. Only the user ends the questions, with that first option. On any
+other answer easyClaude holds every change outside `docs/` and `.claude/`; take what they said
+and show a new form with what is still open. If the form cannot be shown, ask in chat and end
+with the same question in words.
 
 **A detailed request** already answers most of that. Ask at most two questions, and only where
 two readings lead to materially different builds. Pick sensible defaults for everything else and
@@ -80,4 +86,6 @@ Rules for the task list:
 
 ## 5. Stop
 
-Show the plan and ask for a yes. **Do not start building in the same turn.** The point of separating these is that the user gets a cheap chance to say "no, not like that".
+Show the plan, then the form with only the ready question. **Do not start building in the same
+turn** unless they pick its first option. The point of separating these is that the user gets
+a cheap chance to say "no, not like that".

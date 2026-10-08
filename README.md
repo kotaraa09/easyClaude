@@ -30,14 +30,14 @@
 ## What it does
 
 - **Asks when your words are unclear.** If a request like "make it better" can mean several things, it names the likely meanings, says which it would pick, and waits for you.
-- **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions, each with a default you can accept.
+- **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions in a form, each with a default you can accept. It builds nothing until you pick "start building": only you decide when the questions are over.
 - **Keeps the plan in a file.** `docs/STATE.md` holds what is in progress, what is next and what was skipped. A new session reads it, so "finish the rest" works the next day.
 - **Runs your project's checks after each change.** You approve the commands once on your computer, and again whenever they change, so a project from someone else cannot run commands you have not seen. If a check fails, Claude has to fix it before it can say "done". On a website it also asks Claude to look at the page.
 - **Suggests a free library** before it hand-writes a calendar, a map or a chart.
 - **Blocks a few destructive commands**, such as force pushes and reading `.env`.
 - **Stops a commit that would save an API key or a password**, and says which file it is in. A key in a saved version stays in the history for good.
-- **Answers in your language.** Short answers in plain words are one setting away.
-- **Shows its progress, and puts every feature on a button.** A progress panel shows the request in progress, the step it is on ("Step 3 of 6: Building page 2"), and what the request and the session have cost. A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup. The panels run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/easyclaude-panels` opens them again once it does.
+- **Answers in your language, in plain words.** Setup turns on short answers without code terms, unless you say no. `/easyclaude:plain off` turns them off later.
+- **Shows its progress, and puts every feature on a button.** A progress panel shows the request in progress, the step it is on ("Step 3 of 6: Building page 2"), or, when Claude keeps no step list, its latest actions in plain words ("Changed checkout.js"), and what the request and the session have cost. A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup. The panels run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/easyclaude-panels` opens them again once it does.
 
 None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. easyClaude sets them up for you, and it measures whether the result is better.
 
@@ -105,7 +105,7 @@ Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/eas
 
 ## The first time
 
-Open a project and say what you want. If the project is not set up yet, easyClaude asks up to four questions: what you build, who uses it, and what must work. It works out the rest from your files. Then it writes a few files into `docs/`, and offers at most two extra skills that fit your project, each with its cost.
+Open a project and say what you want. If the project is not set up yet, easyClaude asks its questions in a form: what you build, who uses it, and what must work. The same form offers at most two extra skills that fit your project, each with its cost. Each form ends with "is the plan clear enough to start?", and nothing is built until you say yes. Then it writes a few files into `docs/`.
 
 After that, each session starts like this:
 
