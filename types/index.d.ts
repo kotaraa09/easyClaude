@@ -1,5 +1,5 @@
-// What hooks/panels.tsx keeps in the session's $.state, so `claude plugin validate` can hold
-// every key it names to a declared type.
+// What easyClaude's hooks module keeps in the session's $.state, so `claude plugin validate`
+// can hold every key it names to a declared type.
 
 // One step of the request in progress, from Claude's own step list (TodoWrite or the Task
 // tools).
@@ -35,11 +35,45 @@ export type Usage = {
   contextPercent: number | null
 }
 
+// --- hooks/savvy-progress: the helpers (subagents) of the session, for the Agents panel. ---
+
+export type AgentStatus = 'running' | 'done' | 'failed'
+
+export type AgentRun = {
+  id: string
+  agentId?: string
+  type: string
+  description: string
+  model: string
+  effort?: string
+  status: AgentStatus
+  startedAt: number
+  endedAt?: number
+  contextTokens: number
+  contextMax: number
+  tokens: number
+  costUsd: number
+  steps: number
+  round: number
+}
+
+export type Panel = {
+  isCompact: boolean
+  isDoneCollapsed: boolean
+  // The session's first helper opens the panel once; after that only /easyclaude-helpers does.
+  isAutoOpened: boolean
+  // The request whose bar the user closed (its startedAt); the next request shows again.
+  dismissedAt: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     easyclaude: {
       request: Request | null
       usage: Usage
+      agents: AgentRun[]
+      agentsPanel: Panel
+      agentsNow: number
     }
   }
 }

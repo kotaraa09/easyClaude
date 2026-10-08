@@ -1,9 +1,10 @@
-// easyClaude's two panels: what the request in progress has done and cost, and a button for
-// each easyClaude feature.
+// easyClaude's control panel, a button for each easyClaude feature, and the record of the
+// request in progress: its steps, its recent actions and its cost.
 //
 // A beginner could not see how far a request had got, or what it cost, without asking -
-// and asking is another paid message. And each feature was a command to remember. Both
-// panels run outside the model: they add nothing to any request.
+// and asking is another paid message. And each feature was a command to remember. The
+// record feeds the status line here and the progress bar above the prompt
+// (hooks/savvy-progress). All of it runs outside the model: it adds nothing to any request.
 //
 // This is a Claude Code hooks module (early access). Where installed plugins may not load
 // one - an older Claude Code, or an account the feature has not reached - nothing here
@@ -12,14 +13,18 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Request, Step, Usage } from '../types'
+import { clearHeld, clearHistory, clearOnStart, clearOnTurnEnd, holdText } from './clear-reminder'
+import { HELPERS_DESCRIPTION, helperEnded } from './savvy-progress/register'
 
-const PROGRESS = 'easyclaude-progress'
 const CONTROLS = 'easyclaude-controls'
 
 const request = atom({ plugin: 'easyclaude', key: 'request' } as const, null)
 const usage = atom({ plugin: 'easyclaude', key: 'usage' } as const, {
   costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null,
 })
+// The helpers panel's list and clock (savvy-progress/), written here when a helper's turn ends.
+const helpers = atom({ plugin: 'easyclaude', key: 'agents' } as const, [])
+const helpersNow = atom({ plugin: 'easyclaude', key: 'agentsNow' } as const, 0)
 
 export const LEVELS = ['off', 'commit', 'push', 'pr', 'merge'] as const
 
@@ -163,34 +168,37 @@ async function readSettings($: any): Promise<Settings> {
   })
 }
 
+// The plan file, if the project has one, and whether cheap mode is on: for the /clear note.
+async function planAndCheap($: any): Promise<{ plan: string | null; cheap: boolean }> {
+  let root: string
+  try { root = await $.session.root() } catch { return { plan: null, cheap: false } }
+  let plan = 'docs/STATE.md'
+  try { plan = JSON.parse((await readText($, root, '.claude/easyclaude.json')) ?? 'null')?.files?.state ?? plan } catch { /* default */ }
+  return {
+    plan: (await readText($, root, plan)) !== null ? plan : null,
+    cheap: (await readText($, root, '.claude/cheap-session')) !== null && !(await tracked($, root, '.claude/cheap-session')),
+  }
+}
+
+// Whether git tracks the file. A cheap-session file that came with the repository is not this
+// user's, and prompt-check.mjs ignores it (personal.mjs); so does the /clear note.
+async function tracked($: any, root: string, rel: string): Promise<boolean> {
+  try {
+    const run = await $.process.run(['git', 'ls-files', '--error-unmatch', rel], { cwd: root, timeoutMs: 5000 })
+    return run.exitCode === 0
+  } catch { return false }
+}
+
 // --- drawing helpers --------------------------------------------------------------------
-// A bar of `width` cells, filled in proportion: the step count, the conversation's size.
-export const bar = (part: number, whole: number, width: number): string => {
-  const cells = Math.max(6, Math.min(40, Math.round(width)))
-  const full = whole > 0 ? Math.round((Math.max(0, Math.min(part, whole)) / whole) * cells) : 0
-  return '━'.repeat(full) + '─'.repeat(cells - full)
-}
-
-export const stepRow = (s: Step): string =>
-  s.status === 'completed' ? `✓ ${s.title}` : s.status === 'in_progress' ? `▶ ${s.doing}` : `○ ${s.title}`
-
 const RULE = '─'.repeat(200)
-
-// A rounded bar as an SVG image, for the desktop app. Raw colours from the middle of the
-// palette, so it reads on a light and a dark theme alike; theme keys do not reach an image.
-export const barSvg = (part: number, whole: number, tone: 'accent' | 'neutral'): string => {
-  const w = 280
-  const filled = whole > 0 ? Math.round((Math.max(0, Math.min(part, whole)) / whole) * w) : 0
-  const fill = tone === 'accent' ? '#378ADD' : '#888780'
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="6" viewBox="0 0 ${w} 6">` +
-    `<rect width="${w}" height="6" rx="3" fill="#888780" fill-opacity="0.25"/>` +
-    (filled > 0 ? `<rect width="${filled}" height="6" rx="3" fill="${fill}"/>` : '') + '</svg>'
-}
 
 const paneWidth = (e: any): number => Math.max(24, Number(e?.props?.bodyColumns) || 40)
 
-// The labels for LEVELS, so the two lists cannot drift apart.
-const LEVEL_LABELS: Record<string, string> = { off: 'Off', commit: 'Commit', push: 'Push', pr: 'Open a PR', merge: 'Merge' }
+// The labels for LEVELS, so the two lists cannot drift apart. Said as what happens to the
+// user's work, not in git's words: a beginner does not know what "Push" or "Merge" does.
+const LEVEL_LABELS: Record<string, string> = {
+  off: 'Ask me first', commit: 'Save a version', push: 'Save and upload', pr: 'Upload for review', merge: 'Add to main version',
+}
 const LEVEL_OPTIONS = LEVELS.map((value) => ({ value, label: LEVEL_LABELS[value] ?? value }))
 
 // One "Create repo" request at a time: a double click must not cost two turns.
@@ -202,15 +210,27 @@ const createRepo = async ($: any) => {
   await say($, CREATE_REPO)
 }
 // Each setting: a short line always shown under its name, and more on hover.
-const AUTOSHIP_NOTE = 'What Claude may do without asking'
-const AUTOSHIP_HELP = 'When a request is finished and the checks pass, Claude does every step up to this ' +
-  'level by itself. Off: it asks first.'
-const NO_GIT_NOTE = 'Needs a git repository'
-const NO_GIT_HELP = 'Create repo starts one in this folder, so your work is saved in versions you can go back to.'
+const AUTOSHIP_NAME = 'When a task is done'
+const AUTOSHIP_NOTE = 'What Claude does without asking'
+const AUTOSHIP_HELP = 'When a task is finished and its checks pass, Claude does this much by itself, and each ' +
+  'choice includes the ones above it. "Ask me first" saves and uploads nothing without asking you.'
+const NO_GIT_NOTE = 'Saved versions are not set up yet'
+const NO_GIT_HELP = 'Turn on versions starts a git repository in this folder, so every version you save can ' +
+  'be brought back. Nothing is uploaded.'
 const CHEAP_NOTE = 'Fewer steps and shorter replies'
-const CHEAP_HELP = 'For this session only. Cheaper, and less careful.'
-const PLAIN_NOTE = 'Short answers without code terms'
+const CHEAP_HELP = 'For this session only. It costs less, and Claude checks less.'
+const PLAIN_NOTE = 'Short answers without code words'
 const PLAIN_HELP = 'Replies leave out file names and technical words.'
+
+// Each button says what it does on a line beside it, and whether it changes anything: a
+// beginner should neither press one by mistake nor be afraid to press it. "Save my work"
+// and "Helpers" said neither what nor where.
+// The buttons' column when the note sits beside them: the longest label and its brackets.
+const ACTION_COLUMNS = 22
+const SAVE_NOTE = (autoship: string, git: boolean): string =>
+  !git ? 'Turn on versions first, below'
+    : ['push', 'pr', 'merge'].includes(autoship) ? 'Runs the checks, saves, then uploads it'
+      : 'Runs the checks and saves. Asks before uploading'
 const CREATE_REPO = 'This folder has no git repository yet. Start one here with git init, add a .gitignore ' +
   'that keeps out .env and installed packages if there is none, and tell me in one plain line what you did. ' +
   'Do not commit anything.'
@@ -245,6 +265,8 @@ const refresh = async ($: any, atStart: boolean) => {
   if (atStart) await update($, request, (r) => (r && r.costAtStart === null ? { ...r, costAtStart: u.costUsd } : r))
   const r = await read($, request)
   if (!r) return
+  // The conversation's size once a request has ended: the /clear reminder's measure.
+  if (r.endedAt !== null) clearOnTurnEnd(u.contextTokens)
   const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
   $.ui.status(r.endedAt === null
     ? `easyClaude: ${stepLine(r.steps) ?? r.recent?.[r.recent.length - 1] ?? `${r.tools} actions`} · ${money(spent)}`
@@ -285,30 +307,56 @@ const endRequest = async ($: any) => {
   refreshLater($, false)
 }
 
-const openBoth = async ($: any) => {
-  void $.ui.open({ id: PROGRESS, title: 'easyClaude: progress' })
+const openControls = async ($: any) => {
   void $.ui.open({ id: CONTROLS, title: 'easyClaude: controls' })
 }
 
+// Claude Code takes one hook per event from a plugin, so the three events the other parts
+// also need - session.start, prompt.submit and turn.complete - are hooked here alone, and
+// call into clear-reminder.ts and savvy-progress/ for their share.
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'easyclaude-panels', description: 'Open the easyClaude progress and control panels' })
+    clearOnStart(e.isInteractive !== false)
+    await $.command.register({ name: 'easyclaude-helpers', description: HELPERS_DESCRIPTION })
+    // Ticks the running helpers' clocks in their panel; quiet when none runs.
+    $.clock.every(1000, () => {
+      void (async () => {
+        if (!(await read($, helpers)).some((a) => a.status === 'running')) return
+        const at = await $.clock.now()
+        await update($, helpersNow, () => at)
+      })()
+    })
+    await $.command.register({ name: 'easyclaude-panels', description: 'Open the easyClaude control panel' })
     await update($, usage, () => ({ costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null }))
     // A resumed or reloaded session starts with no request in progress.
     await update($, request, () => null)
-    await openBoth($)
+    await openControls($)
     return next(e)
   })
 
   on('command.run', { command: 'easyclaude-panels' }, async ($) => {
-    await openBoth($)
-    return { text: 'easyClaude panels opened.' }
+    await openControls($)
+    return { text: 'easyClaude control panel opened.' }
   })
 
   // Nothing here is awaited before the request goes on: awaiting the figures held every
   // request back by about a second, and the state write alone by 0.4s. No response has
-  // arrived yet, so the cost read a moment later is still the starting cost.
-  on('prompt.submit', ($, e, next) => {
+  // arrived yet, so the cost read a moment later is still the starting cost. The /clear
+  // reminder reads files only on the one message it holds.
+  on('prompt.submit', async ($, e, next) => {
+    const text = typeof e.text === 'string' ? e.text : ''
+    // Only a person's own message is held: a helper's report or a scheduled prompt cannot be
+    // sent again. A test's submission carries no origin.
+    const fromPerson = !e.origin || e.origin.kind === 'composer' || e.origin.kind === 'bridge'
+    const history = clearHistory(text, fromPerson)
+    if (history !== null) {
+      const { plan, cheap } = await planAndCheap($)
+      // Cheap mode holds a long conversation itself, more strictly: prompt-check.mjs.
+      if (!cheap) {
+        clearHeld()
+        return { drop: holdText(history, plan, text) }
+      }
+    }
     void inOrder(() => startRequest($, e.text))
     return next(e)
   })
@@ -324,117 +372,16 @@ export const register: Register = (on) => {
   })
 
   on('turn.complete', async ($, e, next) => {
+    // A helper's turn: the helpers panel marks it done or failed.
+    if (e.agentId !== undefined) {
+      const at = await $.clock.now()
+      await update($, helpers, (list) => helperEnded(list, e, at))
+      await update($, helpersNow, () => at)
+    }
     const result = await next(e)
     if (e.agentId !== undefined) return result
     await inOrder(() => endRequest($))
     return result
-  })
-
-  // --- the progress panel -------------------------------------------------------------
-  on('ui.render', { component: 'Pane', requestId: PROGRESS }, async ($, e) => {
-    const table: any = $.ui.resolve(e)
-    const { Box, Text, Svg } = table
-    const r = await read($, request)
-    const u = await read($, usage)
-    const now = await $.clock.now()
-    // A real bar where the surface draws SVG (the desktop app), a line of text elsewhere.
-    const meter = (part: number, whole: number, tone: 'accent' | 'neutral', alt: string) => Svg
-      ? <Svg source={barSvg(part, whole, tone)} alt={alt} />
-      : <Text color={tone === 'accent' ? 'suggestion' : 'inactive'}>{bar(part, whole, 16)}</Text>
-    const sizeBar = (
-      <Box flexDirection="column">
-        <Box justifyContent="space-between" gap={1}>
-          <Text color="subtle">Conversation size</Text>
-          <Text color="subtle" wrap="truncate">{tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
-        </Box>
-        {meter(u.contextTokens ?? 0, u.contextWindow ?? 0, 'neutral', 'Conversation size')}
-      </Box>
-    )
-    if (!r) {
-      return (
-        <Box flexDirection="column" paddingX={1} gap={1}>
-          <Text color="subtle">Send a request, and its progress shows here.</Text>
-          <Box flexDirection="column">
-            <Text color="subtle">This session</Text>
-            <Text bold>{money(u.costUsd)}</Text>
-          </Box>
-          {sizeBar}
-        </Box>
-      )
-    }
-    const running = r.endedAt === null
-    const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
-    const done = r.steps.filter((s) => s.status === 'completed').length
-    const room = Math.max(3, (e.viewport?.rows ?? 24) - 14)
-    // A record from before 1.1.3 has no list of recent actions.
-    const recent = r.recent ?? []
-    return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Box justifyContent="space-between" gap={2}>
-          <Box flexShrink={1}>
-            <Text bold wrap="truncate-end">{r.text || 'Your request'}</Text>
-          </Box>
-          {/* Never squeezed: "Done in 2m 56s" broke over two lines in 1.1.1. */}
-          <Box flexShrink={0}>
-            <Text color={running ? 'suggestion' : 'success'} wrap="truncate">
-              {running ? `Working ${duration(now - r.startedAt)}` : `Done in ${duration((r.endedAt ?? now) - r.startedAt)}`}
-            </Text>
-          </Box>
-        </Box>
-        {r.steps.length > 0 && (
-          <Box flexDirection="column">
-            <Box justifyContent="space-between" gap={1}>
-              <Text color="subtle">Steps</Text>
-              <Text color="subtle">{done} of {r.steps.length}</Text>
-            </Box>
-            {meter(done, r.steps.length, 'accent', `${done} of ${r.steps.length} steps done`)}
-          </Box>
-        )}
-        {r.steps.length > 0 ? (
-          <Box flexDirection="column">
-            {r.steps.slice(0, room).map((s) => (
-              <Text key={s.id} wrap="truncate-end" bold={s.status === 'in_progress'}
-                color={s.status === 'completed' ? 'subtle' : s.status === 'in_progress' ? 'suggestion' : 'inactive'}>
-                {stepRow(s)}
-              </Text>
-            ))}
-            {r.steps.length > room && <Text color="subtle">  and {r.steps.length - room} more</Text>}
-          </Box>
-        ) : recent.length > 0 ? (
-          <Box flexDirection="column">
-            <Box justifyContent="space-between" gap={1}>
-              <Text color="subtle">{running ? 'Latest actions' : 'Last actions'}</Text>
-              <Text color="subtle">{r.tools} in all</Text>
-            </Box>
-            {recent.slice(-room).map((a, i, shown) => {
-              const latest = running && i === shown.length - 1
-              return (
-                <Text key={`recent-${i}`} wrap="truncate-end" bold={latest} color={latest ? 'suggestion' : 'subtle'}>
-                  {latest ? `▶ ${a}` : `✓ ${a}`}
-                </Text>
-              )
-            })}
-          </Box>
-        ) : (
-          <Text color="subtle">
-            {running ? (r.tools ? `${r.tools} actions so far.` : 'Starting...') : `Finished after ${r.tools} actions.`}
-          </Text>
-        )}
-        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        <Box gap={4}>
-          <Box flexDirection="column">
-            <Text color="subtle">This request</Text>
-            <Text bold>{money(spent)}</Text>
-          </Box>
-          <Box flexDirection="column">
-            <Text color="subtle">This session</Text>
-            <Text bold>{money(u.costUsd)}</Text>
-          </Box>
-        </Box>
-        {sizeBar}
-        <Text color="subtle" dimColor>List prices, as /cost shows them</Text>
-      </Box>
-    )
   })
 
   // --- the control panel --------------------------------------------------------------
@@ -442,6 +389,7 @@ export const register: Register = (on) => {
     const table: any = $.ui.resolve(e)
     const { Box, Text, Button, Select } = table
     const s = await readSettings($)
+    const u = await read($, usage)
     const width = paneWidth(e)
     // A setting's row: its name and a short note on the left, its control on the right.
     // Pointing at the row reveals its help, drawn after all the rows (see helpCard).
@@ -470,12 +418,25 @@ export const register: Register = (on) => {
           : <Button key={onKey} label="Turn on" onPress={turnOn} />}
       </Box>
     )
+    // A button, and beside it what pressing it does. In a narrow pane the line goes under the
+    // button instead, so it is never cut short: it is the part that makes the button safe.
+    const wide = width >= 56
+    const action = (key: string, label: string, note: string, onPress: () => void, primary = false) => (
+      <Box key={`${key}-row`} flexDirection={wide ? 'row' : 'column'} alignItems={wide ? 'center' : 'flex-start'} gap={wide ? 1 : 0}>
+        <Box width={wide ? ACTION_COLUMNS : undefined} flexShrink={0}>
+          <Button key={key} label={label} variant={primary ? 'primary' : 'secondary'} onPress={onPress} />
+        </Box>
+        <Box flexShrink={1}>
+          <Text color="subtle" wrap="wrap">{note}</Text>
+        </Box>
+      </Box>
+    )
     const level = !s.git
-      ? <Button key="create-repo" label="Create repo" onPress={() => createRepo($)} />
+      ? <Button key="create-repo" label="Turn on versions" onPress={() => createRepo($)} />
       : Select
         ? <Select key="autoship" options={LEVEL_OPTIONS} value={s.autoship} onSelect={(v: string) => run($, 'easyclaude:autoship', v)} />
         : <Box gap={1}>{LEVELS.map((l) => (
-            <Button key={`autoship-${l}`} label={l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'easyclaude:autoship', l)} />
+            <Button key={`autoship-${l}`} label={LEVEL_LABELS[l] ?? l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'easyclaude:autoship', l)} />
           ))}</Box>
     return (
       <Box flexDirection="column" paddingX={1} gap={1}>
@@ -486,14 +447,17 @@ export const register: Register = (on) => {
             <Box><Button key="setup" variant="primary" label="Set up" onPress={() => run($, 'easyclaude:start')} /></Box>
           </Box>
         )}
-        <Box gap={1} flexWrap="wrap">
-          <Button key="continue" label="Continue" variant={s.setUp ? 'primary' : 'secondary'} onPress={() => say($, 'keep going')} />
-          <Button key="ship" label="Save my work" onPress={() => say($, 'ship it')} />
-          <Button key="undo" label="Undo last change" onPress={() => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.')} />
+        <Box flexDirection="column" gap={wide ? 0 : 1}>
+          <Text color="subtle">Your work</Text>
+          {action('continue', 'Build next step', s.setUp ? 'Builds the next task in your plan' : 'Carries on with what Claude was doing',
+            () => say($, 'keep going'), s.setUp)}
+          {action('ship', 'Save a version', SAVE_NOTE(s.autoship, s.git), () => say($, 'ship it'))}
+          {action('undo', 'Undo last change', 'Shows what it would undo, then asks you',
+            () => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.'))}
         </Box>
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
         <Box flexDirection="column" gap={1} position="relative">
-          {row('autoship-row', 'Autoship level', s.git ? AUTOSHIP_NOTE : NO_GIT_NOTE, level)}
+          {row('autoship-row', AUTOSHIP_NAME, s.git ? AUTOSHIP_NOTE : NO_GIT_NOTE, level)}
           {row('cheap-row', 'Cheap mode', CHEAP_NOTE, toggle(s.cheap, 'cheap-on', 'cheap-off',
             () => run($, 'easyclaude:cheap-session'), () => run($, 'easyclaude:full')))}
           {row('plain-row', 'Plain answers', PLAIN_NOTE, toggle(s.plain, 'plain', 'plain',
@@ -503,13 +467,24 @@ export const register: Register = (on) => {
           {helpCard('plain-row', 2, PLAIN_HELP)}
         </Box>
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        <Box flexDirection="column">
-          <Text color="subtle">Tools</Text>
-          <Box gap={1} flexWrap="wrap">
-            <Button key="skills" label="Find skills" onPress={() => run($, 'easyclaude:skills')} />
-            <Button key="connect" label="Connect tools" onPress={() => run($, 'easyclaude:connect')} />
-            <Button key="security" label="Security check" onPress={() => run($, 'easyclaude:security-check')} />
-          </Box>
+        <Box flexDirection="column" gap={wide ? 0 : 1}>
+          <Text color="subtle">Look and add</Text>
+          {action('filetree', 'Show project files', 'A list of your files beside the chat. Changes nothing',
+            () => run($, 'filetree'))}
+          {action('helpers', 'Show helpers', 'When Claude splits up the work: each part and its cost',
+            () => run($, 'easyclaude-helpers'))}
+          {action('security', 'Check security', 'Looks for leaked passwords and keys. Changes nothing',
+            () => run($, 'easyclaude:security-check'))}
+          {action('skills', 'Find skills', 'Suggests add-ons. Installs only the ones you pick',
+            () => run($, 'easyclaude:skills'))}
+          {action('connect', 'Connect services', 'Advanced: links outside services with an API key',
+            () => run($, 'easyclaude:connect'))}
+        </Box>
+        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
+        {/* The old progress panel showed these; the bar above the prompt has no room for them. */}
+        <Box justifyContent="space-between" gap={1}>
+          <Text color="subtle" wrap="truncate">This session {money(u.costUsd)}</Text>
+          <Text color="subtle" wrap="truncate">Conversation {tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
         </Box>
       </Box>
     )

@@ -35,9 +35,10 @@
 - **Runs your project's checks after each change.** You approve the commands once on your computer, and again whenever they change, so a project from someone else cannot run commands you have not seen. If a check fails, Claude has to fix it before it can say "done". On a website it also asks Claude to look at the page.
 - **Suggests a free library** before it hand-writes a calendar, a map or a chart.
 - **Blocks a few destructive commands**, such as force pushes and reading `.env`.
+- **Asks before Claude deletes a lot.** Before `rm -rf`, `git reset --hard` or a database migration runs, a box shows what it would delete or change, with Proceed and Cancel. This is [Blast Radius](plugins/blast-radius/PROVENANCE.md), adapted for Windows and PowerShell.
 - **Stops a commit that would save an API key or a password**, and says which file it is in. A key in a saved version stays in the history for good.
 - **Answers in your language, in plain words.** Setup turns on short answers without code terms, unless you say no. `/easyclaude:plain off` turns them off later.
-- **Shows its progress, and puts every feature on a button.** A progress panel shows the request in progress, the step it is on ("Step 3 of 6: Building page 2"), or, when Claude keeps no step list, its latest actions in plain words ("Changed checkout.js"), and what the request and the session have cost. A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup. The panels run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/easyclaude-panels` opens them again once it does.
+- **Shows its progress, and puts every feature on a button.** A bar above the prompt shows the request in progress and how many of its steps are done, from [Savvy Progress](hooks/savvy-progress/PROVENANCE.md). When Claude hands work to helpers, a helpers panel shows each one with its cost and time (`/easyclaude-helpers`). A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup, and it shows what the session has cost. A [file tree](plugins/filetree/PROVENANCE.md) beside the conversation shows which files Claude reads and changes (`/filetree`). All of these run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/easyclaude-panels` opens the control panel once it does.
 
 None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. easyClaude sets them up for you, and it measures whether the result is better.
 
@@ -269,7 +270,7 @@ Measured with Claude Code in a set-up project whose plan is in English:
 
 The plan part grows with your plan; a plan in Thai costs a little more than the same plan in English. Skill bodies and stack recipes load only when they are used.
 
-Three moments cost more, and easyClaude tells you about each one: reopening an old conversation, switching model in a long one (a line shows the cost when it is over about $0.25), and a conversation past about 80,000 tokens of history, where Claude suggests `/clear` once, and again after each `/clear`. Your plan is in `docs/STATE.md`, so `/clear` loses nothing.
+Three moments cost more, and easyClaude tells you about each one: reopening an old conversation, switching model in a long one (a line shows the cost when it is over about $0.25), and a conversation past about 80,000 tokens of history. There, easyClaude holds your next message once, with a note that suggests `/clear`; send the message again to go on. The note comes again after each `/clear`, and it costs nothing, because Claude does not write it. Your plan is in `docs/STATE.md`, so `/clear` loses nothing.
 
 <details>
 <summary><b>How the cost is kept in check</b></summary>
