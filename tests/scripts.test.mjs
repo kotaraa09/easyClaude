@@ -8,6 +8,7 @@ import { readEnv } from '../scripts/env.mjs';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 const script = (name) => join(repoRoot, 'scripts', name);
 
@@ -1032,4 +1033,130 @@ test('commit check: a .env file is held; an example file and a confirmed test va
   const ok = repoWith({ '.env.example': 'API=\n', 'test/fixture.js': `const k = "${FAKE_AWS}"; // easyclaude: not a secret\n` });
   const r = await commitHook(ok.dir, 'git add -A && git commit -m x');
   assert(r.code === 0, `a blank example and a value the user confirmed must go through:\n${r.out}`);
+});
+
+// --- the planning gate ---------------------------------------------------------
+// A user in a new folder answered setup's questions for three rounds and more. Claude then
+// judged it had enough and started building while the user still thought the plan was
+// unclear. Only the user's "start building" may end the questions now; see plan-gate.mjs.
+const gate = (dir, args, payload) => run(script('plan-gate.mjs'), {
+  cwd: dir, args, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify(payload),
+});
+const edit = (dir, tool_name, tool_input) => gate(dir, ['--edit'], { tool_name, tool_input });
+const readyForm = (answer, { header = 'Ready?', first = 'Yes, start building' } = {}) => {
+  const question = 'Is the plan clear enough to start building?';
+  return {
+    tool_name: 'AskUserQuestion',
+    tool_input: {
+      questions: [
+        { question: 'Who uses it?', header: 'Users', options: [{ label: 'Customers' }, { label: 'Staff' }] },
+        { question, header, options: [{ label: first }, { label: 'Not yet' }] },
+      ],
+      answers: { 'Who uses it?': 'Customers', [question]: answer },
+    },
+  };
+};
+const openedNewFolder = async () => {
+  const dir = projectDir();
+  const r = await run(script('session-start.mjs'), {
+    cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 'g1', source: 'startup' }),
+  });
+  assert(r.code === 0, `the opener failed:\n${r.out}`);
+  return dir;
+};
+
+test('planning gate: a new folder holds the build until the user says start', async () => {
+  const dir = await openedNewFolder();
+  const code = await edit(dir, 'Write', { file_path: join(dir, 'src', 'app.js'), content: 'x' });
+  assert(code.code === 2, `writing code before the user said start must be held:\n${code.out}`);
+  assertMatch(code.out, /Ready\?/, 'the hold must say how to ask.');
+  for (const f of ['docs/PRD.md', '.claude/verify.json', 'CLAUDE.md', '.gitignore'])
+    assert((await edit(dir, 'Write', { file_path: join(dir, f) })).code === 0, `planning notes must still be written: ${f}`);
+  assert((await edit(dir, 'Bash', { command: 'npm create vite@latest site' })).code === 2, 'creating a project must be held.');
+  assert((await edit(dir, 'Bash', { command: 'npm install react' })).code === 2, 'installing must be held.');
+  assert((await edit(dir, 'Bash', { command: `rm "${join(tmpdir(), 'easyclaude-plan-x.json')}"` })).code === 2, 'the gate file must not be removable by a command.');
+  assert((await edit(dir, 'Bash', { command: 'git init' })).code === 0, 'other commands must run.');
+});
+
+test('planning gate: only the first option of Ready? opens the build, in any language', async () => {
+  const dir = await openedNewFolder();
+  const wait = await gate(dir, ['--answer'], readyForm('Not yet'));
+  assert(wait.code === 0, wait.out);
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'index.html') })).code === 2, '"not yet" must keep the hold.');
+  await gate(dir, ['--answer'], readyForm('I also want a booking page'));
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'index.html') })).code === 2, 'an answer of their own must keep the hold.');
+  const go = await gate(dir, ['--answer'], readyForm('ใช่ เริ่มสร้างเลย', { first: 'ใช่ เริ่มสร้างเลย' }));
+  assert(go.code === 0, go.out);
+  assertMatch(go.out, /skills/, 'the go that ends setup must bring back the skill offer.');
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'index.html') })).code === 0, 'the first option must open the build.');
+});
+
+test('planning gate: a form with no Ready? question changes nothing', async () => {
+  const dir = await openedNewFolder();
+  await gate(dir, ['--answer'], readyForm('Yes, start building', { header: 'Start' }));
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'app.js') })).code === 2, 'only the Ready? header may close the gate.');
+});
+
+test('planning gate: the answer is found in the result when the input has none', async () => {
+  const { readyAnswer } = await import('../scripts/plan-gate.mjs');
+  const p = readyForm('x');
+  delete p.tool_input.answers;
+  p.tool_response = 'User has answered your questions: "Is the plan clear enough to start building?"="Yes, start building". You can now continue.';
+  assert(readyAnswer(p) === 'start', `the text result was not read: ${readyAnswer(p)}`);
+  p.tool_response = 'User has answered your questions: "Is the plan clear enough to start building?"="Not yet".';
+  assert(readyAnswer(p) === 'wait', 'a "not yet" in the result must read as wait.');
+});
+
+test('planning gate: a short typed go closes it, a longer request does not', async () => {
+  const { isGo } = await import('../scripts/plan-gate.mjs');
+  for (const t of ['start building', 'Yes, start building', 'go ahead', 'ok, go ahead', "let’s start building", 'เริ่มสร้างเลย', 'ลุยเลยครับ'])
+    assert(isGo(t), `a go was missed: ${t}`);
+  for (const t of ['start building a shop with a cart and a booking page', 'build a bakery website', 'not yet', 'how do I start?', 'go', 'start', 'Go'])
+    assert(!isGo(t), `not a go: ${t}`);
+  const dir = await openedNewFolder();
+  const typed = await run(script('prompt-check.mjs'), { cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ prompt: 'go ahead', session_id: 'g2' }) });
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'app.js') })).code === 0, 'a typed go must open the build.');
+  assertMatch(typed.out, /skills/, 'a typed go that ends setup must bring back the skill offer too.');
+});
+
+test('planning gate: a project with code is not held', async () => {
+  const dir = projectDir();
+  writeFileSync(join(dir, 'package.json'), '{}\n');
+  await run(script('session-start.mjs'), { cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 'g3' }) });
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'src', 'app.js') })).code === 0, 'an existing project must not be held at the start.');
+});
+
+test('planning gate: hooks.json runs it on edits, commands and the form', () => {
+  const hooks = JSON.parse(readFileSync(join(repoRoot, 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const runs = (event, tool) => (hooks[event] ?? []).some((e) => new RegExp(`^(${e.matcher})$`).test(tool) &&
+    e.hooks.some((h) => /plan-gate\.mjs/.test(h.command)));
+  for (const t of ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Bash', 'PowerShell'])
+    assert(runs('PreToolUse', t), `the gate does not see ${t}.`);
+  assert(runs('PostToolUse', 'AskUserQuestion'), 'the gate does not read the form.');
+});
+
+test('planning gate: a session started again in a still-empty folder keeps the go', async () => {
+  const dir = await openedNewFolder();
+  await gate(dir, ['--answer'], readyForm('Yes, start building'));
+  await run(script('session-start.mjs'), { cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify({ session_id: 'g4', source: 'resume' }) });
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'app.js') })).code === 0, 'a resume must not take back the go.');
+});
+
+test('planning gate: paths are read in any case and spelling, and a trick path is held', async () => {
+  const dir = await openedNewFolder();
+  for (const f of ['Docs/PRD.md', './docs/STATE.md', 'docs\\DECISIONS.md'])
+    assert((await edit(dir, 'Write', { file_path: f })).code === 0, `a planning note was held: ${f}`);
+  assert((await edit(dir, 'Write', { file_path: 'docs/../src/app.js' })).code === 2, 'a path that leaves docs/ must be held.');
+  const other = await gate(dir.toUpperCase(), ['--edit'], { tool_name: 'Write', tool_input: { file_path: join(dir, 'app.js') } });
+  if (process.platform === 'win32') assert(other.code === 2, 'the same folder in other letters must be the same gate.');
+});
+
+test('planning gate: an answer it cannot read keeps the hold and says how to go on', async () => {
+  const dir = await openedNewFolder();
+  const p = readyForm('x');
+  delete p.tool_input.answers;
+  p.tool_response = { something: 'else' };
+  const r = await gate(dir, ['--answer'], p);
+  assertMatch(r.out, /start building/, 'Claude must be told how the user can go on.');
+  assert((await edit(dir, 'Write', { file_path: join(dir, 'app.js') })).code === 2, 'an unread answer must not open the build.');
 });

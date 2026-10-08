@@ -28,6 +28,7 @@ import { markLater } from './later-memo.mjs';
 import { writesNonLatin, withLanguage } from './language.mjs';
 import { cheapArmed } from './personal.mjs';
 import { locations } from './locations.mjs';
+import { isGo, isOpen as planningOpen, isSetup, close as closePlanning, SETUP_GO } from './plan-gate.mjs';
 
 // History, in tokens, beyond what the session's first request carried. That first request
 // is Claude Code's own prompt, tools and project files - a floor no /clear removes - so it
@@ -173,6 +174,14 @@ function main() {
   // long-conversation advice, which would hold a cheap session's work on a report.
   const prompt = userWords(payload.prompt);
   if (!prompt && String(payload.prompt ?? '').trim()) return;
+  // A plain "start building", typed: the user's own go, for a session that shows no form.
+  // See plan-gate.mjs.
+  // The go that ends setup brings back its skill offer, as the form's go does.
+  let go = null;
+  if (isGo(prompt) && planningOpen(root)) {
+    go = isSetup(root) ? SETUP_GO : null;
+    closePlanning(root);
+  }
   // A cheap-session file that came with the repo is not this user's; see personal.mjs.
   const cheap = CHEAP_COMMAND.test(prompt) || cheapArmed(root);
   // Not in cheap mode: its contract asks for the smallest fix that works, and says so.
@@ -182,6 +191,7 @@ function main() {
   // The Stop hook holds the turn once if the plan file is still unchanged. See later-memo.mjs.
   if (later) markLater(root, payload.session_id);
   const nudges = [
+    go,
     !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null,
     // Only where there is a state file to write to. In cheap mode too: forgetting the rest
     // of the request is not a saving.
