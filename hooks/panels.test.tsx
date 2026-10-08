@@ -3,7 +3,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
+import { actionLabel, addRecent, applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
 import type { Step } from '../types'
 
 const SURFACES = ['terminal', 'desktop'] as const
@@ -57,6 +57,27 @@ describe('the step line', () => {
   })
 })
 
+describe('the recent actions', () => {
+  test('say each action in plain words, and skip the step list itself', async () => {
+    expect(actionLabel({ tool: 'Edit', file_path: 'D:\\shop\\src\\checkout.js' })).toBe('Changed checkout.js')
+    expect(actionLabel({ tool: 'Write', file_path: '/p/index.html' })).toBe('Wrote index.html')
+    expect(actionLabel({ tool: 'Bash', command: 'npm test', description: 'Run the tests' })).toBe('Run the tests')
+    expect(actionLabel({ tool: 'Bash', command: 'npm test' })).toBe('Ran a command')
+    expect(actionLabel({ tool: 'Skill', skill: 'easyclaude:build-task' })).toBe('Used the build-task skill')
+    expect(actionLabel({ tool: 'mcp__Claude_Browser__navigate' })).toBe('Looked at the page')
+    expect(actionLabel({ tool: 'TodoWrite', todos: [] })).toBe(null)
+  })
+
+  test('keep the newest eight, and the same line twice in a row once', async () => {
+    let recent: string[] = []
+    for (const l of ['Read a.js', 'Read a.js', 'Changed a.js', null]) recent = addRecent(recent, l)
+    expect(recent).toEqual(['Read a.js', 'Changed a.js'])
+    for (let i = 0; i < 10; i++) recent = addRecent(recent, `Wrote ${i}.js`)
+    expect(recent.length).toBe(8)
+    expect(recent[7]).toBe('Wrote 9.js')
+  })
+})
+
 describe('the control panel state', () => {
   test('reads the level, cheap mode, plain answers and setup from the project files', async () => {
     const s = settingsFrom({
@@ -91,6 +112,22 @@ describe('the panels, drawn', () => {
       expect(await ui.find({ type: 'Text', text: /make a website for my bakery/ })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '▶ Building the home page' })).toBeDefined()
       expect(await ui.find({ type: 'Text', text: '1 of 2' })).toBeDefined()
+      await ui.unmount()
+    }
+  })
+
+  test('with no step list, progress shows the latest actions in plain words', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async () => ({ result: {} }) as any)
+    await $.prompt.submit({ text: 'fix the footer' } as any)
+    await $.tool.call({ tool: 'Read', file_path: '/p/index.html' } as any)
+    await $.tool.call({ tool: 'Edit', file_path: '/p/index.html', old_string: 'a', new_string: 'b' } as any)
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-progress') })
+      expect(await ui.find({ type: 'Text', text: '✓ Read index.html' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: '▶ Changed index.html' })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /no step list/ })).toBeUndefined()
       await ui.unmount()
     }
   })

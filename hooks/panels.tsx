@@ -58,6 +58,41 @@ export function applyTaskUpdate(steps: Step[], u: { taskId: string; status?: str
   }))
 }
 
+// --- the recent actions, for a request with no step list -------------------------------
+// A user testing 1.1.2 saw only "working" and then "done": Claude kept no step list, and the
+// panel had nothing else to show. Each action of the main loop now gets a line in plain
+// words, so the panel always shows what is happening.
+const base = (p: unknown): string => String(p ?? '').split(/[\\/]/).filter(Boolean).pop() ?? 'a file'
+const clip = (s: string, n = 60): string => (s.length > n ? `${s.slice(0, n - 3)}...` : s)
+
+// What one tool call did, said plainly, or null for one that is not news (the step list).
+export function actionLabel(e: { tool?: string; [k: string]: any }): string | null {
+  const tool = String(e.tool ?? '')
+  switch (tool) {
+    case 'Edit': case 'MultiEdit': case 'NotebookEdit': return `Changed ${base(e.file_path ?? e.notebook_path)}`
+    case 'Write': return `Wrote ${base(e.file_path)}`
+    case 'Read': return `Read ${base(e.file_path)}`
+    case 'Grep': case 'Glob': return 'Searched the code'
+    case 'Bash': case 'PowerShell': return e.description ? clip(String(e.description)) : 'Ran a command'
+    case 'WebFetch': return 'Read a web page'
+    case 'WebSearch': return 'Searched the web'
+    case 'Agent': case 'Task': return e.description ? clip(`Asked a helper: ${e.description}`) : 'Asked a helper'
+    case 'Skill': return e.skill ? `Used the ${String(e.skill).replace(/^.*:/, '')} skill` : 'Used a skill'
+    case 'AskUserQuestion': return 'Asked you a question'
+    case 'TodoWrite': case 'TaskCreate': case 'TaskUpdate': case 'TaskList': case 'TaskGet': case 'ToolSearch': return null
+  }
+  if (/browser|chrome|preview/i.test(tool)) return 'Looked at the page'
+  if (tool.startsWith('mcp__')) return 'Used a connected tool'
+  return tool ? `Used ${tool}` : null
+}
+
+const RECENT_KEPT = 8
+// Newest last. The same line twice in a row is kept once: three reads of one file are news once.
+export function addRecent(recent: string[], label: string | null): string[] {
+  if (!label || recent[recent.length - 1] === label) return recent
+  return [...recent, label].slice(-RECENT_KEPT)
+}
+
 // "Step 3 of 6: Building page 2", or null when Claude kept no list for this request.
 export function stepLine(steps: Step[]): string | null {
   if (!steps.length) return null
@@ -212,7 +247,7 @@ const refresh = async ($: any, atStart: boolean) => {
   if (!r) return
   const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
   $.ui.status(r.endedAt === null
-    ? `easyClaude: ${stepLine(r.steps) ?? `${r.tools} actions`} · ${money(spent)}`
+    ? `easyClaude: ${stepLine(r.steps) ?? r.recent?.[r.recent.length - 1] ?? `${r.tools} actions`} · ${money(spent)}`
     : `easyClaude: last request ${money(spent)}, ${duration(r.endedAt - r.startedAt)}`)
 }
 
@@ -221,7 +256,7 @@ const startRequest = async ($: any, said: string) => {
   const text = said.replace(/\s+/g, ' ').trim()
   const r: Request = {
     text: text.length > 70 ? `${text.slice(0, 70)}...` : text,
-    startedAt: now, endedAt: null, steps: [], tools: 0, costAtStart: null,
+    startedAt: now, endedAt: null, steps: [], recent: [], tools: 0, costAtStart: null,
   }
   await update($, request, () => r)
   $.ui.status('easyClaude: working')
@@ -239,7 +274,7 @@ const recordTool = async ($: any, input: any, result: any) => {
       if (id) steps = [...steps, { id: `task-${id}`, title: input.subject ?? '', doing: input.activeForm || input.subject || '', status: 'pending' }]
     }
     if (input.tool === 'TaskUpdate' && input.taskId) steps = applyTaskUpdate(steps, { ...input, taskId: `task-${input.taskId}` })
-    return { ...r, steps, tools: r.tools + 1 }
+    return { ...r, steps, recent: addRecent(r.recent ?? [], actionLabel(input)), tools: r.tools + 1 }
   })
   refreshLater($, false)
 }
@@ -331,6 +366,8 @@ export const register: Register = (on) => {
     const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
     const done = r.steps.filter((s) => s.status === 'completed').length
     const room = Math.max(3, (e.viewport?.rows ?? 24) - 14)
+    // A record from before 1.1.3 has no list of recent actions.
+    const recent = r.recent ?? []
     return (
       <Box flexDirection="column" paddingX={1} gap={1}>
         <Box justifyContent="space-between" gap={2}>
@@ -363,9 +400,24 @@ export const register: Register = (on) => {
             ))}
             {r.steps.length > room && <Text color="subtle">  and {r.steps.length - room} more</Text>}
           </Box>
+        ) : recent.length > 0 ? (
+          <Box flexDirection="column">
+            <Box justifyContent="space-between" gap={1}>
+              <Text color="subtle">{running ? 'Latest actions' : 'Last actions'}</Text>
+              <Text color="subtle">{r.tools} in all</Text>
+            </Box>
+            {recent.slice(-room).map((a, i, shown) => {
+              const latest = running && i === shown.length - 1
+              return (
+                <Text key={`recent-${i}`} wrap="truncate-end" bold={latest} color={latest ? 'suggestion' : 'subtle'}>
+                  {latest ? `▶ ${a}` : `✓ ${a}`}
+                </Text>
+              )
+            })}
+          </Box>
         ) : (
           <Text color="subtle">
-            {running ? `${r.tools} actions so far. Claude keeps no step list for this request.` : `Finished after ${r.tools} actions.`}
+            {running ? (r.tools ? `${r.tools} actions so far.` : 'Starting...') : `Finished after ${r.tools} actions.`}
           </Text>
         )}
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>

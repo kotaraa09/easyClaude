@@ -1035,6 +1035,66 @@ test('commit check: a .env file is held; an example file and a confirmed test va
   assert(r.code === 0, `a blank example and a value the user confirmed must go through:\n${r.out}`);
 });
 
+// --- the step list nudge ---------------------------------------------------------
+// The progress panel shows Claude's step list, and a user saw it empty on every request:
+// nothing asked Claude to keep one. See steps-check.mjs.
+const stepsTranscript = (turns) => {
+  const dir = projectDir();
+  const file = join(dir, 'session.jsonl');
+  const lines = [];
+  for (const [prompt, tools] of turns) {
+    lines.push({ type: 'user', uuid: `u-${lines.length}`, message: { role: 'user', content: prompt } });
+    for (const name of tools) {
+      lines.push({ type: 'assistant', message: { content: [{ type: 'tool_use', name, input: { file_path: 'a.js' } }] } });
+      lines.push({ type: 'user', message: { content: [{ type: 'tool_result', content: 'ok' }] } });
+    }
+  }
+  writeFileSync(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+  return { dir, file };
+};
+const stepsHook = (dir, file, session = `s-steps-${process.pid}-${Math.random()}`) => run(script('steps-check.mjs'), {
+  cwd: dir, env: { CLAUDE_PROJECT_DIR: dir },
+  input: JSON.stringify({ session_id: session, transcript_path: file, tool_name: 'Edit' }),
+});
+
+test('steps check: a request with several changes and no list is asked for one, once', async () => {
+  const { dir, file } = stepsTranscript([['add a contact page', ['Read', 'Edit', 'Write']]]);
+  const once = `s-once-${process.pid}-${Math.random()}`;
+  const first = await stepsHook(dir, file, once);
+  assertMatch(first.out, /task list/, `no ask after two changes with no list:\n${first.out}`);
+  assert(!(await stepsHook(dir, file, once)).out.includes('task list'), 'the same request must be asked only once.');
+});
+
+test('steps check: one change, a list already kept, or an older request ask nothing', async () => {
+  for (const [why, turns] of [
+    ['one change', [['fix the typo', ['Edit']]]],
+    ['a list is kept', [['add a page', ['TodoWrite', 'Edit', 'Edit']]]],
+    ['the changes were in the last request', [['add a page', ['Edit', 'Edit']], ['thanks', []]]],
+  ]) {
+    const { dir, file } = stepsTranscript(turns);
+    assert(!(await stepsHook(dir, file, `s-${why}-${Math.random()}`)).out.includes('task list'), `asked with ${why}.`);
+  }
+});
+
+test('steps check: a slash command or pasted code starts a request; a reminder or summary does not', async () => {
+  const { currentRequest } = await import('../scripts/steps-check.mjs');
+  const write = (lines) => {
+    const dir = projectDir();
+    const file = join(dir, 's.jsonl');
+    writeFileSync(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+    return file;
+  };
+  const user = (content, extra = {}) => ({ type: 'user', uuid: `u${Math.random()}`, message: { content }, ...extra });
+  const edit = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit', input: {} }] } };
+  for (const start of ['<command-name>/easyclaude:build-task</command-name>', '<div> is broken on the home page'])
+    assert(currentRequest(write([user('old'), edit, edit, user(start)])).edits === 0, `not seen as a new request: ${start}`);
+  for (const [why, entry] of [
+    ['a reminder', user([{ type: 'text', text: '<system-reminder>x</system-reminder>' }])],
+    ['a compaction summary', user('This session is being continued from a previous conversation.', { isCompactSummary: true })],
+    ['a helper agent', user('do the thing', { isSidechain: true })],
+  ]) assert(currentRequest(write([user('add a page'), edit, entry, edit])).edits === 2, `${why} split the request.`);
+});
+
 // --- the planning gate ---------------------------------------------------------
 // A user in a new folder answered setup's questions for three rounds and more. Claude then
 // judged it had enough and started building while the user still thought the plan was
