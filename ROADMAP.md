@@ -262,3 +262,7 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   helpers. A Details button on the bar opens it on every request. The control panel is short,
   with "What do these do?" for the explanations. A background task's report no longer
   replaces the request's title on the bar. #96.
+- **1.2.3** - The bar says Waiting, not Done, while a test run or a helper Claude started in
+  the background is still running, and the panel and the status line say what it waits for.
+  A dev server or a watcher does not keep it waiting. Beginners had seen Done, found nothing
+  yet, and said it did not work. #99.
