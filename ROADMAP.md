@@ -241,3 +241,8 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   PowerShell; both are plugins of their own that install with easyClaude. The /clear
   reminder holds the first message of a long stretch with a note, as Cache Tax does,
   instead of asking Claude to say it. Every control panel button says what it does. #92.
+- **1.2.1** - easyClaude loads after an update from 1.1.x. 1.2.0 listed the file tree and
+  Blast Radius as dependencies, an update did not install them, and Claude Code then loaded
+  none of easyClaude. They are companions now: the first session says once which one is
+  missing, with its install command, and the README installs all three. A release check in
+  CI installs fresh and updates the last release, and fails when either does not load. #94.
