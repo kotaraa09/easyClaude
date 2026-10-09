@@ -8,11 +8,14 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { AgentRun, Panel, Request } from '../../types'
+import type { AgentRun, Panel, Request, Step } from '../../types'
 import { clearOnStep } from '../clear-reminder'
 
 // Written by hooks/panels.tsx; read here.
 const request = atom({ plugin: 'easyclaude', key: 'request' } as const, null)
+const usage = atom({ plugin: 'easyclaude', key: 'usage' } as const, {
+  costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null,
+})
 const agents = atom({ plugin: 'easyclaude', key: 'agents' } as const, [])
 const panel = atom({ plugin: 'easyclaude', key: 'agentsPanel' } as const, {
   isCompact: false,
@@ -39,23 +42,32 @@ export type Flow = {
 }
 
 const s = {
-  pane: 'easyClaude: helpers',
+  pane: 'easyClaude: progress',
   cost: 'Cost',
   tokens: 'Tokens',
   time: 'Time',
+  actions: 'Actions',
+  steps: 'Steps',
+  latest: 'Latest actions',
+  helpers: 'Helpers',
+  details: 'Details',
+  stepDone: 'done',
+  stepNow: 'now',
+  stepNext: 'planned',
+  noRequest: 'Nothing yet. Send a request, and its steps and actions show here.',
   collapse: 'Collapse',
   expand: 'Expand',
   running: 'Running',
   finished: 'Finished',
   empty: 'No helpers yet. When Claude hands part of the work to a helper, it shows here.',
+  opened: 'Progress panel opened.',
+  closed: 'Progress panel closed.',
   round: 'round',
   failed: 'error',
   tokensWord: 'tokens',
   agentsCount: 'helpers',
   isRunning: 'running',
   isFinished: 'finished',
-  opened: 'Helpers panel opened.',
-  closed: 'Helpers panel closed.',
   done: 'Done',
   working: 'Working',
 } as const
@@ -427,8 +439,8 @@ const svg = (W: number, H: number, body: string): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${PANE_CSS}${CRAB_CSS}${body}</svg>`
 
 // The pane's own title says what it is; a header title is drawn only when one is given.
-const headerSvg = (W: number, title: string, t: ReturnType<typeof totals>): string => {
-  const s = tr()
+// Three tiles of figures under it: the request's, or the helpers'.
+const headerSvg = (W: number, title: string, tiles: [string, string][]): string => {
   const gap = 6
   const tw = (W - gap * 2) / 3
   const top = title ? 28 : 0
@@ -440,7 +452,7 @@ const headerSvg = (W: number, title: string, t: ReturnType<typeof totals>): stri
     W,
     headerHeight(title),
     `${title ? `<text class="t" x="0" y="15" font-family="${FONT}" font-size="14" font-weight="600">${xml(fitText(title, 14, W))}</text>` : ''}
-${tile(0, s.cost, '≈' + fmtCost(t.cost))}${tile(1, s.tokens, fmtTokens(t.tokens))}${tile(2, s.time, fmtTime(t.time))}`,
+${tiles.slice(0, 3).map(([k, v], i) => tile(i, k, v)).join('')}`,
   )
 }
 
@@ -477,6 +489,41 @@ ${statusMark(W - 8, 16, a.status, color)}
   )
 }
 
+// --- the request's own rows: its steps, or its latest actions -----------------------------
+// Upstream drew the tasks its planning tool reported this way, as dimmed crabs waiting their
+// turn. Here the rows come from Claude's own step list, so they cost nothing.
+export type Row = { title: string; status: 'done' | 'running' | 'planned' }
+
+export const stepRows = (steps: Step[]): Row[] =>
+  steps.map(st => ({
+    title: st.status === 'in_progress' ? st.doing || st.title : st.title,
+    status: st.status === 'completed' ? 'done' : st.status === 'in_progress' ? 'running' : 'planned',
+  }))
+
+// With no step list: the latest actions, newest first, the newest one running while the
+// request still is.
+export const actionRows = (r: Request): Row[] =>
+  [...(r.recent ?? [])].reverse().map((title, i) => ({ title, status: i === 0 && r.endedAt === null ? 'running' : 'done' }))
+
+const rowStatus = (st: Row['status']): string => {
+  const s = tr()
+  return st === 'done' ? s.stepDone : st === 'running' ? s.stepNow : s.stepNext
+}
+
+const stepSvg = (W: number, row: Row, n: number | null): string => {
+  const textW = W - 42 - 22
+  const isPlanned = row.status === 'planned'
+  return svg(
+    W,
+    46,
+    `${crab(0, 6, 'other', isPlanned, row.status === 'running')}
+<text class="${isPlanned ? 's' : 't'}" x="42" y="18" font-family="${FONT}" font-size="13" font-weight="600">${xml(fitText(n === null ? row.title : `${n}. ${row.title}`, 13, textW))}</text>
+<text x="42" y="34" font-family="${FONT}" font-size="11"><tspan class="m">${rowStatus(row.status)}</tspan></text>
+${statusMark(W - 8, 16, row.status, ACCENT)}
+<line class="ln" x1="0" y1="45.5" x2="${W}" y2="45.5"/>`,
+  )
+}
+
 const compactSvg = (W: number, list: AgentRun[], t: ReturnType<typeof totals>): string => {
   const icons = [
     ...list.filter(a => a.status === 'running').map(a => ({ k: costumeOf(a.type), c: colorOf(tierOf(a.type)), s: 'running', dim: false })),
@@ -504,9 +551,9 @@ const ctxBar = (pct: number, width: number): string => {
   return '█'.repeat(filled) + '░'.repeat(Math.max(0, width - filled))
 }
 
-const STATUS_GLYPH: Record<string, string> = { running: '●', done: '✓', failed: '✗' }
+const STATUS_GLYPH: Record<string, string> = { running: '●', done: '✓', failed: '✗', planned: '◷' }
 
-// Opens the helpers pane, or closes it when it is up; true when it ends up open.
+// Opens the progress pane, or closes it when it is up; true when it ends up open.
 async function togglePane($: EngineInterface): Promise<boolean> {
   const isOpen = (await $.ui.panes()).some(p => p.id === PANE)
   if (isOpen) {
@@ -534,7 +581,7 @@ async function autoOpen($: EngineInterface): Promise<void> {
 // so panels.tsx makes the calls and these give it the values.
 // /easyclaude-helpers, registered in panels.tsx and answered here.
 export const HELPERS_DESCRIPTION =
-  'Show or hide the panel of helpers Claude started: running and finished, with model, cost and time'
+  'Show or hide the progress panel: the steps of your request, what Claude did, and the helpers it started'
 
 // The list once a helper's turn ended at `at`: that helper done, or failed.
 export const helperEnded = (
@@ -641,16 +688,34 @@ export const register: Register = on => {
     return result
   })
 
+  // The progress pane: the request in progress - its figures, its steps or its latest
+  // actions - and under it the helpers Claude started.
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const ui = $.ui.resolve(e)
     const { Box, Text, Button } = ui
     const list = await read($, agents)
     const p: Panel = await read($, panel)
+    const r = await read($, request)
+    const u = await read($, usage)
+    const clock = await $.clock.now()
     const at = Math.max(await read($, now), ...list.map(a => a.startedAt), 0)
 
     const running = list.filter(a => a.status === 'running').reverse()
     const finished = list.filter(a => a.status !== 'running').reverse()
     const t = totals(list, at)
+
+    // The request's rows: its step list when Claude keeps one, else what it did lately.
+    const hasSteps = (r?.steps.length ?? 0) > 0
+    const rows: Row[] = r ? (hasSteps ? stepRows(r.steps) : actionRows(r)) : []
+    const spent = r && u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
+    const took = r ? (r.endedAt ?? clock) - r.startedAt : 0
+    const requestTiles: [string, string][] = [
+      [s.cost, spent === null ? '-' : '≈' + fmtCost(spent)],
+      [s.actions, String(r?.tools ?? 0)],
+      [s.time, fmtTime(took)],
+    ]
+    const stepsDone = r ? r.steps.filter(x => x.status === 'completed').length : 0
+    const rowsHeading = hasSteps ? `${s.steps} · ${stepsDone}/${r?.steps.length ?? 0}` : s.latest
 
     const toggleCompact = (
       <Button
@@ -668,8 +733,8 @@ export const register: Register = on => {
         onPress={() => update($, panel, prev => ({ ...prev, isDoneCollapsed: !prev.isDoneCollapsed }))}
       />
     )
-    const isEmpty = list.length === 0
     const summary = `≈${fmtCost(t.cost)}, ${fmtTokens(t.tokens)} ${s.tokensWord}, ${fmtTime(t.time)}`
+    const helpersHeading = `${s.helpers} · ${list.length}${list.length ? ` · ≈${fmtCost(t.cost)}` : ''}`
 
     if (e.surface === 'desktop' && 'Svg' in ui) {
       const { Svg } = ui
@@ -683,17 +748,23 @@ export const register: Register = on => {
       if (p.isCompact) {
         return (
           <Box flexDirection="column" gap={1}>
-            <Svg source={compactSvg(W, list, t)} alt={`${list.length} ${s.agentsCount}, ${summary}`} width={W} height={32} />
+            {r && <Svg source={headerSvg(W, r.text, requestTiles)} alt={`${r.text}: ${rowsHeading}`} width={W} height={headerHeight(r.text)} />}
+            {list.length > 0 && <Svg source={compactSvg(W, list, t)} alt={`${list.length} ${s.agentsCount}, ${summary}`} width={W} height={32} />}
             {toggleCompact}
           </Box>
         )
       }
       return (
         <Box flexDirection="column">
-          <Svg source={headerSvg(W, '', t)} alt={summary} width={W} height={headerHeight('')} />
+          {!r && <Text dimColor wrap="wrap">{s.noRequest}</Text>}
+          {r && <Svg source={headerSvg(W, r.text, requestTiles)} alt={`${r.text}: ${requestTiles.map(([k, v]) => `${k} ${v}`).join(', ')}`} width={W} height={headerHeight(r.text)} />}
           {toggleCompact}
-          {isEmpty && <Text dimColor wrap="wrap">{s.empty}</Text>}
-          {running.length > 0 && section('h-run', `${s.running} · ${running.length}`)}
+          {rows.length > 0 && section('h-rows', rowsHeading)}
+          {rows.map((row, i) => (
+            <Svg key={`row-${i}`} source={stepSvg(W, row, hasSteps ? i + 1 : null)} alt={`${row.title}: ${rowStatus(row.status)}`} width={W} height={46} />
+          ))}
+          {section('h-helpers', helpersHeading)}
+          {list.length === 0 && <Text dimColor wrap="wrap">{s.empty}</Text>}
           {running.map(a => (
             <Svg key={a.id} source={agentSvg(W, a, at)} alt={`${a.description}: ${modelName(a.model)}, ${s.isRunning}`} width={W} height={66} />
           ))}
@@ -709,7 +780,7 @@ export const register: Register = on => {
     // Terminal: the same content in text rows.
     const cols = Math.max(24, e.props.bodyColumns || 40)
     const barW = Math.max(6, Math.min(20, cols - 34))
-    const row = (a: AgentRun) => {
+    const helperRow = (a: AgentRun) => {
       const tier = tierOf(a.type)
       const color = colorOf(tier)
       const ctx = ctxOf(a)
@@ -740,17 +811,38 @@ export const register: Register = on => {
         </Box>
       )
     }
+    const textRow = (row: Row, i: number) => (
+      <Box key={`row-${i}`} flexDirection="row" gap={1}>
+        <Text color={row.status === 'done' ? 'green' : row.status === 'running' ? ACCENT : undefined} dimColor={row.status === 'planned'}>
+          {STATUS_GLYPH[row.status]}
+        </Text>
+        <Text wrap="truncate-end" dimColor={row.status === 'planned'}>
+          {hasSteps ? `${i + 1}. ` : ''}
+          {row.title}
+        </Text>
+      </Box>
+    )
 
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" justifyContent="space-between">
-          <Text dimColor>
-            ≈{fmtCost(t.cost)} · {fmtTokens(t.tokens)} {s.tokensWord} · {fmtTime(t.time)}
+          <Text bold wrap="truncate-end">
+            {r ? r.text : ''}
           </Text>
           {toggleCompact}
         </Box>
+        {r ? (
+          <Text dimColor>{requestTiles.map(([k, v]) => `${k} ${v}`).join(' · ')}</Text>
+        ) : (
+          <Text dimColor wrap="wrap">{s.noRequest}</Text>
+        )}
         {p.isCompact ? (
           <Text wrap="truncate-end">
+            {rows.map((row, i) => (
+              <Text key={`row-${i}`} dimColor={row.status === 'planned'}>
+                {STATUS_GLYPH[row.status]}{' '}
+              </Text>
+            ))}
             {[...running, ...finished].map(a => (
               <Text key={a.id} color={colorOf(tierOf(a.type))}>
                 {STATUS_GLYPH[a.status]}{' '}
@@ -759,11 +851,13 @@ export const register: Register = on => {
           </Text>
         ) : (
           <Box flexDirection="column" marginTop={1}>
-            {isEmpty && <Text dimColor wrap="wrap">{s.empty}</Text>}
-            {running.length > 0 && <Text dimColor>{s.running} · {running.length}</Text>}
-            {running.map(row)}
+            {rows.length > 0 && <Text dimColor>{rowsHeading}</Text>}
+            {rows.length > 0 && <Box flexDirection="column" marginBottom={1}>{rows.map(textRow)}</Box>}
+            <Text dimColor>{helpersHeading}</Text>
+            {list.length === 0 && <Text dimColor wrap="wrap">{s.empty}</Text>}
+            {running.map(helperRow)}
             {finished.length > 0 && toggleDone}
-            {!p.isDoneCollapsed && finished.map(row)}
+            {!p.isDoneCollapsed && finished.map(helperRow)}
           </Box>
         )}
       </Box>
@@ -785,10 +879,11 @@ export const register: Register = on => {
     const { Box, Text, Button } = ui
     const list = await read($, agents)
     const isWorking = !f.isFinished || list.some(a => a.status === 'running')
-    // The helpers button shows only once Claude has started one.
-    const crewButton = list.length > 0 ? (
-      <Button key="easyclaude-helpers" label={`×${list.length}`} plain onPress={() => void togglePane($)} />
-    ) : null
+    // Opens the progress pane: the steps and actions behind the bar, and the helpers. Always
+    // there, so what a request did is one click away; it counts the helpers once there are some.
+    const crewButton = (
+      <Button key="easyclaude-helpers" label={list.length > 0 ? `${s.details} ×${list.length}` : s.details} plain onPress={() => void togglePane($)} />
+    )
     const figure = side(f)
     const dismiss = (
       <Button
