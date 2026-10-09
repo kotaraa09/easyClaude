@@ -25,6 +25,16 @@ export type Request = {
   tools: number
   // The session's cost when the request began, so the request's own cost is the difference.
   costAtStart: number | null
+  // Background work still running when the turn ended (a test run, a helper), as Claude Code
+  // listed it at the Stop. While any is left the request is waiting, not done. A dev server
+  // is left out: it runs until someone stops it.
+  waiting?: Waiting[]
+}
+
+export type Waiting = {
+  id: string
+  // What it is doing, in Claude's words ("Run the tests"), or its command.
+  label: string
 }
 
 // The figures the session reports, read after each tool call and at the end of a turn.

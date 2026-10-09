@@ -36,6 +36,8 @@ export type Flow = {
   done: number
   running: number
   isFinished: boolean
+  // Background work still running after the turn ended: the request is waiting, not done.
+  waiting: number
   // Actions so far, and how long it took once finished: the bar's right-hand figure.
   tools: number
   tookMs: number | null
@@ -70,6 +72,9 @@ const s = {
   isFinished: 'finished',
   done: 'Done',
   working: 'Working',
+  waiting: 'Waiting',
+  inBackground: 'in background',
+  waitingFor: 'Waiting for',
 } as const
 const tr = () => s
 
@@ -80,14 +85,17 @@ export const flowOf = (r: Request | null, p: Pick<Panel, 'dismissedAt'>): Flow |
     total: r.steps.length,
     done: r.steps.filter(x => x.status === 'completed').length,
     running: r.steps.some(x => x.status === 'in_progress') ? 1 : 0,
-    isFinished: r.endedAt !== null,
+    // Ended, and nothing left running in the background. See waitingOn in panels.tsx.
+    isFinished: r.endedAt !== null && !(r.waiting?.length),
+    waiting: r.endedAt !== null ? (r.waiting?.length ?? 0) : 0,
     tools: r.tools,
-    tookMs: r.endedAt === null ? null : r.endedAt - r.startedAt,
+    tookMs: r.endedAt === null || r.waiting?.length ? null : r.endedAt - r.startedAt,
   }
 }
 
 export const label = (f: Flow): string => {
   if (f.isFinished) return tr().done
+  if (f.waiting) return tr().waiting
   if (!f.total) return tr().working
   return `${f.done}/${f.total} steps`
 }
@@ -101,7 +109,7 @@ const took = (ms: number): string => {
 
 // The figure at the bar's right end: the time it took, the share done, or the actions so far.
 export const side = (f: Flow): string =>
-  f.tookMs !== null ? took(f.tookMs) : f.total ? `${Math.round(ratio(f) * 100)}%` : f.tools ? `${f.tools} actions` : ''
+  f.tookMs !== null ? took(f.tookMs) : f.waiting ? `${f.waiting} ${tr().inBackground}` : f.total ? `${Math.round(ratio(f) * 100)}%` : f.tools ? `${f.tools} actions` : ''
 
 // Deterministic noise so the dither does not shimmer between redraws.
 const noise = (x: number, y: number): number => {
@@ -706,7 +714,10 @@ export const register: Register = on => {
 
     // The request's rows: its step list when Claude keeps one, else what it did lately.
     const hasSteps = (r?.steps.length ?? 0) > 0
-    const rows: Row[] = r ? (hasSteps ? stepRows(r.steps) : actionRows(r)) : []
+    const waitingRows: Row[] = r && r.endedAt !== null ? (r.waiting ?? []).map(w => ({ title: `${s.waitingFor}: ${w.label}`, status: 'running' })) : []
+    const rows: Row[] = [...waitingRows, ...(r ? (hasSteps ? stepRows(r.steps) : actionRows(r)) : [])]
+    // Steps are numbered from one; the rows of what it waits on, above them, are not.
+    const stepNo = (i: number): number | null => (hasSteps && i >= waitingRows.length ? i - waitingRows.length + 1 : null)
     const spent = r && u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
     const took = r ? (r.endedAt ?? clock) - r.startedAt : 0
     const requestTiles: [string, string][] = [
@@ -761,7 +772,7 @@ export const register: Register = on => {
           {toggleCompact}
           {rows.length > 0 && section('h-rows', rowsHeading)}
           {rows.map((row, i) => (
-            <Svg key={`row-${i}`} source={stepSvg(W, row, hasSteps ? i + 1 : null)} alt={`${row.title}: ${rowStatus(row.status)}`} width={W} height={46} />
+            <Svg key={`row-${i}`} source={stepSvg(W, row, stepNo(i))} alt={`${row.title}: ${rowStatus(row.status)}`} width={W} height={46} />
           ))}
           {section('h-helpers', helpersHeading)}
           {list.length === 0 && <Text dimColor wrap="wrap">{s.empty}</Text>}
@@ -817,7 +828,7 @@ export const register: Register = on => {
           {STATUS_GLYPH[row.status]}
         </Text>
         <Text wrap="truncate-end" dimColor={row.status === 'planned'}>
-          {hasSteps ? `${i + 1}. ` : ''}
+          {stepNo(i) !== null ? `${stepNo(i)}. ` : ''}
           {row.title}
         </Text>
       </Box>

@@ -3,7 +3,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { actionLabel, addRecent, applyTaskUpdate, fromTodos, money, settingsFrom, stepLine } from './panels'
+import { actionLabel, addRecent, applyTaskUpdate, fromTodos, isDevServer, money, settingsFrom, stepLine, waitingOn } from './panels'
 import { ADVICE_LIMIT, afterStep, afterTurn, freshGuard, holdText, shouldHold } from './clear-reminder'
 import { flowOf, label, side } from './savvy-progress/register'
 import type { Request, Step } from '../types'
@@ -90,6 +90,27 @@ describe('the recent actions', () => {
     for (let i = 0; i < 10; i++) recent = addRecent(recent, `Wrote ${i}.js`)
     expect(recent.length).toBe(8)
     expect(recent[7]).toBe('Wrote 9.js')
+  })
+})
+
+describe('background work at the end of a turn', () => {
+  test('a dev server or a watcher never ends, so it is not waited on', async () => {
+    for (const command of ['npm run dev', 'pnpm dev', 'npx vite', 'next dev', 'python -m http.server 8000', 'node server.js', 'npm test -- --watch']) {
+      expect(isDevServer({ type: 'shell', command })).toBe(true)
+    }
+    for (const command of ['npm test', 'node --test', 'npx vite build', 'node scripts/test.mjs']) {
+      expect(isDevServer({ type: 'shell', command })).toBe(false)
+    }
+  })
+
+  test('what is waited on is named as Claude described it, and a helper counts too', async () => {
+    const waiting = waitingOn([
+      { id: 'a', type: 'shell', command: 'npm test', description: 'Run the tests' },
+      { id: 'b', type: 'subagent', agent_type: 'Explore', description: '' },
+      { id: 'c', type: 'shell', command: 'npm run dev', description: 'Start the dev server' },
+    ])
+    expect(waiting).toEqual([{ id: 'a', label: 'Run the tests' }, { id: 'b', label: 'Explore' }])
+    expect(waitingOn(undefined)).toEqual([])
   })
 })
 
@@ -281,6 +302,59 @@ describe('the panels, drawn', () => {
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
     expect(await ui.find({ type: 'Text', text: /run the tests/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /task-notification/ })).toBeUndefined()
+    await ui.unmount()
+  })
+
+  // A beginner saw "Done", looked, found nothing, and said "it doesn't work", while a test
+  // run or a helper Claude started in the background was still going. The turn had ended;
+  // the work had not.
+  test('a turn that ends with background work running says Waiting, not Done, until the work ends', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async () => ({ result: {} }) as any)
+    on('turn.complete', async () => ({ text: '' }) as any)
+    on('classic.Stop', async () => ({}) as any)
+    await $.prompt.submit({ text: 'add a contact form' } as any)
+    await $.tool.call({ tool: 'Bash', command: 'npm test', run_in_background: true } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'Running the tests.', durationMs: 1000, isAborted: false, turnId: 't1' } as any)
+    await $.classic.Stop({
+      stop_hook_active: false,
+      background_tasks: [{ id: 'b1', type: 'shell', status: 'running', description: 'Run the tests', command: 'npm test' }],
+    } as any)
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...band() })
+      if (surface === 'terminal') {
+        expect(await ui.find({ type: 'Text', text: 'Done' })).toBeUndefined()
+        expect(await ui.find({ type: 'Text', text: 'Waiting' })).toBeDefined()
+      }
+      await ui.unmount()
+    }
+    const panel = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    expect(await panel.find({ type: 'Text', text: /Run the tests/ })).toBeDefined()
+    await panel.unmount()
+
+    // The report arrives, Claude carries on, and this time nothing is left running.
+    await $.prompt.submit({ text: '<task-notification><task-id>b1</task-id><status>completed</status></task-notification>' } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'All tests pass.', durationMs: 1000, isAborted: false, turnId: 't2' } as any)
+    await $.classic.Stop({ stop_hook_active: false, background_tasks: [] } as any)
+    const done = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    expect(await done.find({ type: 'Text', text: 'Done' })).toBeDefined()
+    await done.unmount()
+  })
+
+  test('a dev server left running does not keep the bar waiting', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('turn.complete', async () => ({ text: '' }) as any)
+    on('classic.Stop', async () => ({}) as any)
+    await $.prompt.submit({ text: 'show me the site' } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'It runs at localhost:5173.', durationMs: 1000, isAborted: false, turnId: 't1' } as any)
+    await $.classic.Stop({
+      stop_hook_active: false,
+      background_tasks: [{ id: 'b2', type: 'shell', status: 'running', description: 'Start the dev server', command: 'npm run dev' }],
+    } as any)
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    expect(await ui.find({ type: 'Text', text: 'Done' })).toBeDefined()
     await ui.unmount()
   })
 

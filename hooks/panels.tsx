@@ -12,7 +12,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Request, Step, Usage } from '../types'
+import type { Request, Step, Usage, Waiting } from '../types'
 import { clearHeld, clearHistory, clearOnStart, clearOnTurnEnd, holdText } from './clear-reminder'
 import { HELPERS_DESCRIPTION, helperEnded } from './savvy-progress/register'
 
@@ -107,6 +107,38 @@ export function stepLine(steps: Step[]): string | null {
   const now = steps.find((s) => s.status === 'in_progress')
   if (!now) return done === steps.length ? `All ${steps.length} steps done` : `${done} of ${steps.length} steps done`
   return `Step ${steps.indexOf(now) + 1} of ${steps.length}: ${now.doing}`
+}
+
+// --- background work still running when a turn ends -----------------------------------
+// The turn ends when Claude stops writing, which is not when the work ends: a test run or a
+// helper started in the background reports later, and Claude carries on then. A beginner who
+// saw "Done" looked, found nothing, and said "it doesn't work". So what Claude Code lists as
+// still running at the Stop keeps the request waiting.
+//
+// A dev server never ends: it serves the page until someone stops it, and is what the user
+// opens to look. It is left out, or the bar would wait for ever.
+const DEV_SERVERS = [
+  /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(dev|start|serve|preview)\b/i,
+  /\b(vite|next|nuxt|astro|remix)\b(?!\s+(build|lint|test)\b)/i,
+  /\b(ng|webpack)\s+serve\b/i,
+  /\b(http-server|live-server|nodemon)\b/i,
+  /\bnpx\s+serve\b/i,
+  /\bnode\s+\S*server\S*\.[cm]?js\b/i,
+  /\bpython3?\s+-m\s+http\.server\b/i,
+  /\b(flask\s+run|uvicorn|gunicorn|php\s+-S|hugo\s+server|jekyll\s+serve|rails\s+s(erver)?)\b/i,
+  // A watcher, such as `npm test -- --watch`, also runs until someone stops it.
+  /(^|\s)(--watch|-w)(\s|$)/,
+]
+
+type BackgroundTask = { id?: string; type?: string; status?: string; description?: string; command?: string; agent_type?: string }
+
+export const isDevServer = (t: BackgroundTask): boolean =>
+  t.type === 'shell' && DEV_SERVERS.some((re) => re.test(String(t.command ?? '')))
+
+export function waitingOn(tasks: ReadonlyArray<BackgroundTask> | undefined): Waiting[] {
+  return (tasks ?? [])
+    .filter((t) => !isDevServer(t))
+    .map((t) => ({ id: String(t.id ?? ''), label: clip(String(t.description || t.command || t.agent_type || t.type || 'background work')) }))
 }
 
 async function readUsage($: any): Promise<Usage> {
@@ -270,9 +302,12 @@ const refresh = async ($: any, atStart: boolean) => {
   // The conversation's size once a request has ended: the /clear reminder's measure.
   if (r.endedAt !== null) clearOnTurnEnd(u.contextTokens)
   const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
+  const waiting = r.waiting?.length ?? 0
   $.ui.status(r.endedAt === null
     ? `easyClaude: ${stepLine(r.steps) ?? r.recent?.[r.recent.length - 1] ?? `${r.tools} actions`} · ${money(spent)}`
-    : `easyClaude: last request ${money(spent)}, ${duration(r.endedAt - r.startedAt)}`)
+    : waiting
+      ? `easyClaude: waiting for ${waiting === 1 ? r.waiting?.[0]?.label : `${waiting} background tasks`} · ${money(spent)}`
+      : `easyClaude: last request ${money(spent)}, ${duration(r.endedAt - r.startedAt)}`)
 }
 
 const startRequest = async ($: any, said: string) => {
@@ -280,7 +315,7 @@ const startRequest = async ($: any, said: string) => {
   const text = said.replace(/\s+/g, ' ').trim()
   const r: Request = {
     text: text.length > 70 ? `${text.slice(0, 70)}...` : text,
-    startedAt: now, endedAt: null, steps: [], recent: [], tools: 0, costAtStart: null,
+    startedAt: now, endedAt: null, steps: [], recent: [], tools: 0, costAtStart: null, waiting: [],
   }
   await update($, request, () => r)
   $.ui.status('easyClaude: working')
@@ -385,6 +420,15 @@ export const register: Register = (on) => {
     if (e.agentId !== undefined) return result
     // The tool's arguments sit beside `tool` on the event: `e.todos`, `e.subject`.
     await inOrder(() => recordTool($, e, result))
+    return result
+  })
+
+  // The Stop of the main loop lists the background work still running; see waitingOn.
+  on('classic.Stop', async ($, e, next) => {
+    const result = await next(e)
+    const waiting = waitingOn((e as any).background_tasks)
+    await inOrder(() => update($, request, (r) => (r ? { ...r, waiting } : r)))
+    refreshLater($, false)
     return result
   })
 

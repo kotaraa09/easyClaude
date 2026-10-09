@@ -51,16 +51,19 @@ for (const [from, to] of swaps) {
 let source = sources['panels.tsx'];
 // Preview only: /easyclaude-preview-demo fills the progress bar with a sample request, so
 // the step bar and the step marks can be looked at in a session where Claude keeps no step
-// list. The released plugin never has this command.
+// list. `/easyclaude-preview-demo waiting` shows the same request after its turn ended, with a
+// test run still going in the background. The released plugin never has this command.
 const REGISTER = `await $.command.register({ name: '${NAME}', `;
 if (!source.includes(REGISTER)) throw new Error('hooks/panels.tsx: no command.register line to add the demo beside');
 source = source.replace(REGISTER, `await $.command.register({ name: '${NAME}-demo', description: 'Fill the preview progress bar with a sample request' })\n    ${REGISTER}`);
 const DEMO = `
-  on('command.run', { command: '${NAME}-demo' }, async ($) => {
+  on('command.run', { command: '${NAME}-demo' }, async ($, e) => {
+    const waiting = /waiting/.test(String(e.args ?? ''))
     const now = await $.clock.now()
     const u = await readUsage($)
     await update($, request, () => ({
-      text: 'Make a website for my bakery', startedAt: now - 134000, endedAt: null, tools: 14,
+      text: 'Make a website for my bakery', startedAt: now - 134000, endedAt: waiting ? now - 2000 : null, tools: 14,
+      waiting: waiting ? [{ id: 'w1', label: 'Run the tests' }] : [],
       recent: ['Read STATE.md', 'Wrote index.html', 'Changed style.css', 'Ran the checks', 'Changed page2.html'],
       costAtStart: u.costUsd === null ? null : Math.max(0, u.costUsd - 0.42),
       steps: [
