@@ -15,6 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { treeFingerprint, remember } from './tree-state.mjs';
 import { resumeNotice } from './cost-notice.mjs';
+import { companionsNotice } from './companions.mjs';
 import { missingTools } from './first-run.mjs';
 import { PERSONAL_FILES, personalFile, ignoredNotice } from './personal.mjs';
 import { locations, locationsNotice } from './locations.mjs';
@@ -207,8 +208,10 @@ const context = parts.join('\n\n');
 if (!TEXT && !COMPACT) remember(root, { session: payload.session_id ?? null, tree: treeFingerprint(root), failed: [] });
 
 // Reopening an old conversation re-sends all of it on the first message. The user sees
-// this before typing that message; Claude never does. See cost-notice.mjs.
-const notice = resumeNotice(payload, setUp && where.state);
+// this before typing that message; Claude never does. See cost-notice.mjs. A missing file
+// tree or Blast Radius is said the same way, so it costs nothing either; see companions.mjs.
+const notice = [resumeNotice(payload, setUp && where.state), TEXT ? null : companionsNotice(payload)]
+  .filter(Boolean).join('\n\n');
 
 if (TEXT) {
   console.log(context);

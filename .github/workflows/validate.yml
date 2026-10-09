@@ -26,7 +26,11 @@ jobs:
         shell: bash
 
     steps:
+      # All history, for the release tags: update-check.mjs installs the last release and
+      # updates it to this commit.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -56,6 +60,12 @@ jobs:
 
       - name: Claude Code loads every hook
         run: node scripts/load-check.mjs --require
+
+      # load-check.mjs loads this folder with --plugin-dir, which no user does. 1.2.0 passed it
+      # and failed to load for everyone who updated from 1.1.x. This installs it fresh, and
+      # updates the last release to it, each in a config folder of its own.
+      - name: Claude Code loads it after a fresh install and after an update
+        run: node scripts/update-check.mjs --require
 
       # The suite that checks the checking machinery. This used to be roughly three hundred
       # lines of bash living in this file, which meant nobody could run it while editing the

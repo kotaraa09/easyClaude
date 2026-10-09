@@ -614,6 +614,58 @@ test('session-start: the hook form is the JSON Claude Code reads', async () => {
   assertMatch(j.hookSpecificOutput.additionalContext, /kickoff/, 'the context must carry the decision.');
 });
 
+// --- the file tree and Blast Radius -------------------------------------------
+// 1.2.0 listed them as dependencies. An update from 1.1.x did not install them, and Claude
+// Code then loaded none of easyClaude. Now the opener says which are missing, once.
+import { missingCompanions, companionsNotice } from '../scripts/companions.mjs';
+
+const configWith = (ids) => {
+  const dir = projectDir();
+  mkdirSync(join(dir, 'plugins'), { recursive: true });
+  const plugins = Object.fromEntries(ids.map((id) => [id, [{ scope: 'user', version: '1.0.0' }]]));
+  writeFileSync(join(dir, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins }));
+  return dir;
+};
+
+test('companions: each missing one is named, with its install command', () => {
+  const configDir = configWith(['easyclaude@easyclaude', 'filetree@easyclaude']);
+  assert(missingCompanions({ configDir }).map((c) => c.id).join() === 'blast-radius@easyclaude',
+    'only Blast Radius is missing here.');
+  const note = companionsNotice({ source: 'startup' }, { configDir, dataDir: null });
+  assertMatch(note, /Blast Radius is not installed/, 'the note must name what is missing.');
+  assertMatch(note, /claude plugin install blast-radius@easyclaude/, 'the note must carry the command.');
+  assert(!/filetree/.test(note), `an installed companion was named:\n${note}`);
+});
+
+test('companions: nothing is said when both are there, or when the record cannot be read', () => {
+  const both = configWith(['easyclaude@easyclaude', 'filetree@easyclaude', 'blast-radius@easyclaude']);
+  assert(companionsNotice({ source: 'startup' }, { configDir: both, dataDir: null }) === null, 'both are installed.');
+  assert(companionsNotice({ source: 'startup' }, { configDir: projectDir(), dataDir: null }) === null,
+    'with no install record, a wrong "missing" would send someone to install what they have.');
+});
+
+test('companions: said once for the same missing set, and only when a session starts', () => {
+  const configDir = configWith(['easyclaude@easyclaude']);
+  const dataDir = join(projectDir(), 'data');
+  assert(companionsNotice({ source: 'resume' }, { configDir, dataDir }) === null, 'a resumed session is not a new start.');
+  assert(companionsNotice({ source: 'compact' }, { configDir, dataDir }) === null, 'a compaction is mid-task.');
+  assertMatch(companionsNotice({ source: 'startup' }, { configDir, dataDir }), /the file tree and Blast Radius are not installed/,
+    'both missing must be said in one line.');
+  assert(companionsNotice({ source: 'startup' }, { configDir, dataDir }) === null, 'the second session must not repeat it.');
+});
+
+test('session-start: a missing companion reaches the user, not Claude', async () => {
+  const configDir = configWith(['easyclaude@easyclaude', 'blast-radius@easyclaude']);
+  const dir = projectDir();
+  const r = await run(script('session-start.mjs'), {
+    cwd: dir, env: { CLAUDE_PROJECT_DIR: dir, CLAUDE_CONFIG_DIR: configDir, CLAUDE_PLUGIN_DATA: '' },
+    input: JSON.stringify({ session_id: 's1', source: 'startup' }),
+  });
+  const j = JSON.parse(r.out);
+  assertMatch(j.systemMessage ?? '', /claude plugin install filetree@easyclaude/, 'the user must see the command.');
+  assert(!/filetree/.test(j.hookSpecificOutput.additionalContext), 'Claude must not pay for the note.');
+});
+
 // --- the tools check before setup ---------------------------------------------
 // A beginner may have Claude Code and nothing else. The opener says what is missing before
 // setup, and says nothing once the project is set up, where it would cost every session.

@@ -140,11 +140,12 @@ for (const [name, , dir, withPlugin] of CASES) {
       'nothing was saved. Run it again.');
     process.exit(1);
   }
-  // The plugin's skills, agent and hooks are hundreds of tokens. Next to nothing means both
-  // cases loaded the same plugins: the installed copy got into the baseline, or the per-run
-  // switch also turned off the copy under test. Either way every figure would be wrong, so
-  // stop here, before the other three cases are paid for.
-  if (name === 'plugin' && tokens.plugin - tokens.baseline < 300) {
+  // The plugin's skills, agent and hooks are a few hundred tokens (~280 with Claude Code
+  // 2.1.292). Next to nothing means both cases loaded the same plugins, or that Claude Code
+  // refused the copy under test: the installed copy got into the baseline, the per-run switch
+  // also turned it off, or a dependency was missing (1.2.0). Either way every figure would be
+  // wrong, so stop here, before the other three cases are paid for.
+  if (name === 'plugin' && tokens.plugin - tokens.baseline < 100) {
     console.error(`measure-cost: the plugin came out at ${tokens.plugin - tokens.baseline} tokens, so ` +
       'the baseline and the plugin case loaded the same plugins' +
       `${installedCopies.length ? ` (installed: ${installedCopies.join(', ')})` : ''}. Nothing was saved. ` +

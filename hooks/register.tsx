@@ -6,8 +6,10 @@
 //   savvy-progress/     the progress bar above the prompt, and the helpers panel
 //
 // Savvy Progress is vendored and adapted; its PROVENANCE.md says from where, and what
-// changed. The file tree and Blast Radius are plugins of their own in plugins/, which
-// easyClaude lists as dependencies, so they install with it.
+// changed. The file tree and Blast Radius are plugins of their own in plugins/, installed
+// beside easyClaude from the same marketplace. They are not listed as dependencies: an
+// update that did not bring them along made Claude Code refuse all of easyClaude, so the
+// session opener says when one is missing instead (scripts/companions.mjs).
 //
 // Where installed plugins may not load a hooks module - an older Claude Code, or an account
 // the feature has not reached - none of this runs, and everything else in easyClaude works
