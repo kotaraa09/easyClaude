@@ -115,6 +115,17 @@ empty list, a failure caught and dropped) passes more often with the review than
 and the added cost per task is measured and stated. **Effort:** 1 day, plus about $5 of
 runs. Estimated cost: about $0.02 a task.
 
+**Stopped, 2026-10-09.** Not shipped: no task was found where it helps. The review first
+sat in `build-task`, and six runs of six answered "Next, please add ..." without any skill,
+so it never ran; it moved to the Stop hook (`scripts/review-check.mjs`), as items 2 and 8
+expect. Then four tasks with an input the request does not mention - the same plant added
+twice, a $5 code on a $3 order, a quantity left out, broken gift card codes - were run on
+1.2.2 with Sonnet 5, and every run handled the input with no reviewer. A second reader
+adds a step to every change; without a task it improves, that is the cost this plugin
+exists to avoid. The work and the four cases wait on the branch `short-review-after-task`.
+Try again with a change across several files, or an error the code hides, before a
+second attempt. Spent: $2.55.
+
 ### 8. Look before you edit, measured first
 
 **Why.** A beginner cannot see what a change broke elsewhere (item 2). ECC's GateGuard
