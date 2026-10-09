@@ -98,7 +98,7 @@ describe('background work at the end of a turn', () => {
     for (const command of ['npm run dev', 'pnpm dev', 'npx vite', 'next dev', 'python -m http.server 8000', 'node server.js', 'npm test -- --watch']) {
       expect(isDevServer({ type: 'shell', command })).toBe(true)
     }
-    for (const command of ['npm test', 'node --test', 'npx vite build', 'node scripts/test.mjs']) {
+    for (const command of ['npm test', 'node --test', 'npx vite build', 'node scripts/test.mjs', 'npm test && echo next']) {
       expect(isDevServer({ type: 'shell', command })).toBe(false)
     }
   })

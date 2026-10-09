@@ -119,7 +119,7 @@ export function stepLine(steps: Step[]): string | null {
 // opens to look. It is left out, or the bar would wait for ever.
 const DEV_SERVERS = [
   /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(dev|start|serve|preview)\b/i,
-  /\b(vite|next|nuxt|astro|remix)\b(?!\s+(build|lint|test)\b)/i,
+  /(^|[;&|]\s*|\b(npx|bunx|pnpm\s+exec)\s+)(vite|next|nuxt|astro|remix)\b(?!\s+(build|lint|test)\b)/i,
   /\b(ng|webpack)\s+serve\b/i,
   /\b(http-server|live-server|nodemon)\b/i,
   /\bnpx\s+serve\b/i,
