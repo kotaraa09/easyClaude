@@ -14,12 +14,12 @@
     {
       "name": "filetree",
       "source": "./plugins/filetree",
-      "description": "A file tree beside the conversation, coloured by git, that shows which files Claude reads and changes. By Kurt Buhler (MIT), installed with easyClaude."
+      "description": "A file tree beside the conversation, coloured by git, that shows which files Claude reads and changes. By Kurt Buhler (MIT), a companion to easyClaude."
     },
     {
       "name": "blast-radius",
       "source": "./plugins/blast-radius",
-      "description": "Holds a risky command, such as rm -rf or git reset --hard, and shows what it would delete before you press Proceed or Cancel. From Anthropic's playground (Apache-2.0), adapted for Windows; installed with easyClaude."
+      "description": "Holds a risky command, such as rm -rf or git reset --hard, and shows what it would delete before you press Proceed or Cancel. From Anthropic's playground (Apache-2.0), adapted for Windows; a companion to easyClaude."
     }
   ]
 }

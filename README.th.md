@@ -76,9 +76,11 @@
 
 ```
 ช่วยติดตั้งปลั๊กอิน easyClaude ของ Claude Code ให้หน่อย ก่อนอื่นตรวจว่ามี Node.js กับ Git
-ไหม ถ้าขาดอะไรให้บอกวิธีติดตั้งเป็นภาษาง่าย ๆ จากนั้นรันสองคำสั่งนี้
+ไหม ถ้าขาดอะไรให้บอกวิธีติดตั้งเป็นภาษาง่าย ๆ จากนั้นรันสี่คำสั่งนี้
 claude plugin marketplace add kotaraa09/easyClaude
 claude plugin install easyclaude@easyclaude
+claude plugin install filetree@easyclaude
+claude plugin install blast-radius@easyclaude
 ถ้าไม่เจอคำสั่ง claude ให้บอกวิธีติดตั้ง Claude Code สำหรับเทอร์มินัล
 เสร็จแล้วบอกให้ฉันเริ่มเซสชันใหม่
 ```
@@ -90,11 +92,13 @@ Claude จะขออนุญาตก่อนรันแต่ละคำ�
 
 <br>
 
-ในเทอร์มินัล ให้รันสองคำสั่งเดียวกัน
+ในเทอร์มินัล ให้รันสี่คำสั่งเดียวกัน
 
 ```bash
 claude plugin marketplace add kotaraa09/easyClaude
 claude plugin install easyclaude@easyclaude
+claude plugin install filetree@easyclaude
+claude plugin install blast-radius@easyclaude
 ```
 
 ใน Claude Code ที่เปิดในเทอร์มินัล พิมพ์ `/plugin marketplace add kotaraa09/easyClaude` และ `/plugin install easyclaude@easyclaude` ก็ได้ ในแอปเดสก์ท็อป `/plugin` จะเปิดหน้าเลือกดูปลั๊กอินและไม่ได้ติดตั้งอะไร จึงต้องใช้คำสั่งด้านบน

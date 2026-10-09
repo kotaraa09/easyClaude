@@ -24,8 +24,9 @@ Both must pass. CI runs them on Linux and Windows for every pull request.
 The panels are Claude Code hooks modules, and need Claude Code itself (2.1.288 or later):
 easyClaude's own in `hooks/` (`register.tsx` starts the control panel, the progress bar and
 the /clear reminder), and the file tree and Blast Radius, each a plugin of its own in
-`plugins/` that easyClaude lists as a dependency. CI cannot run these, so run them yourself
-when you change one:
+`plugins/`, installed beside easyClaude. Do not list them under `dependencies`: an update
+does not install a new dependency, and Claude Code then refuses to load all of easyClaude.
+CI cannot run these, so run them yourself when you change one:
 
 ```bash
 claude plugin validate .claude-plugin/plugin.json
@@ -93,6 +94,10 @@ Release notes are public. Write them for people who use easyClaude, in a neutral
 - End with the update commands.
 
 The title is the version and a short summary: `v1.1.3 - Waits for your go-ahead before building`.
+
+Bump the version before you run `node scripts/update-check.mjs`. It installs the release
+fresh, and updates the last release to it, and fails when Claude Code will not load either.
+CI runs it too, but only with the version in the commit.
 
 ## Pull requests
 

@@ -14,9 +14,5 @@
     "state",
     "scaffolding"
   ],
-  "types": "./types/index.d.ts",
-  "dependencies": [
-    "filetree",
-    "blast-radius"
-  ]
+  "types": "./types/index.d.ts"
 }
