@@ -230,6 +230,60 @@ describe('the panels, drawn', () => {
     await done.unmount()
   })
 
+  test('the bar always has a Details button, and the progress panel lists the steps', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async () => ({ result: {} }) as any)
+    await $.prompt.submit({ text: 'add a contact form' } as any)
+    await $.tool.call({
+      tool: 'TodoWrite',
+      todos: [
+        { content: 'Write the form', status: 'completed', activeForm: 'Writing the form' },
+        { content: 'Send the email', status: 'in_progress', activeForm: 'Sending the email' },
+        { content: 'Test it', status: 'pending', activeForm: 'Testing it' },
+      ],
+    } as any)
+    for (const surface of SURFACES) {
+      const bar = await $.ui.mount({ plugin: 'easyclaude', surface, ...band() })
+      expect(await bar.find({ key: 'easyclaude-helpers' })).toBeDefined()
+      await bar.unmount()
+    }
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    expect(await ui.find({ type: 'Text', text: /add a contact form/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Steps · 1/3' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Sending the email/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Test it/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('with no step list, the progress panel lists the latest actions', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async () => ({ result: {} }) as any)
+    await $.prompt.submit({ text: 'fix the typo' } as any)
+    await $.tool.call({ tool: 'Read', file_path: '/p/about.html' } as any)
+    await $.tool.call({ tool: 'Edit', file_path: '/p/about.html' } as any)
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    expect(await ui.find({ type: 'Text', text: 'Latest actions' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Changed about.html/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Read about.html/ })).toBeDefined()
+    await ui.unmount()
+  })
+
+  test('a background task report carries on the request, and does not become its title', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('tool.call', async () => ({ result: {} }) as any)
+    await $.prompt.submit({ text: 'run the tests' } as any)
+    await $.tool.call({ tool: 'Read', file_path: '/p/a.js' } as any)
+    await $.prompt.submit({ text: '<task-notification> <task-id>b1</task-id> done</task-notification>' } as any)
+    await $.tool.call({ tool: 'Read', file_path: '/p/b.js' } as any)
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    expect(await ui.find({ type: 'Text', text: /run the tests/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /task-notification/ })).toBeUndefined()
+    await ui.unmount()
+  })
+
   test('a control panel button runs the command it names', async ($, on) => {
     project(on, { 'docs/STATE.md': '# State\n', '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'commit' }) })
     const ran: string[] = []
@@ -246,10 +300,16 @@ describe('the panels, drawn', () => {
     expect(ran).toEqual(['easyclaude:autoship pr', 'easyclaude:skills', 'easyclaude:autoship pr', 'easyclaude:skills'])
   })
 
-  test('the control panel shows the level the project has, explains it, and offers setup only before it', async ($, on) => {
+  test('the control panel shows the level the project has, explains it on request, and offers setup only before it', async ($, on) => {
     project(on, { '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'push' }) })
+    const short = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
+    expect(await short.find({ type: 'Text', text: /^When a task is done/ })).toBeDefined()
+    // Short by default: the buttons and settings, and no notes.
+    expect(await short.find({ type: 'Text', text: /does this much by itself/ })).toBeUndefined()
+    expect(await short.find({ type: 'Text', text: /Changes nothing/ })).toBeUndefined()
+    await short.press({ key: 'controls-help' })
+    await short.unmount()
     const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
-    expect(await ui.find({ type: 'Text', text: /^When a task is done/ })).toBeDefined()
     expect(await ui.find({ key: 'autoship' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /does this much by itself/ })).toBeDefined()
     // Each button says what it does beside it: at Save and upload, saving uploads too.
@@ -268,7 +328,6 @@ describe('the panels, drawn', () => {
       const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
       expect(await ui.find({ key: 'autoship' })).toBeUndefined()
       expect(await ui.find({ type: 'Text', text: /Saved versions are not set up yet/ })).toBeDefined()
-      expect(await ui.find({ type: 'Text', text: 'Turn on versions first, below' })).toBeDefined()
       await ui.press({ key: 'create-repo' })
       await ui.unmount()
     }

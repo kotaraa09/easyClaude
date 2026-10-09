@@ -37,7 +37,7 @@ const swaps = [
   [/'easyclaude-helpers'/g, `'${NAME}-helpers'`],
   [/'easyclaude-panels'/g, `'${NAME}'`],
   [/'easyClaude: controls'/g, `'Preview: controls'`],
-  [/'easyClaude: helpers'/g, `'Preview: helpers'`],
+  [/'easyClaude: progress'/g, `'Preview: progress'`],
 ];
 const sources = Object.fromEntries(FILES.map((f) => [f, readFileSync(join(root, 'hooks', f), 'utf8')]));
 // Every swap must hit somewhere: one that missed would leave the real plugin's state, pane ids
@@ -61,6 +61,7 @@ const DEMO = `
     const u = await readUsage($)
     await update($, request, () => ({
       text: 'Make a website for my bakery', startedAt: now - 134000, endedAt: null, tools: 14,
+      recent: ['Read STATE.md', 'Wrote index.html', 'Changed style.css', 'Ran the checks', 'Changed page2.html'],
       costAtStart: u.costUsd === null ? null : Math.max(0, u.costUsd - 0.42),
       steps: [
         { id: 'd1', title: 'Read the plan', doing: 'Reading the plan', status: 'completed' },

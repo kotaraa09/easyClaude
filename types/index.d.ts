@@ -74,6 +74,8 @@ declare module 'claude-code' {
       agents: AgentRun[]
       agentsPanel: Panel
       agentsNow: number
+      // The control panel shows what each control does under it, until it is turned off.
+      controlsHelp: boolean
     }
   }
 }

@@ -25,6 +25,8 @@ const usage = atom({ plugin: 'easyclaude', key: 'usage' } as const, {
 // The helpers panel's list and clock (savvy-progress/), written here when a helper's turn ends.
 const helpers = atom({ plugin: 'easyclaude', key: 'agents' } as const, [])
 const helpersNow = atom({ plugin: 'easyclaude', key: 'agentsNow' } as const, 0)
+// Whether the control panel explains each control. Off: the panel is short.
+const controlsHelp = atom({ plugin: 'easyclaude', key: 'controlsHelp' } as const, false)
 
 export const LEVELS = ['off', 'commit', 'push', 'pr', 'merge'] as const
 
@@ -209,9 +211,8 @@ const createRepo = async ($: any) => {
   repoAskedAt = now
   await say($, CREATE_REPO)
 }
-// Each setting: a short line always shown under its name, and more on hover.
+// What each setting does, shown under it while the explanations are on.
 const AUTOSHIP_NAME = 'When a task is done'
-const AUTOSHIP_NOTE = 'What Claude does without asking'
 const AUTOSHIP_HELP = 'When a task is finished and its checks pass, Claude does this much by itself, and each ' +
   'choice includes the ones above it. "Ask me first" saves and uploads nothing without asking you.'
 const NO_GIT_NOTE = 'Saved versions are not set up yet'
@@ -222,9 +223,10 @@ const CHEAP_HELP = 'For this session only. It costs less, and Claude checks less
 const PLAIN_NOTE = 'Short answers without code words'
 const PLAIN_HELP = 'Replies leave out file names and technical words.'
 
-// Each button says what it does on a line beside it, and whether it changes anything: a
-// beginner should neither press one by mistake nor be afraid to press it. "Save my work"
-// and "Helpers" said neither what nor where.
+// Each button can say what it does, and whether it changes anything: a beginner should
+// neither press one by mistake nor be afraid to press it. "Save my work" and "Helpers" said
+// neither what nor where. Said all the time, the notes made the panel too long, so they show
+// when "What do these do?" is pressed.
 // The buttons' column when the note sits beside them: the longest label and its brackets.
 const ACTION_COLUMNS = 22
 const SAVE_NOTE = (autoship: string, git: boolean): string =>
@@ -301,6 +303,19 @@ const recordTool = async ($: any, input: any, result: any) => {
   refreshLater($, false)
 }
 
+// Whether a submission carries on the request in progress: a background task's report,
+// which Claude Code sends when a task Claude started in the background ends.
+export const continuesRequest = (origin: { kind?: string } | undefined, text: string): boolean =>
+  origin?.kind === 'task-notification' || /^s*<task-notification>/.test(text)
+
+// The request runs again, under the title the user gave it. With none, it gets a plain one.
+const resumeRequest = async ($: any) => {
+  if (!(await read($, request))) return startRequest($, 'Background work')
+  await update($, request, (r) => (r ? { ...r, endedAt: null } : r))
+  $.ui.status('easyClaude: working')
+  refreshLater($, false)
+}
+
 const endRequest = async ($: any) => {
   const now = await $.clock.now()
   await update($, request, (r) => (r ? { ...r, endedAt: now } : r))
@@ -357,7 +372,9 @@ export const register: Register = (on) => {
         return { drop: holdText(history, plan, text) }
       }
     }
-    void inOrder(() => startRequest($, e.text))
+    // A background task's report is Claude carrying on with the request, not a new one: as a
+    // new request, the bar and the progress panel took "<task-notification>..." as its title.
+    void inOrder(() => (continuesRequest(e.origin, text) ? resumeRequest($) : startRequest($, text)))
     return next(e)
   })
 
@@ -390,24 +407,17 @@ export const register: Register = (on) => {
     const { Box, Text, Button, Select } = table
     const s = await readSettings($)
     const u = await read($, usage)
+    const help = await read($, controlsHelp)
     const width = paneWidth(e)
-    // A setting's row: its name and a short note on the left, its control on the right.
-    // Pointing at the row reveals its help, drawn after all the rows (see helpCard).
-    const row = (key: string, name: string, note: string, control: any) => (
-      <Box key={key} hover={{ scope: `help-${key}` }} justifyContent="space-between" alignItems="center" gap={1}>
+    // A setting's row: its name on the left, its control on the right. With the explanations
+    // on, what it does goes under the name.
+    const row = (key: string, name: string, note: string | null, control: any) => (
+      <Box key={key} justifyContent="space-between" alignItems="center" gap={1}>
         <Box flexDirection="column" flexShrink={1}>
           <Text>{name}</Text>
-          <Text color="subtle" wrap="truncate-end">{note}</Text>
+          {note && <Text color="subtle" wrap="wrap">{note}</Text>}
         </Box>
         {control}
-      </Box>
-    )
-    // Each row is two lines and the gap one, so row n starts at line 3n.
-    const helpCard = (key: string, index: number, help: string) => (
-      <Box key={`help-${key}`} display="none" hover={{ scope: `help-${key}`, display: 'flex' }}
-        position="absolute" top={index * 3 + 2} left={0} width={Math.max(20, width - 2)}
-        borderStyle="round" borderColor="promptBorder" backgroundColor="background" paddingX={1}>
-        <Text wrap="wrap">{help}</Text>
       </Box>
     )
     const toggle = (isOn: boolean, onKey: string, offKey: string, turnOn: () => void, turnOff: () => void) => (
@@ -418,19 +428,30 @@ export const register: Register = (on) => {
           : <Button key={onKey} label="Turn on" onPress={turnOn} />}
       </Box>
     )
-    // A button, and beside it what pressing it does. In a narrow pane the line goes under the
-    // button instead, so it is never cut short: it is the part that makes the button safe.
+    // Short, the buttons sit side by side and wrap. With the explanations on, each button has
+    // what it does beside it, or under it in a narrow pane, so the line is never cut short.
     const wide = width >= 56
-    const action = (key: string, label: string, note: string, onPress: () => void, primary = false) => (
-      <Box key={`${key}-row`} flexDirection={wide ? 'row' : 'column'} alignItems={wide ? 'center' : 'flex-start'} gap={wide ? 1 : 0}>
-        <Box width={wide ? ACTION_COLUMNS : undefined} flexShrink={0}>
-          <Button key={key} label={label} variant={primary ? 'primary' : 'secondary'} onPress={onPress} />
+    type Action = { key: string; label: string; note: string; onPress: () => void; primary?: boolean }
+    const group = (actions: Action[]) => help
+      ? (
+        <Box flexDirection="column" gap={wide ? 0 : 1}>
+          {actions.map((a) => (
+            <Box key={`${a.key}-row`} flexDirection={wide ? 'row' : 'column'} alignItems={wide ? 'center' : 'flex-start'} gap={wide ? 1 : 0}>
+              <Box width={wide ? ACTION_COLUMNS : undefined} flexShrink={0}>
+                <Button key={a.key} label={a.label} variant={a.primary ? 'primary' : 'secondary'} onPress={a.onPress} />
+              </Box>
+              <Box flexShrink={1}>
+                <Text color="subtle" wrap="wrap">{a.note}</Text>
+              </Box>
+            </Box>
+          ))}
         </Box>
-        <Box flexShrink={1}>
-          <Text color="subtle" wrap="wrap">{note}</Text>
+      )
+      : (
+        <Box flexDirection="row" flexWrap="wrap" gap={1}>
+          {actions.map((a) => <Button key={a.key} label={a.label} variant={a.primary ? 'primary' : 'secondary'} onPress={a.onPress} />)}
         </Box>
-      </Box>
-    )
+      )
     const level = !s.git
       ? <Button key="create-repo" label="Turn on versions" onPress={() => createRepo($)} />
       : Select
@@ -447,44 +468,37 @@ export const register: Register = (on) => {
             <Box><Button key="setup" variant="primary" label="Set up" onPress={() => run($, 'easyclaude:start')} /></Box>
           </Box>
         )}
-        <Box flexDirection="column" gap={wide ? 0 : 1}>
-          <Text color="subtle">Your work</Text>
-          {action('continue', 'Build next step', s.setUp ? 'Builds the next task in your plan' : 'Carries on with what Claude was doing',
-            () => say($, 'keep going'), s.setUp)}
-          {action('ship', 'Save a version', SAVE_NOTE(s.autoship, s.git), () => say($, 'ship it'))}
-          {action('undo', 'Undo last change', 'Shows what it would undo, then asks you',
-            () => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.'))}
-        </Box>
-        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        <Box flexDirection="column" gap={1} position="relative">
-          {row('autoship-row', AUTOSHIP_NAME, s.git ? AUTOSHIP_NOTE : NO_GIT_NOTE, level)}
-          {row('cheap-row', 'Cheap mode', CHEAP_NOTE, toggle(s.cheap, 'cheap-on', 'cheap-off',
+        {group([
+          { key: 'continue', label: 'Build next step', primary: s.setUp, onPress: () => say($, 'keep going'),
+            note: s.setUp ? 'Builds the next task in your plan' : 'Carries on with what Claude was doing' },
+          { key: 'ship', label: 'Save a version', note: SAVE_NOTE(s.autoship, s.git), onPress: () => say($, 'ship it') },
+          { key: 'undo', label: 'Undo last change', note: 'Shows what it would undo, then asks you',
+            onPress: () => say($, 'I want to undo the last change. Tell me what you would restore before you change anything.') },
+        ])}
+        <Box flexDirection="column" gap={help ? 1 : 0}>
+          {/* With no git, the row says so even when short: the button alone does not say why. */}
+          {row('autoship-row', AUTOSHIP_NAME, !s.git ? NO_GIT_NOTE : help ? AUTOSHIP_HELP : null, level)}
+          {help && !s.git && <Text color="subtle" wrap="wrap">{NO_GIT_HELP}</Text>}
+          {row('cheap-row', 'Cheap mode', help ? `${CHEAP_NOTE}. ${CHEAP_HELP}` : null, toggle(s.cheap, 'cheap-on', 'cheap-off',
             () => run($, 'easyclaude:cheap-session'), () => run($, 'easyclaude:full')))}
-          {row('plain-row', 'Plain answers', PLAIN_NOTE, toggle(s.plain, 'plain', 'plain',
+          {row('plain-row', 'Plain answers', help ? `${PLAIN_NOTE}. ${PLAIN_HELP}` : null, toggle(s.plain, 'plain', 'plain',
             () => run($, 'easyclaude:plain', 'on'), () => run($, 'easyclaude:plain', 'off')))}
-          {helpCard('autoship-row', 0, s.git ? AUTOSHIP_HELP : NO_GIT_HELP)}
-          {helpCard('cheap-row', 1, CHEAP_HELP)}
-          {helpCard('plain-row', 2, PLAIN_HELP)}
         </Box>
+        {group([
+          { key: 'filetree', label: 'Project files', note: 'A list of your files beside the chat. Changes nothing', onPress: () => run($, 'filetree') },
+          { key: 'helpers', label: 'Progress', note: 'Each step of your request, what Claude did, and its helpers. Changes nothing',
+            onPress: () => run($, 'easyclaude-helpers') },
+          { key: 'security', label: 'Check security', note: 'Looks for leaked passwords and keys. Changes nothing',
+            onPress: () => run($, 'easyclaude:security-check') },
+          { key: 'skills', label: 'Find skills', note: 'Suggests add-ons. Installs only the ones you pick', onPress: () => run($, 'easyclaude:skills') },
+          { key: 'connect', label: 'Connect services', note: 'Advanced: links outside services with an API key',
+            onPress: () => run($, 'easyclaude:connect') },
+        ])}
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        <Box flexDirection="column" gap={wide ? 0 : 1}>
-          <Text color="subtle">Look and add</Text>
-          {action('filetree', 'Show project files', 'A list of your files beside the chat. Changes nothing',
-            () => run($, 'filetree'))}
-          {action('helpers', 'Show helpers', 'When Claude splits up the work: each part and its cost',
-            () => run($, 'easyclaude-helpers'))}
-          {action('security', 'Check security', 'Looks for leaked passwords and keys. Changes nothing',
-            () => run($, 'easyclaude:security-check'))}
-          {action('skills', 'Find skills', 'Suggests add-ons. Installs only the ones you pick',
-            () => run($, 'easyclaude:skills'))}
-          {action('connect', 'Connect services', 'Advanced: links outside services with an API key',
-            () => run($, 'easyclaude:connect'))}
-        </Box>
-        <Text color="promptBorder" wrap="truncate">{RULE}</Text>
-        {/* The old progress panel showed these; the bar above the prompt has no room for them. */}
-        <Box justifyContent="space-between" gap={1}>
-          <Text color="subtle" wrap="truncate">This session {money(u.costUsd)}</Text>
-          <Text color="subtle" wrap="truncate">Conversation {tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
+        <Box justifyContent="space-between" alignItems="center" gap={1}>
+          <Text color="subtle" wrap="truncate">Session {money(u.costUsd)} · {tokens(u.contextTokens)} of {tokens(u.contextWindow)}</Text>
+          <Button key="controls-help" plain label={help ? 'Hide explanations' : 'What do these do?'}
+            onPress={() => update($, controlsHelp, (shown) => !shown)} />
         </Box>
       </Box>
     )
