@@ -25,10 +25,15 @@ What feeds it changed.
   tools) instead, and adds nothing to any request.
 - **The bar follows every request**, from the moment it is sent: its first words, the steps
   done out of the steps planned, and on the right the share done, the actions so far, or
-  the time it took. Upstream showed it only for its own `savvy-flow` skill. Planned tasks
-  and phases, which only that skill reported, were removed with it.
+  the time it took. Upstream showed it only for its own `savvy-flow` skill. Phases, which
+  only that skill reported, were removed with it.
+- **The panel is the progress panel.** Upstream listed the tasks its planning tool reported
+  as dimmed crabs under the helpers. Here the request comes first: its cost, actions and
+  time, then each step of Claude's own step list as a row in that style, or the latest
+  actions when Claude keeps no list, then the helpers.
 - **The panel opens on the session's first helper**, once; after that, `/easyclaude-helpers`
-  or the `×N` button on the bar opens it. Upstream opened it for `savvy-` helpers only, and
+  or the Details button on the bar opens it. The button is on every request, with `×N` once
+  helpers run. Upstream showed only `×N`, opened the panel for `savvy-` helpers only, and
   named the command `/agents-info`.
 - **The picture bar is drawn on the desktop only.** Upstream drew it wherever the surface's
   table has `Svg`, which includes the terminal, and a plain terminal showed an empty row with
