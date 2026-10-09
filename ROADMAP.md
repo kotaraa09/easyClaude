@@ -246,3 +246,8 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   none of easyClaude. They are companions now: the first session says once which one is
   missing, with its install command, and the README installs all three. A release check in
   CI installs fresh and updates the last release, and fails when either does not load. #94.
+- **1.2.2** - The helpers panel becomes the progress panel, in Savvy's style: the request's
+  cost, actions and time, each step of Claude's step list (or the latest actions), then the
+  helpers. A Details button on the bar opens it on every request. The control panel is short,
+  with "What do these do?" for the explanations. A background task's report no longer
+  replaces the request's title on the bar. #96.
