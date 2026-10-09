@@ -120,6 +120,40 @@ test('bench: plant-limit fails untouched, fails a limit on one addition, passes 
     "  if (held + qty > 5) throw new Error('At most 5 of each plant');")));
 });
 
+// Roadmap item 7 needs a task the released plugin fails in a way a reader would catch. Each
+// of these hides an input the request does not mention, so the plain fix must fail.
+const PAY_LINE = 'return Math.round(total * (1 - rate) * 100) / 100;';
+
+test('bench: fixed-code fails untouched, fails a code that goes below zero, passes one that stops at zero', async () => {
+  const codes = (pay) => (dir) => edit(dir, 'src/checkout.js', (t) => t
+    .replace('const CODES = { SPRING10: 0.1 };', 'const CODES = { SPRING10: 0.1, SUMMER25: 0.25 };\nconst OFF = { WELCOME5: 5 };')
+    .replace(PAY_LINE, `const off = OFF[discount.code.toUpperCase()] ?? 0;\n  ${pay}`));
+  someFail('the untouched shop', await grade('outcome-fixed-code', 'base'));
+  someFail('a code that goes below zero', await grade('outcome-fixed-code', 'base',
+    codes('return Math.round((total * (1 - rate) - off) * 100) / 100;')));
+  allPass('a code that stops at zero', await grade('outcome-fixed-code', 'base',
+    codes('return Math.max(0, Math.round((total * (1 - rate) - off) * 100) / 100);')));
+});
+
+test('bench: gift-card fails untouched, fails a code read with parseInt, passes one read strictly', async () => {
+  const gift = (read) => (dir) => edit(dir, 'src/checkout.js', (t) => t.replace(PAY_LINE,
+    `const code = discount.code.toUpperCase();\n  const gift = code.startsWith('GIFT-') ? ${read} : 0;\n` +
+    '  return Math.max(0, Math.round((total * (1 - rate) - gift) * 100) / 100);'));
+  someFail('the untouched shop', await grade('outcome-gift-card', 'base'));
+  someFail('a code read with parseInt', await grade('outcome-gift-card', 'base', gift('parseInt(code.slice(5), 10)')));
+  allPass('a code read strictly', await grade('outcome-gift-card', 'base',
+    gift("(/^GIFT-(\\d+)$/.exec(code) ? Number(/^GIFT-(\\d+)$/.exec(code)[1]) : 0)")));
+});
+
+test('bench: merge-lines fails untouched, fails a merge that drops a missing quantity, passes one that counts it', async () => {
+  const merge = (add) => (dir) => edit(dir, 'src/cart.js', (t) => t.replace(
+    'cart.items.push({ ...item, qty: item.qty ?? 1 });',
+    `const line = cart.items.find((i) => i.id === item.id);\n  if (line) { ${add} return cart; }\n  cart.items.push({ ...item, qty: item.qty ?? 1 });`));
+  someFail('the untouched shop', await grade('outcome-merge-lines', 'base'));
+  someFail('a merge that drops a missing quantity', await grade('outcome-merge-lines', 'base', merge('line.qty += item.qty;')));
+  allPass('a merge that counts it', await grade('outcome-merge-lines', 'base', merge('line.qty += item.qty ?? 1;')));
+});
+
 // Found by the first full run: English requests answered in Hungarian, Slovak and Spanish.
 test('bench: a reply in another language is caught, and English passes', async () => {
   const { isEnglish } = await import('../scripts/bench.mjs');

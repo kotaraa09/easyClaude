@@ -20,6 +20,7 @@ import { join, isAbsolute } from 'node:path';
 import { treeFingerprint, lastSeen, remember } from './tree-state.mjs';
 import { laterBlock } from './later-memo.mjs';
 import { lookBlock, readTurn } from './look-check.mjs';
+import { reviewBlock } from './review-check.mjs';
 import { withLanguage } from './language.mjs';
 import { isTrusted, trust, askedAlready, markAsked, commandList } from './trust.mjs';
 import { locations } from './locations.mjs';
@@ -182,6 +183,8 @@ function loadConfig() {
     // "look": false turns off the page check in look-check.mjs, for a project whose pages
     // nobody needs to see after each change.
     look: raw.look !== false,
+    // "review": false turns off the second reader in review-check.mjs.
+    review: raw.review !== false,
   };
 }
 
@@ -434,6 +437,10 @@ if (HOOK) {
   remember(root, { session, tree, failed: failedNames });
 
   if (!failed.length) {
+    // Green means the code does what Claude meant. Before the page check, so a fix the
+    // reader asks for is looked at too; see review-check.mjs.
+    const review = reviewBlock(root, payload, { reviewSetting: cfg.review });
+    if (review) hold(review);
     allowAfterLook(unrunnable.length
       ? `Verify step(s) could not run: ${unrunnable.map((r) => `${r.name} (${r.why})`).join(', ')}. ` +
         'Everything else passed. Fix the contract or install the toolchain.'

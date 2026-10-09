@@ -522,8 +522,10 @@ const prompt = (text, id = 'p1') => ({ type: 'user', promptId: id, message: { ro
 const used = (name, input = {}) => ({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', name, input }] } });
 const feedback = { type: 'user', promptId: 'p1', message: { role: 'user', content: 'Stop hook feedback:\nVerification failed.' } };
 
+// The second reader holds a code change first (review-check.mjs); these tests are about the
+// page, so it is off here unless a test turns it on.
 const lookProject = (contract, { web = true, files = {} } = {}) => {
-  const dir = projectDir(contract);
+  const dir = projectDir(contract && contract.review === undefined ? { ...contract, review: false } : contract);
   if (web) writeFileSync(join(dir, 'index.html'), '<button id="pay">Pay</button>\n');
   for (const [rel, body] of Object.entries(files)) {
     mkdirSync(join(dir, rel, '..'), { recursive: true });
@@ -612,6 +614,58 @@ test('look: failing checks report the failure, not the page', async () => {
   const r = await lookStop(dir, [prompt('fix the button'), used('Edit', { file_path: join(dir, 'index.html') })]);
   assertMatch(r.stderr, /Verification failed/, 'a broken build comes first.');
   assert(!/nothing looked at the page/.test(r.stderr), `do not ask to look at a page that fails its checks:\n${r.out}`);
+});
+
+// --- a second reader, once a message ------------------------------------------
+// Green checks test what Claude meant. When a turn changed code and the checks pass, the gate
+// asks once for the diff reviewer. A line in build-task did not do it: no run used the skill.
+const reviewProject = (contract = { ...PASSING, review: true }, opts = { web: false }) => lookProject(contract, opts);
+
+test('review: changed code with passing checks is held once for the reviewer, then let go', async () => {
+  const dir = reviewProject();
+  const session = `review-${Date.now()}-${Math.random()}`;
+  const turn = [prompt('add a limit of five plants'), used('Edit', { file_path: join(dir, 'src', 'cart.js') })];
+  const first = await lookStop(dir, turn, session);
+  assert(first.code === BLOCK, `changed code must get a second reader:
+${first.out}`);
+  assertMatch(first.stderr, /easyclaude-diff-reviewer/, 'the hold must name the reviewer.');
+  assertMatch(first.stderr, /"haiku"/, 'the reviewer runs on the small model.');
+  assertMatch(first.stderr, /with no tool that runs commands/, 'with no shell, Claude still has the change to hand over.');
+  assertMatch(first.stderr, /Do not review the fix again/, 'one reader, once.');
+  const second = await lookStop(dir, turn, session);
+  assert(second.code === ALLOW, `once per message - the fixes are not reviewed again:
+${second.out}`);
+});
+
+test('review: a turn that already asked the reviewer is not held', async () => {
+  const dir = reviewProject();
+  const r = await lookStop(dir, [prompt('ship it'), used('Edit', { file_path: join(dir, 'src', 'cart.js') }),
+    used('Agent', { subagent_type: 'easyclaude:easyclaude-diff-reviewer', prompt: 'diff' })]);
+  assert(r.code === ALLOW, `the reviewer already read it:
+${r.out}`);
+});
+
+test('review: no hold for notes, data, a test-only edit, "review": false, or cheap mode', async () => {
+  const cases = [
+    ['a note', reviewProject(), 'NOTES.md'],
+    ['data', reviewProject(), 'data/plants.json'],
+    ['a test-only edit', reviewProject(), 'tests/cart.test.mjs'],
+    ['"review": false', reviewProject({ ...PASSING, review: false }), 'src/cart.js'],
+    ['cheap mode', reviewProject({ ...PASSING, review: true }, { web: false, files: { '.claude/cheap-session': '2026-10-09' } }), 'src/cart.js'],
+  ];
+  for (const [what, dir, file] of cases) {
+    const r = await lookStop(dir, [prompt('change it'), used('Write', { file_path: join(dir, file) })]);
+    assert(r.code === ALLOW, `${what} must not be held for review:
+${r.out}`);
+  }
+});
+
+test('review: failing checks report the failure, not the review', async () => {
+  const dir = reviewProject({ steps: [{ name: 'test', cmd: FAILS }], review: true });
+  const r = await lookStop(dir, [prompt('fix the cart'), used('Edit', { file_path: join(dir, 'src', 'cart.js') })]);
+  assertMatch(r.stderr, /Verification failed/, 'a broken build comes first.');
+  assert(!/easyclaude-diff-reviewer/.test(r.stderr), `do not review code that fails its checks:
+${r.out}`);
 });
 
 // Four Thai runs of six on 2026-10-02 got their "how to see it" line in English, and one in

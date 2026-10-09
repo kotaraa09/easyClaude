@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: outcome-gift-card
+context:
+  scaffold_script: setup.sh
