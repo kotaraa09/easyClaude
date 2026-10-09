@@ -95,10 +95,12 @@ describe('the recent actions', () => {
 
 describe('background work at the end of a turn', () => {
   test('a dev server or a watcher never ends, so it is not waited on', async () => {
-    for (const command of ['npm run dev', 'pnpm dev', 'npx vite', 'next dev', 'python -m http.server 8000', 'node server.js', 'npm test -- --watch']) {
+    for (const command of ['npm run dev', 'pnpm dev', 'npx vite', 'next dev', 'FOO=1 vite', 'python -m http.server 8000', 'node server.js',
+      'npm test -- --watch', 'npx jest --watchAll', 'docker compose up', 'tail -f log.txt']) {
       expect(isDevServer({ type: 'shell', command })).toBe(true)
     }
-    for (const command of ['npm test', 'node --test', 'npx vite build', 'node scripts/test.mjs', 'npm test && echo next']) {
+    for (const command of ['npm test', 'node --test', 'npx vite build', 'node scripts/test.mjs', 'npm test && echo next',
+      'yarn dev:build', 'npm run start-db', 'grep -w cart src/cart.js', 'docker compose up -d']) {
       expect(isDevServer({ type: 'shell', command })).toBe(false)
     }
   })
@@ -111,6 +113,8 @@ describe('background work at the end of a turn', () => {
     ])
     expect(waiting).toEqual([{ id: 'a', label: 'Run the tests' }, { id: 'b', label: 'Explore' }])
     expect(waitingOn(undefined)).toEqual([])
+    // Listed, but its status says it ended.
+    expect(waitingOn([{ id: 'd', type: 'shell', command: 'npm test', status: 'completed', description: 'Run the tests' }])).toEqual([])
   })
 })
 
@@ -340,6 +344,25 @@ describe('the panels, drawn', () => {
     const done = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
     expect(await done.find({ type: 'Text', text: 'Done' })).toBeDefined()
     await done.unmount()
+  })
+
+  test('an interrupted turn does not stay on Waiting', async ($, on) => {
+    project(on, {})
+    on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
+    on('turn.complete', async () => ({ text: '' }) as any)
+    on('classic.Stop', async () => ({}) as any)
+    await $.prompt.submit({ text: 'run the tests' } as any)
+    await $.turn.complete({ reason: 'answer', answer: 'Running them.', durationMs: 1000, isAborted: false, turnId: 't1' } as any)
+    await $.classic.Stop({
+      stop_hook_active: false,
+      background_tasks: [{ id: 'b1', type: 'shell', status: 'running', description: 'Run the tests', command: 'npm test' }],
+    } as any)
+    // The report wakes Claude, and the person interrupts before the turn's Stop.
+    await $.prompt.submit({ text: '<task-notification><task-id>b1</task-id><status>completed</status></task-notification>' } as any)
+    await $.turn.complete({ reason: 'aborted', answer: '', durationMs: 500, isAborted: true, turnId: 't2' } as any)
+    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    expect(await ui.find({ type: 'Text', text: 'Waiting' })).toBeUndefined()
+    await ui.unmount()
   })
 
   test('a dev server left running does not keep the bar waiting', async ($, on) => {

@@ -118,16 +118,18 @@ export function stepLine(steps: Step[]): string | null {
 // A dev server never ends: it serves the page until someone stops it, and is what the user
 // opens to look. It is left out, or the bar would wait for ever.
 const DEV_SERVERS = [
-  /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(dev|start|serve|preview)\b/i,
-  /(^|[;&|]\s*|\b(npx|bunx|pnpm\s+exec)\s+)(vite|next|nuxt|astro|remix)\b(?!\s+(build|lint|test)\b)/i,
+  /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(dev|start|serve|preview)(?![\w:-])/i,
+  /(^|[;&|]\s*|\b(npx|bunx|pnpm\s+exec)\s+)([A-Z_][A-Z0-9_]*=\S*\s+)*(vite|next|nuxt|astro|remix)\b(?!\s+(build|lint|test)\b)/i,
   /\b(ng|webpack)\s+serve\b/i,
   /\b(http-server|live-server|nodemon)\b/i,
   /\bnpx\s+serve\b/i,
   /\bnode\s+\S*server\S*\.[cm]?js\b/i,
   /\bpython3?\s+-m\s+http\.server\b/i,
   /\b(flask\s+run|uvicorn|gunicorn|php\s+-S|hugo\s+server|jekyll\s+serve|rails\s+s(erver)?)\b/i,
+  /\bdocker(-|\s+)compose\s+up\b(?!.*\s(-d|--detach)\b)/i,
+  /\btail\s+-[fF]\b/,
   // A watcher, such as `npm test -- --watch`, also runs until someone stops it.
-  /(^|\s)(--watch|-w)(\s|$)/,
+  /(^|\s)--watch(All)?\b/,
 ]
 
 type BackgroundTask = { id?: string; type?: string; status?: string; description?: string; command?: string; agent_type?: string }
@@ -137,6 +139,8 @@ export const isDevServer = (t: BackgroundTask): boolean =>
 
 export function waitingOn(tasks: ReadonlyArray<BackgroundTask> | undefined): Waiting[] {
   return (tasks ?? [])
+    // Listed as in flight, but a status that says it ended is believed over the list.
+    .filter((t) => !/^(completed|failed|killed|stopped|cancell?ed|done)$/i.test(String(t.status ?? '')))
     .filter((t) => !isDevServer(t))
     .map((t) => ({ id: String(t.id ?? ''), label: clip(String(t.description || t.command || t.agent_type || t.type || 'background work')) }))
 }
@@ -346,14 +350,18 @@ export const continuesRequest = (origin: { kind?: string } | undefined, text: st
 // The request runs again, under the title the user gave it. With none, it gets a plain one.
 const resumeRequest = async ($: any) => {
   if (!(await read($, request))) return startRequest($, 'Background work')
-  await update($, request, (r) => (r ? { ...r, endedAt: null } : r))
+  // What it waited on has reported, or Claude would not be carrying on; the next Stop lists
+  // whatever is still running.
+  await update($, request, (r) => (r ? { ...r, endedAt: null, waiting: [] } : r))
   $.ui.status('easyClaude: working')
   refreshLater($, false)
 }
 
-const endRequest = async ($: any) => {
+// An interrupted turn has no Stop to say what still runs, and the person stopped it: it is
+// not left saying Waiting.
+const endRequest = async ($: any, aborted = false) => {
   const now = await $.clock.now()
-  await update($, request, (r) => (r ? { ...r, endedAt: now } : r))
+  await update($, request, (r) => (r ? { ...r, endedAt: now, ...(aborted ? { waiting: [] } : {}) } : r))
   refreshLater($, false)
 }
 
@@ -441,7 +449,7 @@ export const register: Register = (on) => {
     }
     const result = await next(e)
     if (e.agentId !== undefined) return result
-    await inOrder(() => endRequest($))
+    await inOrder(() => endRequest($, e.isAborted === true))
     return result
   })
 
