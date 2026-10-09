@@ -106,6 +106,20 @@ test('bench: graded code can read its copy, and cannot write or start a process'
   assert(ownCheck?.passed, `the sandboxed test run did not block a write or a process:\n${ownCheck?.why}\n${own ?? ''}`);
 });
 
+// Roadmap item 7. The plain fix checks one addition, and a shopper who adds the same plant
+// twice gets past it: that fix must fail, or the case cannot show what a second reader adds.
+test('bench: plant-limit fails untouched, fails a limit on one addition, passes a limit on the order', async () => {
+  const limit = (check) => (dir) => edit(dir, 'src/cart.js', (t) => t.replace(
+    'cart.items.push({ ...item, qty: item.qty ?? 1 });',
+    `const qty = item.qty ?? 1;\n  ${check}\n  cart.items.push({ ...item, qty });`));
+  someFail('the untouched shop', await grade('outcome-plant-limit', 'base'));
+  someFail('a limit on one addition', await grade('outcome-plant-limit', 'base',
+    limit("if (qty > 5) throw new Error('At most 5 of each plant');")));
+  allPass('a limit on the order', await grade('outcome-plant-limit', 'base', limit(
+    'const held = cart.items.filter((i) => i.id === item.id).reduce((n, i) => n + i.qty, 0);\n' +
+    "  if (held + qty > 5) throw new Error('At most 5 of each plant');")));
+});
+
 // Found by the first full run: English requests answered in Hungarian, Slovak and Spanish.
 test('bench: a reply in another language is caught, and English passes', async () => {
   const { isEnglish } = await import('../scripts/bench.mjs');

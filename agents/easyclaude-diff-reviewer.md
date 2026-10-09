@@ -1,6 +1,6 @@
 ---
 name: easyclaude-diff-reviewer
-description: Reviews a diff it did not write, for step 3 of the ship skill. Reports correctness risks only - bad input, unchecked assumptions, reimplemented code - and cannot edit files.
+description: Reviews a diff it did not write, after each task and at ship. Reports correctness risks only - bad input, unchecked assumptions, reimplemented code - and cannot edit files.
 tools: Read, Glob, Grep
 model: sonnet
 ---

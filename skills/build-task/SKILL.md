@@ -1,7 +1,7 @@
 ---
 name: build-task
 description: Implement the next task from docs/STATE.md as one vertical slice, then verify it. Use when the user says continue, keep going, build it, next, or asks to implement something already planned in STATE.md.
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task, Agent
 ---
 
 # Build the next task
@@ -42,7 +42,23 @@ If a failure is not obvious, switch to the `debug` skill rather than trying edit
 
 If you cannot make it pass after a genuine attempt, stop and say exactly what's failing and what you tried. A clear failure is more useful than a confident lie.
 
-## 4. Update state
+## 4. A second reader, once
+
+Green checks mean the code does what you meant. They cannot show what you did not think of, because you wrote the tests too. So once this task's checks pass, one reader who did not write it looks at the change, once. Not after each edit, and not for a task that changed only notes, the plan or `docs/`.
+
+Dispatch the `easyclaude-diff-reviewer` subagent with `model: "haiku"` and this task's change in the prompt, and no other context: the `git diff` of the task, or, with no tool that runs commands, each file you changed with the lines you wrote. A new file goes in whole. The reviewer reads and reports; it cannot edit.
+
+**Wait for its report before step 5.** If it runs in the background, it arrives in a later message. Then:
+
+- A finding with an input that breaks the code, or a line where a failure goes unreported: fix it, add a test for that input when the project has tests, and run the checks in step 3 again.
+- A finding that is only possible, or that you cannot confirm: put it under `## Debt` in step 5, in words the user understands.
+- Do not review the fix again. One reader, once a task.
+
+If you cannot dispatch a subagent, skip this step and say in your report that the task had no second reader. Do not review your own change in its place: you would read what you meant.
+
+If `ship` runs later in this turn on the same change, it needs no second review; say that the change was reviewed when the task finished.
+
+## 5. Update state
 
 - Move the task to `## Done` with a one-line note of what changed.
 - **Keep `## Done` to the ten most recent.** If your entry pushes older ones out, append them to `docs/CHANGELOG.md` — newest first, create it if it doesn't exist. Move them, never delete them. STATE.md is read at the start of every session and again by every skill that touches state, so an unbounded `## Done` is a tax on every session after this one.
@@ -51,7 +67,7 @@ If you cannot make it pass after a genuine attempt, stop and say exactly what's 
 - **If `## Debt` passes ten entries, say so once in your report.** The fix is to promote a few into `## Next` or drop them deliberately, not to keep appending — a list nobody triages is a slower way of forgetting. Don't start paying it down uninvited.
 - Any decision that will confuse someone in a month goes in `docs/DECISIONS.md` with its reason.
 
-## 5. Ship it, to the level the user chose
+## 6. Ship it, to the level the user chose
 
 Skip this unless the session opener said autoship is set, or the user set it with
 `/easyclaude:autoship` in this session. Otherwise say nothing about shipping: do not ask
@@ -62,6 +78,6 @@ the level. Each finished task is shipped; there is no waiting for the whole feat
 anything you found and did not do under `## Next` first, so the plan is right in what you
 ship. If the user asked you to ship in this turn, invoke `ship` whatever the level says.
 
-## 6. Report
+## 7. Report
 
-Three lines: what now works, what verify said, what's next. No summary of your process.
+Three lines: what now works, what verify and the reviewer said, what's next. No summary of your process.
