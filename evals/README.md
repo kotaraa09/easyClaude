@@ -71,10 +71,12 @@ claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish
 - `--scaffold` is required. Without it every case runs in an empty folder again.
 - `--allow-tools Edit` lets the typo and debug cases change files. Edit is a gated tool.
 - No case allows a shell. On Windows the runner refuses any shell grant, because it has no
-  sandbox there. So `ship` and `debug` cannot run the checks, and their graders accept a
-  reply that says so and stops.
+  sandbox there. So Claude cannot run the checks itself in `ship` and `debug`. easyClaude's
+  Stop hook still runs them, so the `debug` grader accepts a reply that says the automatic
+  checks ran, and the `ship` grader accepts a reply that says it could not run them and stops.
 - `--case` takes one glob. A second `--case` replaces the first.
-- A full run is about 90 agent runs: about 10 minutes with `-j 4`, and 7 to 9 US dollars.
+- A full run is about 90 agent runs: about 10 minutes with `-j 4`, and about 14 US dollars on
+  Claude Code 2.1.292 (7 to 9 dollars on 2.1.284).
 - `skills-for-a-godot-game` and `kickoff-offers-godot-skills` need easyClaude, so run them with
   `--ablation none`. In the default run their no-plugin arm measures nothing.
 
@@ -170,6 +172,44 @@ and it said only how to open the page, so the judge never saw the fix named. #65
 reply to start with what changed. After #70 no reply asked for approval, which shows the
 sample shop's approval from setup held inside the runner. The one failure there named the
 fix as well, and reads as a judge miss.
+
+**A re-run on 1.2.3**, 2026-10-09, Claude Code 2.1.292, three runs per arm. The $10 ceiling
+stopped it after 13 of the 18 cases; `rescue`, `ship`, `skills-for-a-godot-game` and the
+two slopmonster cases did not run.
+
+| case | with plugin | without plugin | after the case fix, with plugin |
+|---|---|---|---|
+| debug-on-an-error-report | 0/3 | 3/3 | 2/3 |
+| kickoff-on-an-empty-folder | 0/3 | 0/3 | 3/3 |
+| build-task-on-keep-going | 2/3 | 3/3 | 3/3 |
+| kickoff-offers-godot-skills | 2/3 | 0/3 | - |
+| quiet-on-a-typo-fix | 2/3 | 3/3 | - |
+| quiet-on-how-to-ship | 2/3 | 0/2 | - |
+| the other seven | 21/21 | 16/21 | - |
+
+The three failures were in the cases, not in easyClaude. In `debug`, every reply said the
+checks ran and passed, and they had: the Stop hook runs them with no shell tool, and tells
+Claude the result before its last reply. The grader still failed any claim that the tests
+passed. In `kickoff`, every reply asked the 1.1.3 setup questions in chat, ending with the
+ready question, and the grader still asked for one question and no list. In `build-task`,
+two runs started the build and hit the 6-turn limit before a reply; the limit is 14 now, as
+in `debug`.
+
+The last column is the final wording of each case. The `debug` failure there said "the
+automatic checks now pass", which the grader accepts, and reads as a judge miss; over three
+re-runs while the wording changed, `debug` passed 7 of 9. The typo and how-to-ship failures
+are runs the ceiling stopped before the judge read them. The Godot failure is the known one:
+Claude Code refused the writes into `.claude/`.
+
+The five cases the ceiling stopped ran the next day, on the same versions, for $2.97:
+
+| case | with plugin | without plugin |
+|---|---|---|
+| rescue-on-wanting-it-back | 3/3 | 1/3 |
+| ship-on-ship-it | 3/3 | 3/3 |
+| slopmonster-on-sounds-like-ai | 3/3 | 3/3 |
+| quiet-slopmonster-on-write-copy | 3/3 | 3/3 |
+| skills-for-a-godot-game, `--ablation none` | 3/3 | - |
 
 ## The outcome benchmark
 
