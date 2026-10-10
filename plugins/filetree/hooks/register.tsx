@@ -1,7 +1,8 @@
 import { type BuiltinToolResults, type EngineInterface, type Register, type Timer, update } from 'claude-code'
 import { openCommand } from './open'
 
-import type { Activity, FileNode, FileTree, Theme } from '../types'
+import type { Activity, Changes, FileNode, FileTree, Theme } from '../types'
+import { changesOf, hunksOf, isBinary, newFileHunks } from './changes'
 import { BRANCH_ICON, chainOf, type GitAction, gitActions, readOnly, readTargets, resolve, TONES } from './git'
 import type { RowSpec, RowsProps, Seg } from './rows'
 import { CHEVRON_CLOSED, CHEVRON_OPEN, fileIcon, GIT_COLOR } from './icons'
@@ -36,6 +37,8 @@ const TREE = { plugin: 'filetree', key: 'tree' } as const
 const THEME = { plugin: 'filetree', key: 'theme' } as const
 const ACTIVITY = { plugin: 'filetree', key: 'activity' } as const
 const PANE = 'filetree'
+const CHANGES = { plugin: 'filetree', key: 'changes' } as const
+const CHANGES_PANE = 'filetree-changes'
 const SHIMMER = Object.fromEntries(Object.entries(TONES).map(([k, v]) => [k, { bright: v.bright, dim: v.dim }]))
 const BRANCH_ROW = '#branch'
 const FLASH_MS = 2700
@@ -880,6 +883,44 @@ async function openFile($: EngineInterface, path: string): Promise<void> {
   }
 }
 
+// The changes panel: one file against the last save to git, the way an editor shows a diff.
+// A click on a changed file opens it; a click on another file, while it is open, says that
+// file has no changes.
+async function isChangesOpen($: EngineInterface): Promise<boolean> {
+  try {
+    return (await $.ui.panes()).some(p => p.id === CHANGES_PANE)
+  } catch {
+    return false
+  }
+}
+
+async function changesFor($: EngineInterface, path: string): Promise<Changes> {
+  const t = await get($)
+  if (!t.top) return changesOf(path, '', 'This folder has no git history, so there is no last save to compare with.')
+  const rel = relative(t.root, path)
+  const change = dirty.root === t.root ? dirty.files[path] : undefined
+  try {
+    if (change === 'new' || (await git($, t.root, ['rev-parse', '--verify', '--quiet', 'HEAD'], 5_000)).exitCode !== 0) {
+      const text = String(await $.fs.read(path))
+      return /\0/.test(text) ? changesOf(path, '', 'This file is not text, so its changes cannot be shown as lines.') : changesOf(path, newFileHunks(text), text ? 'A new file: every line is new.' : 'A new, empty file.')
+    }
+    const run = await git($, t.root, ['-c', 'core.quotepath=off', 'diff', 'HEAD', '--no-color', '--no-ext-diff', '--', rel])
+    if (run.exitCode !== 0) return changesOf(path, '', `git could not compare this file: ${run.stderr.trim().split('\n')[0] || `exit ${run.exitCode}`}`)
+    if (isBinary(run.stdout)) return changesOf(path, '', 'This file is not text, so its changes cannot be shown as lines.')
+    return changesOf(path, hunksOf(run.stdout), change === 'del' ? 'This file was deleted.' : '')
+  } catch {
+    return changesOf(path, '', 'The changes could not be read.')
+  }
+}
+
+async function showChanges($: EngineInterface, path: string, force: boolean): Promise<void> {
+  const isChanged = dirty.files[path] !== undefined
+  const isOpen = await isChangesOpen($)
+  if (!force && !isChanged && !isOpen) return
+  await $.state.set(CHANGES, await changesFor($, path))
+  if (!isOpen) await $.ui.open({ id: CHANGES_PANE, title: `Changes: ${path.split('/').pop() || path}` })
+}
+
 async function toggle($: EngineInterface, n: FileNode): Promise<void> {
   if (n.kind === 'dir' && !(await get($)).expanded.includes(n.id)) await loadDirs($, [n.id])
   await patch($, t => {
@@ -895,6 +936,7 @@ async function press($: EngineInterface, n: FileNode): Promise<void> {
   lastPress = { key: isDouble ? '' : n.id, at: now }
   if (!isDouble) {
     await toggle($, n)
+    if (n.kind !== 'dir') await showChanges($, n.id, false)
     return
   }
   await openNode($, n)
@@ -1075,6 +1117,7 @@ export const register: Register = (on, options) => {
       else if (cur.parent !== t.root) await patch($, () => ({ cursor: cur.parent }))
     } else if (cur && data.key === 'return') await (cur.kind !== 'dir' ? openNode($, cur) : toggle($, cur))
     else if (cur && data.key === ' ') await toggle($, cur)
+    else if (cur && cur.kind !== 'dir' && data.key === 'd') await showChanges($, cur.id, true)
     return {}
   })
 
@@ -1148,6 +1191,36 @@ export const register: Register = (on, options) => {
   on('prompt.attachment', async ($, e, next) => {
     void settleBackground($, e.text)
     return next(e)
+  })
+
+  on('ui.render', { component: 'Pane', requestId: CHANGES_PANE }, async ($, e, next) => {
+    if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
+    const { Box, Text, Button, Code } = $.ui.resolve(e)
+    const c = (await $.state.get(CHANGES)).value
+    const theme: Theme = (await $.state.get(THEME)).value ?? DEFAULT_THEME
+    if (!c) return <Box><Text color={theme.muted}>Click a changed file in the file tree to see its changes.</Text></Box>
+    const t = await get($)
+    const name = inside(t.root, c.path) ? relative(t.root, c.path) : shortPath(c.path)
+    return (
+      <Box flexDirection="column" backgroundColor={theme.bg || undefined}>
+        <Box flexDirection="row">
+          <Box flexShrink={1}>
+            <Text bold color={theme.accent} wrap="truncate-start">{name}</Text>
+          </Box>
+          {c.added > 0 && <Text color={ADD_COLOR}>{` +${c.added}`}</Text>}
+          {c.removed > 0 && <Text color={DEL_COLOR}>{` -${c.removed}`}</Text>}
+          <Box flexGrow={1} />
+          <Box flexDirection="row" gap={2}>
+            <Button key="open" plain label="Open file" onPress={() => void openFile($, c.path)} />
+            <Button key="refresh" plain dimColor label="Refresh" onPress={() => void (async () => $.state.set(CHANGES, await changesFor($, c.path)))()} />
+            <Button key="close" plain dimColor label="Close" onPress={() => void $.ui.close({ id: CHANGES_PANE }).catch(() => undefined)} />
+          </Box>
+        </Box>
+        <Text color={theme.muted}>Since the last save to git</Text>
+        {c.note ? <Text color={theme.muted}>{c.note}</Text> : null}
+        {c.diff ? <Code key="diff" source={c.diff} format="diff" path={c.path} wrap="truncate-end" /> : null}
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {

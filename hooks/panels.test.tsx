@@ -5,7 +5,7 @@ import type { On } from 'claude-code'
 
 import { actionLabel, addRecent, applyTaskUpdate, fromTodos, isDevServer, money, settingsFrom, stepLine, waitingOn } from './panels'
 import { ADVICE_LIMIT, afterStep, afterTurn, freshGuard, holdText, shouldHold } from './clear-reminder'
-import { flowOf, label, side } from './savvy-progress/register'
+import { costumeOf, flowOf, label, side } from './savvy-progress/register'
 import type { Request, Step } from '../types'
 
 const SURFACES = ['terminal', 'desktop'] as const
@@ -139,6 +139,30 @@ describe('the progress bar', () => {
     expect(side(done)).toBe('2m 14s')
     expect(flowOf(r, { dismissedAt: 0 })).toBe(null)
     expect(flowOf(null, { dismissedAt: -1 })).toBe(null)
+  })
+})
+
+describe('the uniforms of the helpers', () => {
+  test('a helper dresses for the job its type names', () => {
+    expect(costumeOf('Explore')).toBe('explore')
+    expect(costumeOf('easyclaude:easyclaude-diff-reviewer', 'Review the branch diff')).toBe('reviewer')
+    expect(costumeOf('Plan', 'Find the files to change')).toBe('planner')
+    expect(costumeOf('impeccable-documenter')).toBe('writer')
+    expect(costumeOf('impeccable-asset-producer')).toBe('artist')
+  })
+
+  test('a general helper dresses for the words of its task', () => {
+    expect(costumeOf('general-purpose', 'Fix the checkout bug')).toBe('coder')
+    expect(costumeOf('general-purpose', 'Make the shop page look better')).toBe('artist')
+    expect(costumeOf('general-purpose', 'Write the README for the shop')).toBe('writer')
+    expect(costumeOf('general-purpose', 'Plan the delivery calendar')).toBe('planner')
+    expect(costumeOf('general-purpose', 'Check the checkout page for mistakes')).toBe('reviewer')
+  })
+
+  test('a helper with no job it names stays the plain crab, and a model tier keeps its costume', () => {
+    expect(costumeOf('general-purpose', 'Find out what the weather API returns')).toBe('other')
+    expect(costumeOf('general-purpose', 'Look at the checkout code')).toBe('coder')
+    expect(costumeOf('savvy-careful', 'Fix the checkout bug')).toBe('careful')
   })
 })
 

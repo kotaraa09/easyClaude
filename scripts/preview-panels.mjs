@@ -76,6 +76,20 @@ const DEMO = `
       ],
     }))
     await update($, usage, () => u)
+    // \`/easyclaude-preview-demo helpers\` adds one helper in each uniform, half still at work.
+    if (/helpers/.test(String(e.args ?? ''))) {
+      const jobs = [
+        ['general-purpose', 'Fix the checkout bug'], ['general-purpose', 'Make the shop page look better'],
+        ['easyclaude:easyclaude-diff-reviewer', 'Review the branch diff'], ['Plan', 'Plan the delivery calendar'],
+        ['general-purpose', 'Write the README for the shop'], ['Explore', 'Find where discounts are checked'],
+        ['general-purpose', 'Find out what the weather API returns'],
+      ]
+      await update($, helpers, () => jobs.map(([type, description], i) => ({
+        id: 'demo' + i, type, description, model: 'claude-sonnet-5-5', status: i % 2 ? 'done' : 'running',
+        startedAt: now - 60000 - i * 9000, ...(i % 2 ? { endedAt: now - 5000 } : {}),
+        contextTokens: 20000 + i * 7000, contextMax: 1000000, tokens: 30000 + i * 5000, costUsd: 0.04 + i * 0.03, steps: 3 + i, round: 1,
+      })))
+    }
     return { text: 'The preview progress bar now shows a sample request.' }
   })
 }

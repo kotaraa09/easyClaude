@@ -33,6 +33,12 @@ the Claude desktop app. It checked the terminal's layout (fullscreen, 110 column
 desktop app places the pane beside the conversation whatever that layout is. The two checks
 now apply when the session draws on no desktop surface.
 
+Added by easyClaude: a changes panel. A click on a changed file, or `d` on the cursor's file,
+opens it with the file's changes since the last save to git (`git diff HEAD`), drawn by the
+engine's `Code` element. `hooks/changes.ts` and `hooks/changes.test.ts` are new; the panel,
+its state (`changes` in `types/index.d.ts`) and the two calls that open it are in
+`hooks/register.tsx`.
+
 Left behind: `README.md`, `media/` (6.5MB of GIFs), `tests/`, `scripts/`, `.githooks/`,
 the CI workflow and the marketplace file.
 
