@@ -201,6 +201,16 @@ re-runs while the wording changed, `debug` passed 7 of 9. The typo and how-to-sh
 are runs the ceiling stopped before the judge read them. The Godot failure is the known one:
 Claude Code refused the writes into `.claude/`.
 
+The five cases the ceiling stopped ran the next day, on the same versions, for $2.97:
+
+| case | with plugin | without plugin |
+|---|---|---|
+| rescue-on-wanting-it-back | 3/3 | 1/3 |
+| ship-on-ship-it | 3/3 | 3/3 |
+| slopmonster-on-sounds-like-ai | 3/3 | 3/3 |
+| quiet-slopmonster-on-write-copy | 3/3 | 3/3 |
+| skills-for-a-godot-game, `--ablation none` | 3/3 | - |
+
 ## The outcome benchmark
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
