@@ -203,6 +203,69 @@ test('bench: --style adds the style to every task in a copy, and leaves the repo
   assert(/no output-styles/.test(refused), `a style that does not ship must be refused, not run as the default: ${refused}`);
 });
 
+// The prompt levels compare the same tasks asked four ways. A level that drifted from the
+// task's own words, or worded a different set of tasks, would compare two things at once.
+test('bench: the beginner level is each task\'s own words, and every level words the same tasks', async () => {
+  const { PROMPT_LEVELS, levelPrompt } = await import('../scripts/bench.mjs');
+  const { LEVELS } = await import('../scripts/prompt-gap.mjs');
+  const tasks = (level) => readdirSync(join(PROMPT_LEVELS, level)).filter((f) => f.endsWith('.md')).sort();
+  const base = tasks('beginner');
+  assert(base.length >= 4, `the beginner level words ${base.length} tasks`);
+  for (const level of LEVELS) assert(JSON.stringify(tasks(level)) === JSON.stringify(base), `${level} words other tasks than beginner`);
+  for (const f of base) {
+    const name = f.replace(/\.md$/, '');
+    const own = readFileSync(join(caseDir(name), 'prompt.md'), 'utf8').replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+    assert(levelPrompt('beginner', name) === own, `${name}: evals/prompt-levels/beginner differs from its prompt.md`);
+  }
+});
+
+test('bench: --prompts words the tasks in a copy, drops the tasks it does not word, and keys the cache by it', async () => {
+  const { variantPlugin, levelPrompt, caseKey } = await import('../scripts/bench.mjs');
+  const before = readFileSync(join(caseDir('outcome-fix-checkout'), 'prompt.md'), 'utf8');
+  const dir = variantPlugin({ prompts: 'expert-spec' });
+  try {
+    const outcomes = join(dir, 'evals', 'outcomes');
+    assert(!existsSync(join(outcomes, 'outcome-two-sessions')), 'a task the level does not word must not run under its name');
+    const text = readFileSync(join(outcomes, 'outcome-fix-checkout', 'prompt.md'), 'utf8');
+    assert(text.startsWith('---') && /\nname: outcome-fix-checkout\n/.test(text.replace(/\r\n/g, '\n')), 'the frontmatter stays');
+    assert(text.includes(levelPrompt('expert-spec', 'outcome-fix-checkout')), "the level's words are the prompt");
+    assert(!text.includes("I don't know how to code. Please fix it for me."), 'the old words are gone');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  assert(readFileSync(join(caseDir('outcome-fix-checkout'), 'prompt.md'), 'utf8') === before, 'the repo case is untouched');
+  const opts = { model: 'claude-sonnet-5', runs: 3, shell: false };
+  const plainKey = caseKey('outcome-fix-checkout', 'v1', opts);
+  const spec = caseKey('outcome-fix-checkout', 'v1', { ...opts, prompts: 'expert-spec' });
+  assert(spec !== plainKey && spec !== caseKey('outcome-fix-checkout', 'v1', { ...opts, prompts: 'beginner-terse' }),
+    'a level must not reuse the cached runs of the usual words, or of another level');
+  let refused = '';
+  try { variantPlugin({ prompts: 'no-such-level' }); } catch (e) { refused = e.message; }
+  assert(/no evals\/prompt-levels/.test(refused), `a level that does not exist must be refused: ${refused}`);
+});
+
+test('prompt-gap: pools the two levels of each side, and reports the gap with and without easyClaude', async () => {
+  const { report, wilson } = await import('../scripts/prompt-gap.mjs');
+  const [lo, hi] = wilson(6, 12);
+  assert(lo > 0.2 && lo < 0.3 && hi > 0.7 && hi < 0.8, `the Wilson range of 6/12 is about 25-75%: ${lo}-${hi}`);
+  assert(wilson(0, 0)[0] === 0 && wilson(0, 0)[1] === 1, 'no runs is no knowledge');
+  const runs = (ok, n, asked = 0) => Array.from({ length: n }, (_, i) => ({ success: i < ok, asked: i >= n - asked, costUsd: 0.1 }));
+  const level = (w, wo) => ({ version: 'v', opts: { model: 'm' }, with: { cases: [{ name: 'outcome-a', runs: runs(...w) }] }, without: { cases: [{ name: 'outcome-a', runs: runs(...wo) }] } });
+  const r = report({
+    beginner: level([3, 3], [1, 3]), 'beginner-terse': level([2, 3, 1], [0, 3]),
+    'expert-checklist': level([3, 3], [3, 3]), 'expert-spec': level([3, 3], [2, 3]),
+  });
+  assert(r.beginner.with.ok === 5 && r.beginner.with.n === 6 && r.beginner.with.asked === 1, 'the beginner side pools both beginner levels');
+  assert(Math.abs(r.gapWith - 1 / 6) < 1e-9 && Math.abs(r.gapWithout - 4 / 6) < 1e-9, `the gaps: ${r.gapWith}, ${r.gapWithout}`);
+  assert(/Gap, expert minus beginner: \+17 points with easyClaude, \+67 points without/.test(r.text), r.text);
+
+  const { levelPrompt } = await import('../scripts/bench.mjs');
+  const sent = (prompt) => ({ beginner: { version: 'v', opts: {}, with: { cases: [{ name: 'outcome-fix-checkout', prompt, runs: runs(1, 1) }] }, without: { cases: [] } } });
+  assert(report(sent(`${levelPrompt('beginner', 'outcome-fix-checkout')}\r\n`)).wrong.length === 0, "a run sent its level's words passes");
+  const off = report(sent('checkout broken'));
+  assert(off.wrong.length === 1 && /WORDS DIFFER/.test(off.text), 'a run sent other words must be named, so its figures are not used');
+});
+
 test('bench: a run stopped by a usage limit is recognised, and a normal reply is not', async () => {
   const { USAGE_LIMIT } = await import('../scripts/bench.mjs');
   assert(USAGE_LIMIT.test("You've hit your monthly spend limit · raise it at claude.ai/settings/usage"), 'the real message');

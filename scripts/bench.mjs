@@ -7,6 +7,7 @@
 //   node scripts/bench.mjs --fresh-baseline  re-run the no-easyClaude arm even if cached
 //   node scripts/bench.mjs --runs 1          quick look while iterating - not for publishing
 //   node scripts/bench.mjs --case 'outcome-fix*' --model claude-opus-5-5 --max-cost-usd 5
+//   node scripts/bench.mjs --prompts expert-spec   the tasks in the words of evals/prompt-levels/
 //
 // The trigger suite in evals/ proves which skill answers a sentence. It cannot say whether
 // the answer helped: on four of seven cases, Claude without the plugin scored the same.
@@ -300,25 +301,70 @@ export function replyMeasures(text) {
 // text the same way, with the case field the runner does honour. It runs a copy of the
 // plugin, so the case files in the repo are never touched.
 export function stylePlugin(style) {
-  const file = join(root, 'output-styles', `${style}.md`);
-  if (!existsSync(file)) throw new Error(`--style ${style}: no output-styles/${style}.md`);
-  const body = readFileSync(file, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
-  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-styled-'));
+  return variantPlugin({ style });
+}
+
+// --prompts <level>: every task asked in the words of evals/prompt-levels/<level>/<task>.md
+// instead of its own prompt.md, to measure how much the way a request is written changes the
+// result, with easyClaude and without. A task the level does not word is left out of the copy,
+// so it never runs under the level's name in its usual words.
+export const PROMPT_LEVELS = join(root, 'evals', 'prompt-levels');
+export function levelPrompt(level, name) {
+  const file = join(PROMPT_LEVELS, level, `${name}.md`);
+  return existsSync(file) ? readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trim() : null;
+}
+
+// Rewrites the tasks of a copied suite, under <dir>/evals/outcomes, for a style and a level.
+export function applyVariant(dir, { style = null, prompts = null } = {}) {
+  let body = null;
+  if (style) {
+    const file = join(root, 'output-styles', `${style}.md`);
+    if (!existsSync(file)) throw new Error(`--style ${style}: no output-styles/${style}.md`);
+    body = readFileSync(file, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
+  }
+  if (prompts && !existsSync(join(PROMPT_LEVELS, prompts))) throw new Error(`--prompts ${prompts}: no evals/prompt-levels/${prompts}/`);
+  const outcomes = join(dir, 'evals', 'outcomes');
+  let worded = 0;
+  for (const name of readdirSync(outcomes)) {
+    const prompt = join(outcomes, name, 'prompt.md');
+    if (!existsSync(prompt)) continue;
+    let text = readFileSync(prompt, 'utf8');
+    if (prompts) {
+      const words = levelPrompt(prompts, name);
+      if (words === null) {
+        rmSync(join(outcomes, name), { recursive: true, force: true });
+        continue;
+      }
+      const head = text.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
+      if (!head) throw new Error(`--prompts ${prompts}: ${name}/prompt.md has no frontmatter`);
+      text = `${head[0]}\n${words}\n`;
+      worded++;
+    }
+    if (body !== null) {
+      const styled = text.replace(/^(---\r?\n[\s\S]*?)(\r?\n---\r?\n)/,
+        (_, head, end) => `${head}\nappend_system_prompt: ${JSON.stringify(body)}${end}`);
+      if (styled === text || /\nappend_system_prompt:[\s\S]*\nappend_system_prompt:/.test(styled)) {
+        throw new Error(`--style ${style}: could not add the style to ${name}/prompt.md`);
+      }
+      text = styled;
+    }
+    writeFileSync(prompt, text);
+  }
+  if (prompts && !worded) throw new Error(`--prompts ${prompts}: the level words none of the tasks`);
+}
+
+// A copy of the plugin with its tasks rewritten, so the case files in the repo are never touched.
+export function variantPlugin(variant) {
+  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-variant-'));
   cpSync(root, dir, {
     recursive: true,
     filter: (src) => !/^(\.git|node_modules|evals[\\/]results)([\\/]|$)/.test(relative(root, src)),
   });
-  for (const name of readdirSync(join(dir, 'evals', 'outcomes'))) {
-    const prompt = join(dir, 'evals', 'outcomes', name, 'prompt.md');
-    if (!existsSync(prompt)) continue;
-    const text = readFileSync(prompt, 'utf8');
-    const styled = text.replace(/^(---\r?\n[\s\S]*?)(\r?\n---\r?\n)/,
-      (_, head, end) => `${head}\nappend_system_prompt: ${JSON.stringify(body)}${end}`);
-    if (styled === text || /\nappend_system_prompt:[\s\S]*\nappend_system_prompt:/.test(styled)) {
-      rmSync(dir, { recursive: true, force: true });
-      throw new Error(`--style ${style}: could not add the style to ${name}/prompt.md`);
-    }
-    writeFileSync(prompt, styled);
+  try {
+    applyVariant(dir, variant);
+  } catch (e) {
+    rmSync(dir, { recursive: true, force: true });
+    throw e;
   }
   return dir;
 }
@@ -431,15 +477,21 @@ async function runArm(label, pluginDir, opts) {
       // A run that never started measured nothing either: no sample project, or no login.
       // Both reached the table as 0/3 on 2026-09-29, one marked as a full result.
       if (USAGE_LIMIT.test(reply) || NOT_STARTED.test(`${run.error ?? ''}\n${reply}`)) limited++;
+      // Changed no file and ended on a question: it asked instead of acting. The benchmark
+      // sends one message, so a run that asks fails here, though a person could answer it.
+      const changed = (run.graders ?? []).find((g) => g.name === 'changed-files')?.passed;
       runs.push({
         success: checks.every((k) => k.passed), checks, reply, ...replyMeasures(reply),
+        asked: changed === false && /\?/.test(reply.slice(-600)),
         saved: relative(root, saved),
         // Day one's cost, spread over the day-two runs it seeded.
         costUsd: (run.costUsd ?? 0) + (dayOne[c.name] ?? 0) / Math.max(1, c.arms.with.length),
         turns: run.turns ?? 0, error: run.error ?? null,
       });
     }
-    cases.push({ name: c.name, runs });
+    // The words the runner sent, from its own result: the trace does not carry them, and a
+    // prompt level has to be able to show which words each of its runs got.
+    cases.push({ name: c.name, prompt: c.promptMarkdown ?? null, runs });
   }
   const seedCost = Object.values(dayOne).reduce((s, n) => s + n, 0);
   if (limited) console.log(`\n${label}: ${limited} run(s) stopped at a usage limit or never started. Nothing from this arm is cached.`);
@@ -458,6 +510,8 @@ export const NOT_STARTED = /scaffold failed|failed to authenticate|oauth [\w ]*e
 export function caseKey(name, version, opts) {
   const h = createHash('sha256');
   h.update(JSON.stringify({ version, model: opts.model, runs: opts.runs, shell: Boolean(opts.shell) }));
+  // A level's words are part of the task: the same task asked another way is another result.
+  if (opts.prompts) h.update(`prompts:${opts.prompts}:${levelPrompt(opts.prompts, name) ?? ''}`);
   for (const dir of [name, `${name}-day1`]) {
     if (existsSync(join(OUTCOMES, dir))) { h.update(dir); hashTree(join(OUTCOMES, dir), h); }
   }
@@ -475,7 +529,7 @@ function readBaselineCache() {
 }
 
 // A copy of the suite beside an empty plugin: same cases, same fixture, nothing loaded.
-function baselinePlugin() {
+function baselinePlugin(variant = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'easyclaude-baseline-'));
   mkdirSync(join(dir, '.claude-plugin'));
   writeFileSync(join(dir, '.claude-plugin', 'plugin.json'),
@@ -483,6 +537,8 @@ function baselinePlugin() {
   writeFileSync(join(dir, '.bench-baseline'), 'evals/_fixture/setup.sh builds a project nobody set up\n');
   cpSync(OUTCOMES, join(dir, 'evals', 'outcomes'), { recursive: true });
   cpSync(join(root, 'evals', '_fixture'), join(dir, 'evals', '_fixture'), { recursive: true });
+  // The level's words, never a style: the no-easyClaude arm has no easyClaude style to add.
+  if (variant.prompts) applyVariant(dir, { prompts: variant.prompts });
   return dir;
 }
 
@@ -518,7 +574,10 @@ async function main() {
     // --style plain: the easyClaude arm runs with that output style on, as kickoff sets it
     // when the user says yes. Compare with a run without it, on the same tasks.
     style: arg('--style', null),
-    saveDir: join(RESULTS, `outcome-${new Date().toISOString().replace(/[:.]/g, '-')}${arg('--style', null) ? `-${arg('--style')}` : ''}`),
+    // --prompts <level>: the tasks in the words of evals/prompt-levels/<level>/, in both arms.
+    prompts: arg('--prompts', null),
+    saveDir: join(RESULTS, `outcome-${new Date().toISOString().replace(/[:.]/g, '-')}` +
+      `${arg('--style', null) ? `-${arg('--style')}` : ''}${arg('--prompts', null) ? `-prompts-${arg('--prompts')}` : ''}`),
   };
   if (opts.shell && process.platform === 'win32') {
     throw new Error('--shell needs a sandbox, and native Windows has none. Run this under WSL2 or Linux.');
@@ -526,7 +585,7 @@ async function main() {
 
   const version = claude(['--version']).stdout?.trim() ?? 'unknown';
   let withArm;
-  const styled = opts.style ? stylePlugin(opts.style) : null;
+  const styled = opts.style || opts.prompts ? variantPlugin({ style: opts.style, prompts: opts.prompts }) : null;
   try {
     withArm = await runArm('with easyClaude', styled ?? root, opts);
   } finally {
@@ -545,7 +604,7 @@ async function main() {
     let spent = 0;
     let partial = false;
     if (stale.length) {
-      const dir = baselinePlugin();
+      const dir = baselinePlugin({ prompts: opts.prompts });
       try {
         for (const name of stale) {
           const arm = await runArm('without easyClaude', dir, { ...opts, case: name });
@@ -578,7 +637,8 @@ async function main() {
   const lines = [
     `Outcome benchmark - ${version}, ${opts.model}, ${opts.runs} run(s) per case` +
       (opts.shell ? ', shell allowed' : ', no shell (see the note below)') +
-      (opts.style ? `, easyClaude with the "${opts.style}" output style` : ''),
+      (opts.style ? `, easyClaude with the "${opts.style}" output style` : '') +
+      (opts.prompts ? `, tasks worded as "${opts.prompts}"` : ''),
     '',
     '| task | works, with easyClaude | works, without | cost per run, with | cost per run, without |',
     '|---|---|---|---|---|',
