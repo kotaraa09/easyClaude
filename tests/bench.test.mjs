@@ -264,6 +264,16 @@ test('prompt-gap: pools the two levels of each side, and reports the gap with an
   assert(report(sent(`${levelPrompt('beginner', 'outcome-fix-checkout')}\r\n`)).wrong.length === 0, "a run sent its level's words passes");
   const off = report(sent('checkout broken'));
   assert(off.wrong.length === 1 && /WORDS DIFFER/.test(off.text), 'a run sent other words must be named, so its figures are not used');
+
+  // The first full run hit the account's usage limit and counted 52 stopped runs as failures.
+  const { tally } = await import('../scripts/prompt-gap.mjs');
+  const t = tally({ cases: [{ name: 'outcome-a', runs: [
+    { success: true, costUsd: 0.2 },
+    { success: false, limited: true, costUsd: 0 },
+    { success: false, reply: "You've hit your session limit · resets 7pm", costUsd: 0 },
+    { success: false, costUsd: 0.1 },
+  ] }] });
+  assert(t.n === 2 && t.ok === 1 && t.limited === 2, `a stopped run is left out, not failed: ${JSON.stringify(t)}`);
 });
 
 test('bench: a run stopped by a usage limit is recognised, and a normal reply is not', async () => {

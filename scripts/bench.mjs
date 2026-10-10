@@ -476,13 +476,16 @@ async function runArm(label, pluginDir, opts) {
       // the no-easyClaude arm stopped this way three times, and was cached as 0/3.
       // A run that never started measured nothing either: no sample project, or no login.
       // Both reached the table as 0/3 on 2026-09-29, one marked as a full result.
-      if (USAGE_LIMIT.test(reply) || NOT_STARTED.test(`${run.error ?? ''}\n${reply}`)) limited++;
+      const isLimited = USAGE_LIMIT.test(reply) || NOT_STARTED.test(`${run.error ?? ''}\n${reply}`);
+      if (isLimited) limited++;
       // Changed no file and ended on a question: it asked instead of acting. The benchmark
       // sends one message, so a run that asks fails here, though a person could answer it.
       const changed = (run.graders ?? []).find((g) => g.name === 'changed-files')?.passed;
       runs.push({
         success: checks.every((k) => k.passed), checks, reply, ...replyMeasures(reply),
         asked: changed === false && /\?/.test(reply.slice(-600)),
+        // Saved on the run, so a report can leave it out instead of counting it as a failure.
+        limited: isLimited,
         saved: relative(root, saved),
         // Day one's cost, spread over the day-two runs it seeded.
         costUsd: (run.costUsd ?? 0) + (dayOne[c.name] ?? 0) / Math.max(1, c.arms.with.length),

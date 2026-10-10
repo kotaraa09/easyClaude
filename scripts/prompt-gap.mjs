@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { levelPrompt } from './bench.mjs';
+import { levelPrompt, NOT_STARTED, USAGE_LIMIT } from './bench.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RESULTS = join(root, 'evals', 'results');
@@ -36,16 +36,22 @@ export function wilson(k, n, z = 1.96) {
 }
 
 // One arm of one level's bench result: { ok, n, asked, cost } over every run of every task.
+// A run a usage limit stopped measured nothing, so it is left out of n and counted on its
+// own: the first full run counted 52 of them as failures.
 export function tally(arm) {
-  const t = { ok: 0, n: 0, asked: 0, cost: 0, tasks: {} };
+  const t = { ok: 0, n: 0, asked: 0, cost: 0, limited: 0, tasks: {} };
   for (const c of arm?.cases ?? []) {
     const name = c.name.replace(/^outcome-/, '');
     const task = (t.tasks[name] ??= { ok: 0, n: 0, asked: 0 });
     for (const r of c.runs) {
+      t.cost += r.costUsd ?? 0;
+      if (r.limited ?? (USAGE_LIMIT.test(r.reply ?? '') || NOT_STARTED.test(`${r.error ?? ''}\n${r.reply ?? ''}`))) {
+        t.limited++;
+        continue;
+      }
       t.n++; task.n++;
       if (r.success) { t.ok++; task.ok++; }
       if (r.asked) { t.asked++; task.asked++; }
-      t.cost += r.costUsd ?? 0;
     }
   }
   return t;
@@ -98,9 +104,11 @@ export function report(results) {
     lines.push(`| ${name} | ${t.with.ok}/${t.with.n} (${pct(t.with.ok, t.with.n)}) | ${range(t.with.ok, t.with.n)} | ` +
       `${t.without.ok}/${t.without.n} (${pct(t.without.ok, t.without.n)}) | ${range(t.without.ok, t.without.n)} |`);
   }
-  const gapWith = rate(E.with) - rate(B.with);
-  const gapWithout = rate(E.without) - rate(B.without);
-  const pts = (x) => `${x >= 0 ? '+' : ''}${Math.round(x * 100)} points`;
+  // A side with no runs has no rate: its gap is not measured, never -100 points.
+  const gap = (e, b) => (e.n && b.n ? rate(e) - rate(b) : null);
+  const gapWith = gap(E.with, B.with);
+  const gapWithout = gap(E.without, B.without);
+  const pts = (x) => (x === null ? 'not measured' : `${x >= 0 ? '+' : ''}${Math.round(x * 100)} points`);
   lines.push('',
     `Gap, expert minus beginner: ${pts(gapWith)} with easyClaude, ${pts(gapWithout)} without.`,
     `A beginner with easyClaude: ${pct(B.with.ok, B.with.n)}. An expert without it: ${pct(E.without.ok, E.without.n)}.`);
@@ -125,7 +133,8 @@ export function report(results) {
   }
   if (wrong.length) lines.push('', `WORDS DIFFER: these runs were not sent their level's words: ${wrong.join(', ')}. Do not use these figures.`);
   if (levels.some((l) => results[l].with?.partial || results[l].without?.partial)) {
-    lines.push('', 'PARTIAL: a cost ceiling or a usage limit stopped a run. Do not publish these figures.');
+    const stopped = levels.reduce((s, l) => s + cell[l].with.limited + cell[l].without.limited, 0);
+    lines.push('', `PARTIAL: a cost ceiling or a usage limit stopped a run${stopped ? `; ${stopped} run(s) a usage limit stopped are left out of the counts` : ''}. Do not publish these figures.`);
   }
   const spent = levels.reduce((s, l) => s + cell[l].with.cost + cell[l].without.cost, 0);
   lines.push('', `These runs cost ${money(spent)} at list price, counting the no-easyClaude runs each level reused from the cache.`);
