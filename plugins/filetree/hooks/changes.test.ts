@@ -1,7 +1,7 @@
 // Run with `claude plugin test plugins/filetree`.
 import { describe, expect, test } from 'claude-code/testing'
 
-import { changesOf, countLines, fitHunks, hunksOf, isBinary, newFileHunks } from './changes'
+import { changesOf, countLines, fitHunks, fromHunk, hunkCount, hunksOf, isBinary, newFileHunks } from './changes'
 
 const GIT_DIFF = [
   'diff --git a/src/checkout.js b/src/checkout.js',
@@ -55,5 +55,14 @@ describe('the changes panel', () => {
     const after = lines.filter(l => !l.startsWith('-')).length
     expect(one.diff.split('\n')[0]).toBe(`@@ -1,${before} +1,${after} @@`)
     expect(changesOf('/p/a.js', long.repeat(3000)).note).toMatch(/Only the first changes fit/)
+  })
+
+  test('the view steps from hunk to hunk, and never past the last one', () => {
+    const diff = ['@@ -1,1 +1,1 @@', '-a', '+b', '@@ -9,1 +9,1 @@', '-c', '+d'].join('\n')
+    expect(hunkCount(diff)).toBe(2)
+    expect(fromHunk(diff, 0)).toBe(diff)
+    expect(fromHunk(diff, 1).startsWith('@@ -9,1')).toBe(true)
+    expect(fromHunk(diff, 7).startsWith('@@ -9,1')).toBe(true)
+    expect(changesOf('/p/a.js', diff).hunk).toBe(0)
   })
 })

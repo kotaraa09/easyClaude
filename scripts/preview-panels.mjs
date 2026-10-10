@@ -111,13 +111,34 @@ write('hooks/hooks.json', JSON.stringify({ modules: ['./register.tsx'] }, null, 
 sources['panels.tsx'] = source;
 for (const f of FILES) write(`hooks/${f}`, sources[f]);
 write('types/index.d.ts', types);
-// The file tree and Blast Radius are plugins of their own, which an installed easyClaude has
-// not had until now, so they load under their own names.
-for (const plugin of ['filetree', 'blast-radius']) {
-  cpSync(join(root, 'plugins', plugin), join(target, plugin), {
-    recursive: true,
-    filter: (src) => !/[\\/]\.claude-plugin[\\/]types([\\/]|$)/.test(src) && !src.endsWith('.test.ts'),
-  });
+// The file tree and Blast Radius are plugins of their own. Blast Radius loads under its own
+// name. The file tree installs with easyClaude since 1.2.1, so its copy is renamed the way the
+// panels are: under the same name the installed one answers, and the preview shows nothing new.
+const copyPlugin = (plugin, to) => cpSync(join(root, 'plugins', plugin), join(target, to), {
+  recursive: true,
+  filter: (src) => !/[\\/]\.claude-plugin[\\/]types([\\/]|$)/.test(src) && !src.endsWith('.test.ts'),
+});
+copyPlugin('blast-radius', 'blast-radius');
+const TREE = 'filetree-preview';
+copyPlugin('filetree', TREE);
+const treeSwaps = {
+  'hooks/register.tsx': [
+    [/plugin: 'filetree'/g, `plugin: '${TREE}'`],
+    [/const PANE = 'filetree'/g, `const PANE = '${TREE}'`],
+    [/name: 'filetree'/g, `name: '${TREE}'`],
+    [/command: 'filetree'/g, `command: '${TREE}'`],
+  ],
+  'types/index.d.ts': [[/^(\s*)filetree: \{/m, `$1'${TREE}': {`]],
+  '.claude-plugin/plugin.json': [[/"name": "filetree"/, `"name": "${TREE}"`]],
+};
+for (const [rel, list] of Object.entries(treeSwaps)) {
+  let text = readFileSync(join(target, TREE, rel), 'utf8');
+  for (const [from, to] of list) {
+    from.lastIndex = 0;
+    if (!from.test(text)) throw new Error(`plugins/filetree/${rel} no longer contains ${from} - update the swaps in this script`);
+    text = text.replace(from, to);
+  }
+  writeFileSync(join(target, TREE, rel), text);
 }
-console.log(`Wrote ${mod}, with filetree and blast-radius beside it. They load when this turn ends, ` +
-  `once hot reloading is on; /${NAME} reopens the control panel.`);
+console.log(`Wrote ${mod}, with ${TREE} and blast-radius beside it. They load when this turn ends, ` +
+  `once hot reloading is on; /${NAME} reopens the control panel, and /${TREE} the file tree.`);

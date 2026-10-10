@@ -2,7 +2,7 @@ import { type BuiltinToolResults, type EngineInterface, type Register, type Time
 import { openCommand } from './open'
 
 import type { Activity, Changes, FileNode, FileTree, Theme } from '../types'
-import { changesOf, hunksOf, isBinary, newFileHunks } from './changes'
+import { changesOf, fromHunk, hunkCount, hunksOf, isBinary, newFileHunks } from './changes'
 import { BRANCH_ICON, chainOf, type GitAction, gitActions, readOnly, readTargets, resolve, TONES } from './git'
 import type { RowSpec, RowsProps, Seg } from './rows'
 import { CHEVRON_CLOSED, CHEVRON_OPEN, fileIcon, GIT_COLOR } from './icons'
@@ -38,7 +38,6 @@ const THEME = { plugin: 'filetree', key: 'theme' } as const
 const ACTIVITY = { plugin: 'filetree', key: 'activity' } as const
 const PANE = 'filetree'
 const CHANGES = { plugin: 'filetree', key: 'changes' } as const
-const CHANGES_PANE = 'filetree-changes'
 const SHIMMER = Object.fromEntries(Object.entries(TONES).map(([k, v]) => [k, { bright: v.bright, dim: v.dim }]))
 const BRANCH_ROW = '#branch'
 const FLASH_MS = 2700
@@ -883,17 +882,9 @@ async function openFile($: EngineInterface, path: string): Promise<void> {
   }
 }
 
-// The changes panel: one file against the last save to git, the way an editor shows a diff.
-// A click on a changed file opens it; a click on another file, while it is open, says that
-// file has no changes.
-async function isChangesOpen($: EngineInterface): Promise<boolean> {
-  try {
-    return (await $.ui.panes()).some(p => p.id === CHANGES_PANE)
-  } catch {
-    return false
-  }
-}
-
+// The changes under the tree: one file against the last save to git, the way an editor shows
+// a diff. A click on a changed file shows them; a click on another file, while they show, says
+// that file has no changes. The tree stays in view above them.
 async function changesFor($: EngineInterface, path: string): Promise<Changes> {
   const t = await get($)
   if (!t.top) return changesOf(path, '', 'This folder has no git history, so there is no last save to compare with.')
@@ -914,11 +905,9 @@ async function changesFor($: EngineInterface, path: string): Promise<Changes> {
 }
 
 async function showChanges($: EngineInterface, path: string, force: boolean): Promise<void> {
-  const isChanged = dirty.files[path] !== undefined
-  const isOpen = await isChangesOpen($)
-  if (!force && !isChanged && !isOpen) return
+  const isShown = Boolean((await $.state.get(CHANGES)).value)
+  if (!force && !isShown && dirty.files[path] === undefined) return
   await $.state.set(CHANGES, await changesFor($, path))
-  if (!isOpen) await $.ui.open({ id: CHANGES_PANE, title: `Changes: ${path.split('/').pop() || path}` })
 }
 
 async function toggle($: EngineInterface, n: FileNode): Promise<void> {
@@ -1193,36 +1182,6 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('ui.render', { component: 'Pane', requestId: CHANGES_PANE }, async ($, e, next) => {
-    if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
-    const { Box, Text, Button, Code } = $.ui.resolve(e)
-    const c = (await $.state.get(CHANGES)).value
-    const theme: Theme = (await $.state.get(THEME)).value ?? DEFAULT_THEME
-    if (!c) return <Box><Text color={theme.muted}>Click a changed file in the file tree to see its changes.</Text></Box>
-    const t = await get($)
-    const name = inside(t.root, c.path) ? relative(t.root, c.path) : shortPath(c.path)
-    return (
-      <Box flexDirection="column" backgroundColor={theme.bg || undefined}>
-        <Box flexDirection="row">
-          <Box flexShrink={1}>
-            <Text bold color={theme.accent} wrap="truncate-start">{name}</Text>
-          </Box>
-          {c.added > 0 && <Text color={ADD_COLOR}>{` +${c.added}`}</Text>}
-          {c.removed > 0 && <Text color={DEL_COLOR}>{` -${c.removed}`}</Text>}
-          <Box flexGrow={1} />
-          <Box flexDirection="row" gap={2}>
-            <Button key="open" plain label="Open file" onPress={() => void openFile($, c.path)} />
-            <Button key="refresh" plain dimColor label="Refresh" onPress={() => void (async () => $.state.set(CHANGES, await changesFor($, c.path)))()} />
-            <Button key="close" plain dimColor label="Close" onPress={() => void $.ui.close({ id: CHANGES_PANE }).catch(() => undefined)} />
-          </Box>
-        </Box>
-        <Text color={theme.muted}>Since the last save to git</Text>
-        {c.note ? <Text color={theme.muted}>{c.note}</Text> : null}
-        {c.diff ? <Code key="diff" source={c.diff} format="diff" path={c.path} wrap="truncate-end" /> : null}
-      </Box>
-    )
-  })
-
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
     if (e.surface === 'terminal' && e.props.placement === 'inline') {
@@ -1232,7 +1191,8 @@ export const register: Register = (on, options) => {
       return <Empty />
     }
     const unicode = glyphSetting === 'plain' || (glyphSetting === 'auto' && (noNerd || e.surface === 'desktop'))
-    const { Box, Text, Button, Input, Client } = $.ui.resolve(e)
+    const { Box, Text, Button, Input, Client, Code } = $.ui.resolve(e)
+    const changes = (await $.state.get(CHANGES)).value
     const t = await get($)
     const theme: Theme = (await $.state.get(THEME)).value ?? DEFAULT_THEME
     const now = await $.clock.now()
@@ -1244,8 +1204,11 @@ export const register: Register = (on, options) => {
     const untracked = new Set(t.untrackedDirs)
     const width = Math.max(24, e.props.bodyColumns)
     const rows = visibleRows(t)
-    const fixed = 2 + (t.top ? (t.branch ? 1 : 0) : 1) + (t.selected || latest ? 1 : 0)
-    const room = Math.max(5, (e.props.scroll?.bodyRows ?? 40) - fixed)
+    const bodyRows = e.props.scroll?.bodyRows ?? 40
+    // The changes take half the panel, with their two heading rows; the tree keeps the rest.
+    const diffRows = changes ? Math.max(6, Math.floor(bodyRows / 2) - 2) : 0
+    const fixed = 2 + (t.top ? (t.branch ? 1 : 0) : 1) + (t.selected || latest ? 1 : 0) + (changes ? diffRows + 3 : 0)
+    const room = Math.max(5, bodyRows - fixed)
     const isLit = (id: string) => bright.has(id) || dimmed.has(id)
     const focus = followClaude && t.flashOn ? ([...t.flash].reverse().find(id => id !== BRANCH_ROW) ?? t.cursor) : t.cursor
     const at = Math.max(0, rows.findIndex(r => r.node.id === focus))
@@ -1377,6 +1340,44 @@ export const register: Register = (on, options) => {
       )
     }
 
+    const changesView = () => {
+      if (!changes) return null
+      const c = changes
+      const name = inside(t.root, c.path) ? relative(t.root, c.path) : shortPath(c.path)
+      const hunks = hunkCount(c.diff)
+      const step = (d: number) => void (async () => {
+        const cur = (await $.state.get(CHANGES)).value
+        if (cur) await $.state.set(CHANGES, { ...cur, hunk: Math.max(0, Math.min(hunkCount(cur.diff) - 1, cur.hunk + d)) })
+      })()
+      return (
+        <Box flexDirection="column" flexGrow={1}>
+          <Text color={theme.muted} wrap="truncate-end">{'─'.repeat(width)}</Text>
+          <Box flexDirection="row">
+            <Box flexShrink={1}>
+              <Text bold color={theme.accent} wrap="truncate-start">{name}</Text>
+            </Box>
+            {c.added > 0 && <Text color={ADD_COLOR}>{` +${c.added}`}</Text>}
+            {c.removed > 0 && <Text color={DEL_COLOR}>{` -${c.removed}`}</Text>}
+            <Box flexGrow={1} />
+            <Box flexDirection="row" gap={2}>
+              {hunks > 1 && <Button key="prev" plain dimColor={c.hunk === 0} label="▲" onPress={() => step(-1)} />}
+              {hunks > 1 && <Text color={theme.muted}>{`${c.hunk + 1}/${hunks}`}</Text>}
+              {hunks > 1 && <Button key="next" plain dimColor={c.hunk >= hunks - 1} label="▼" onPress={() => step(1)} />}
+              <Button key="open" plain label="Open" onPress={() => void openFile($, c.path)} />
+              <Button key="reload" plain dimColor label="Refresh" onPress={() => void (async () => $.state.set(CHANGES, { ...(await changesFor($, c.path)), hunk: c.hunk }))()} />
+              <Button key="close" plain dimColor label="Close" onPress={() => void $.state.set(CHANGES, null)} />
+            </Box>
+          </Box>
+          <Text color={theme.muted} wrap="truncate-end">{c.note || 'Changes since the last save to git'}</Text>
+          {c.diff ? (
+            <Box height={diffRows} overflow="hidden" flexDirection="column">
+              <Code key="diff" source={fromHunk(c.diff, c.hunk)} format="diff" path={c.path} wrap="truncate-end" />
+            </Box>
+          ) : null}
+        </Box>
+      )
+    }
+
     const chip = (a: Activity) => {
       const tone = a.state === 'failed' ? 'red' : a.tone
       const color = TONES[tone]?.solid ?? theme.accent
@@ -1485,7 +1486,7 @@ export const register: Register = (on, options) => {
           module="./rows.tsx"
           props={{ rows: specs, active: t.cursor, activeBg: theme.selection, hoverBg: faint(theme.selection), tones: SHIMMER, pointer, ...(bar ? { bar } : {}) } satisfies RowsProps}
         />
-        <Box flexGrow={1} />
+        {changes ? changesView() : <Box flexGrow={1} />}
         {(t.selected || latest) && (
           <Box flexDirection="row">
             {t.selected ? (

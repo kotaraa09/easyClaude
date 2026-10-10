@@ -1,4 +1,4 @@
-// What a file's changes panel shows: the file against the last save to git (HEAD), as the
+// What the changes under the file tree show: the file against the last save to git (HEAD), as the
 // unified-diff hunks the engine's Code element draws. Plain values only: register.tsx runs
 // git and reads the file, and hands the text here.
 
@@ -53,10 +53,22 @@ export function changesOf(path: string, hunks: string, note = ''): Changes {
   const [added, removed] = countLines(hunks)
   const { diff, cut } = fitHunks(hunks)
   const why = note || (hunks === '' ? 'No changes since the last save.' : cut ? 'Only the first changes fit here. Open the file to see the rest.' : '')
-  return { path, diff, added, removed, note: why }
+  return { path, diff, added, removed, note: why, hunk: 0 }
 }
 
 // git's way of saying it cannot show the change as lines.
 export function isBinary(out: string): boolean {
   return /^Binary files .* differ$/m.test(out)
+}
+
+// The panel shows the changes from one hunk on, and steps through them, so a long diff never
+// needs a scroll of its own beside the tree's.
+export function hunkCount(diff: string): number {
+  return (diff.match(/^@@ /gm) ?? []).length
+}
+
+export function fromHunk(diff: string, index: number): string {
+  const starts = [...diff.matchAll(/^@@ /gm)].map(m => m.index ?? 0)
+  const at = starts[Math.max(0, Math.min(index, starts.length - 1))]
+  return at === undefined ? diff : diff.slice(at)
 }
