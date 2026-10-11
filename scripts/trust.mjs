@@ -30,8 +30,9 @@ export const trustFile = () =>
 // The commands, in order, and the folder each one runs in. Nothing else in a step runs.
 // The same command in another folder runs another project's scripts, so a changed "dir"
 // needs approval again. A step without one is fingerprinted as before, so approvals made
-// before "dir" existed still hold.
-const what = (s) => (s.dir ? `${s.dir}: ${s.cmd}` : s.cmd);
+// before "dir" existed still hold. The same goes for "related", the narrow command run after
+// each change: it is a command too, so adding or changing one asks again.
+const what = (s) => `${s.dir ? `${s.dir}: ` : ''}${s.cmd}${s.related ? `\0related: ${s.related}` : ''}`;
 export const fingerprint = (steps) => sha(JSON.stringify(steps.map(what))).slice(0, 16);
 
 // One folder, however it was reached: a symlink, a short Windows name, a different case of
@@ -96,7 +97,8 @@ const shown = (s, max) => {
   return flat.length > max ? `${flat.slice(0, max)}... (${flat.length} characters)` : flat;
 };
 export function commandList(steps, { maxSteps = 20 } = {}) {
-  const lines = steps.slice(0, maxSteps).map((s) => `  ${shown(s.name, 60)}: ${s.dir ? `(in ${shown(s.dir, 120)}) ` : ''}${shown(s.cmd, 300)}`);
+  const lines = steps.slice(0, maxSteps).map((s) => `  ${shown(s.name, 60)}: ${s.dir ? `(in ${shown(s.dir, 120)}) ` : ''}${shown(s.cmd, 300)}` +
+    (s.related ? `\n    after each change: ${shown(s.related, 300)}` : ''));
   if (steps.length > maxSteps) lines.push(`  ...and ${steps.length - maxSteps} more - read .claude/verify.json before approving`);
   return lines.join('\n');
 }

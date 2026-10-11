@@ -144,6 +144,41 @@ function stepsFor(steps, changed, docsOnly = []) {
   return steps.filter((s) => !s.dir || shared || code.some((p) => inside(p, s.dir)));
 }
 
+// --- related tests -----------------------------------------------------------
+// A step's "related" command runs only the tests that use the changed files, such as
+// `npx vitest related --run --passWithNoTests {files}`. A project with a test for every
+// feature otherwise waits for all of them after every one-file change, and a gate that
+// slow is the one that gets deleted. The whole command still runs at the end of a task
+// and at ship, where the human-mode run below uses "cmd".
+//
+// The narrow run is a guess about what a change can reach, so it is taken only when the
+// guess is safe. Anything else runs the whole command: not knowing is not a reason to skip.
+const SOURCE = /\.(?:[cm]?[jt]sx?|vue|svelte)$/;
+// Files a test tool reads for every test, not through an import: its config, a setup
+// file, a manual mock. Changing one can break any test, and "related" finds none.
+const EVERY_TEST = /(?:^|\/)(?:[^/]*\.config\.[^/]+|[^/]*setup[^/]*|__mocks__\/.*)$/i;
+// The file names go into a shell command line, so only names no shell treats specially.
+const PLAIN_PATH = /^(?!-)[\w@.+\/-]+$/;
+const MAX_RELATED = 30;
+
+function relatedFiles(step, changed, docsOnly) {
+  if (!step.related || !changed) return null;
+  let files = changed.filter((p) => !matchesAny(p, docsOnly));
+  if (step.dir) {
+    if (files.some((p) => !p.startsWith(`${step.dir}/`))) return null;
+    files = files.map((p) => p.slice(step.dir.length + 1));
+  }
+  const base = step.dir ? join(root, step.dir) : root;
+  const narrow = files.length > 0 && files.length <= MAX_RELATED && files.every((p) =>
+    SOURCE.test(p) && !EVERY_TEST.test(p) && PLAIN_PATH.test(p) && existsSync(join(base, p)));
+  return narrow ? files : null;
+}
+
+const narrowed = (step, changed, docsOnly) => {
+  const files = relatedFiles(step, changed, docsOnly);
+  return files ? { ...step, cmd: step.related.split('{files}').join(files.join(' ')), related: true } : step;
+};
+
 function loadConfig() {
   if (!existsSync(CONFIG)) return null;
   let raw;
@@ -166,6 +201,11 @@ function loadConfig() {
     if (s.dir !== undefined && !cleanDir(s.dir)) {
       return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has dir "${s.dir}" - it must be a folder inside the project` };
     }
+    // Without the placeholder the narrow command would run no file list at all, which for
+    // most test tools means the whole suite under a name that says otherwise.
+    if (s.related !== undefined && (typeof s.related !== 'string' || !s.related.includes('{files}'))) {
+      return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has a "related" command without "{files}" - it must say where the changed files go` };
+    }
   }
   const fallback = Number(raw.timeoutMs) > 0 ? Number(raw.timeoutMs) : DEFAULT_TIMEOUT_MS;
   return {
@@ -175,6 +215,7 @@ function loadConfig() {
       tier: s.tier ?? 'fast',
       timeoutMs: Number(s.timeoutMs) > 0 ? Number(s.timeoutMs) : fallback,
       ...(s.dir !== undefined ? { dir: cleanDir(s.dir) } : {}),
+      ...(s.related !== undefined ? { related: s.related } : {}),
     })),
     // Plus easyClaude's own files wherever the project keeps them (see locations.mjs): the
     // plan is rewritten on every turn, and a moved one must not run the suite either.
@@ -417,7 +458,7 @@ if (HOOK) {
       'computer, so none ran this turn. This work is not verified.', cfg);
   }
 
-  const results = due.map(runStep);
+  const results = due.map((s) => runStep(narrowed(s, changed, cfg.docsOnly)));
   const failed = results.filter((r) => r.result === FAIL);
   const unrunnable = results.filter((r) => r.result === UNRUNNABLE);
 
@@ -444,9 +485,10 @@ if (HOOK) {
   const report = [
     `Verification failed. ${failed.length} of ${results.length} ${heldBack ? 'fast-tier ' : ''}step(s) in .claude/verify.json did not pass.`,
     ...(heldBack ? [`(${heldBack} full-tier step(s) were not run - those go at the end of a task, not every turn.)`] : []),
+    ...(failed.some((r) => r.related) ? ['(A step marked "related" ran only the tests that use the changed files.)'] : []),
     '',
     ...failed.map((r) => [
-      `[${r.name}] ${r.cmd} - ${r.why}`,
+      `[${r.name}]${r.related ? ' (related)' : ''} ${r.cmd} - ${r.why}`,
       tail(r.output),
       '',
     ].join('\n')),
@@ -511,7 +553,10 @@ if (TRUST) {
 
 if (LIST) {
   console.log(`verify contract - ${cfg.steps.length} step(s)\n`);
-  for (const s of cfg.steps) console.log(`  ${tierLabel(s)}${pad(s.name)}  ${s.dir ? `(in ${s.dir}) ` : ''}${s.cmd}`);
+  for (const s of cfg.steps) {
+    console.log(`  ${tierLabel(s)}${pad(s.name)}  ${s.dir ? `(in ${s.dir}) ` : ''}${s.cmd}`);
+    if (s.related) console.log(`  ${' '.repeat(tierLabel(s).length + width)}  after each change: ${s.related}`);
+  }
   if (tiered) {
     console.log('\n  fast runs on every turn, at the Stop hook. full runs here, and at ship.');
   }
