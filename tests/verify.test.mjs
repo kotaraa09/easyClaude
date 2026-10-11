@@ -10,7 +10,7 @@
 // here needs the plugin installed, and nothing writes to this repo.
 import { test, assert, assertMatch, projectDir, runVerify, run, repoRoot } from './harness.mjs';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Exit codes in hook mode, from Claude Code's hook contract:
@@ -436,6 +436,108 @@ test('apps: a change in one app runs that app\'s checks, not the others\'', asyn
 test('apps: a change outside every app runs every app\'s checks', async () => {
   const shared = await twoApps()('lib/shared.js');
   assert(shared.code === BLOCK, `shared code can break any app, so api must run:\n${shared.out}`);
+});
+
+// --- only the tests a change can reach -------------------------------------------
+// A step's "related" command runs after each change in place of "cmd", with the changed
+// files in place of {files}. Each command writes what it was given to ran.txt, so the
+// tests read which one ran, and with which files, from disk.
+const WRITES_ALL = 'node -e "require(\'fs\').writeFileSync(\'ran.txt\', \'ALL\')"';
+const WRITES_FILES = 'node -e "require(\'fs\').writeFileSync(\'ran.txt\', process.argv.slice(1).join(\' \'))" {files}';
+const FAILS_RELATED = 'node -e "console.error(\'1 related test failed\'); process.exit(1)" {files}';
+
+const relatedProject = (step = {}, files = {}) => {
+  const dir = projectDir({ steps: [{ name: 'test', cmd: WRITES_ALL, related: WRITES_FILES, ...step }] });
+  const start = {
+    'src/a.js': '1;\n', 'src/b.js': '1;\n', 'src/a.test.js': '1;\n', 'vitest.config.js': '1;\n',
+    'package.json': '{}\n', 'test/setup.js': '1;\n', ...files,
+  };
+  for (const [f, text] of Object.entries(start)) {
+    mkdirSync(join(dir, f, '..'), { recursive: true });
+    writeFileSync(join(dir, f), text);
+  }
+  const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  git('add', '-A');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start');
+  const stopNow = () => run(join(repoRoot, 'scripts', 'verify.mjs'), {
+    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+    input: JSON.stringify({ session_id: `rel-${Date.now()}-${Math.random()}`, stop_hook_active: false }),
+  });
+  const ran = (where = '') => {
+    try { return readFileSync(join(dir, where, 'ran.txt'), 'utf8'); } catch { return null; }
+  };
+  return { dir, stopNow, ran, edit: (f) => writeFileSync(join(dir, f), '2;\n') };
+};
+
+test('related: a change to source files runs the related command with those files', async () => {
+  const p = relatedProject();
+  p.edit('src/a.js');
+  p.edit('src/b.js');
+  const r = await p.stopNow();
+  assert(r.code === ALLOW, `the related command passes:\n${r.out}`);
+  assert(p.ran() === 'src/a.js src/b.js', `expected the two changed files, got "${p.ran()}".`);
+});
+
+test('related: a change it cannot narrow safely runs the whole command', async () => {
+  const cases = [
+    ['a test tool config', (p) => p.edit('vitest.config.js')],
+    ['package.json', (p) => p.edit('package.json')],
+    ['a setup file', (p) => p.edit('test/setup.js')],
+    ['a deleted file', (p) => rmSync(join(p.dir, 'src', 'b.js'))],
+    ['a name with a space', (p) => writeFileSync(join(p.dir, 'src', 'my file.js'), '1;\n')],
+    ['a data file', (p) => writeFileSync(join(p.dir, 'src', 'plants.json'), '[]\n')],
+    ['more files than fit', (p) => { for (let i = 0; i < 31; i++) writeFileSync(join(p.dir, 'src', `f${i}.js`), '1;\n'); }],
+  ];
+  for (const [what, change] of cases) {
+    const p = relatedProject();
+    p.edit('src/a.js');
+    change(p);
+    const r = await p.stopNow();
+    assert(r.code === ALLOW && p.ran() === 'ALL', `${what} must run the whole command, ran "${p.ran()}":\n${r.out}`);
+  }
+});
+
+test('related: a failure blocks, and the report says only related tests ran', async () => {
+  const p = relatedProject({ related: FAILS_RELATED });
+  p.edit('src/a.js');
+  const r = await p.stopNow();
+  assert(r.code === BLOCK, `a failing related run must block:\n${r.out}`);
+  assertMatch(r.stderr, /\[test\] \(related\)/, 'the block must say the narrow command ran.');
+  assertMatch(r.stderr, /1 related test failed/, "and carry the command's output back.");
+});
+
+test('related: in an app folder, the files are given relative to that folder', async () => {
+  const p = relatedProject({ dir: 'apps/web' }, { 'apps/web/src/a.js': '1;\n', 'lib/shared.js': '1;\n' });
+  p.edit('apps/web/src/a.js');
+  await p.stopNow();
+  assert(p.ran('apps/web') === 'src/a.js', `expected the path inside apps/web, got "${p.ran('apps/web')}".`);
+  p.edit('lib/shared.js');
+  await p.stopNow();
+  assert(p.ran('apps/web') === 'ALL', 'a change outside the app must run its whole command.');
+});
+
+test('related: a run by hand, as at the end of a task and at ship, runs the whole command', async () => {
+  const p = relatedProject();
+  p.edit('src/a.js');
+  const r = await runVerify(p.dir);
+  assert(r.code === 0 && p.ran() === 'ALL', `a run by hand must run everything, ran "${p.ran()}":\n${r.out}`);
+});
+
+test('related: a related command without {files} is reported, not run', async () => {
+  const r = await human({ steps: [{ name: 'test', cmd: PASSES, related: 'npx vitest related --run' }] });
+  assertMatch(r.out, /without "\{files\}"/, 'a related command with nowhere to put the files must be refused.');
+});
+
+test('related: adding or changing a related command needs approval again, and is shown', async () => {
+  const { fingerprint, commandList } = await import('../scripts/trust.mjs');
+  const plain = { cmd: 'npm test' };
+  const narrow = { cmd: 'npm test', related: 'npx vitest related --run {files}' };
+  assert(fingerprint([plain]) !== fingerprint([narrow]), 'a new related command must be approved.');
+  assert(fingerprint([narrow]) !== fingerprint([{ ...narrow, related: 'rm -rf / {files}' }]),
+    'a changed related command must be approved again.');
+  assertMatch(commandList([{ name: 'test', ...narrow }]), /after each change: npx vitest related/,
+    'the person approving must see the related command.');
 });
 
 // --- work left for later -------------------------------------------------------
