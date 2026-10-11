@@ -38,6 +38,7 @@ const THEME = { plugin: 'filetree', key: 'theme' } as const
 const ACTIVITY = { plugin: 'filetree', key: 'activity' } as const
 const PANE = 'filetree'
 const CHANGES = { plugin: 'filetree', key: 'changes' } as const
+const NEW_FILE_LIMIT = 1_000_000
 const SHIMMER = Object.fromEntries(Object.entries(TONES).map(([k, v]) => [k, { bright: v.bright, dim: v.dim }]))
 const BRANCH_ROW = '#branch'
 const FLASH_MS = 2700
@@ -273,6 +274,8 @@ async function reset($: EngineInterface, root: string, focus = false): Promise<v
   sizeEpoch += 1
   sizeQueue = []
   await put($, () => ({ ...emptyTree(root), showHidden: prev.showHidden, showSize: prev.root ? prev.showSize : sizeDefault }))
+  // Another folder: the changes of a file in the last one no longer belong here.
+  if (prev.root !== root) await $.state.set(CHANGES, null)
   const title = `Files: ${root.split('/').pop() || root}`
   if (focus) await $.ui.open({ id: PANE, title, focus: true })
   else if (!noDock) await $.ui.open({ id: PANE, title })
@@ -892,6 +895,8 @@ async function changesFor($: EngineInterface, path: string): Promise<Changes> {
   const change = dirty.root === t.root ? dirty.files[path] : undefined
   try {
     if (change === 'new' || (await git($, t.root, ['rev-parse', '--verify', '--quiet', 'HEAD'], 5_000)).exitCode !== 0) {
+      // A new log or bundle can be huge; reading it whole would stall the pane.
+      if ((await $.fs.stat(path)).size > NEW_FILE_LIMIT) return changesOf(path, '', 'A new file, too large to show here. Open it to see it.')
       const text = String(await $.fs.read(path))
       return /\0/.test(text) ? changesOf(path, '', 'This file is not text, so its changes cannot be shown as lines.') : changesOf(path, newFileHunks(text), text ? 'A new file: every line is new.' : 'A new, empty file.')
     }
@@ -899,14 +904,16 @@ async function changesFor($: EngineInterface, path: string): Promise<Changes> {
     if (run.exitCode !== 0) return changesOf(path, '', `git could not compare this file: ${run.stderr.trim().split('\n')[0] || `exit ${run.exitCode}`}`)
     if (isBinary(run.stdout)) return changesOf(path, '', 'This file is not text, so its changes cannot be shown as lines.')
     return changesOf(path, hunksOf(run.stdout), change === 'del' ? 'This file was deleted.' : '')
-  } catch {
-    return changesOf(path, '', 'The changes could not be read.')
+  } catch (err) {
+    const why = err instanceof Error ? err.message.split('\n')[0] : ''
+    return changesOf(path, '', `The changes could not be read${why ? `: ${why}` : '.'}`)
   }
 }
 
 async function showChanges($: EngineInterface, path: string, force: boolean): Promise<void> {
   const isShown = Boolean((await $.state.get(CHANGES)).value)
-  if (!force && !isShown && dirty.files[path] === undefined) return
+  const isChanged = dirty.root === (await get($)).root && dirty.files[path] !== undefined
+  if (!force && !isShown && !isChanged) return
   await $.state.set(CHANGES, await changesFor($, path))
 }
 
@@ -1364,7 +1371,10 @@ export const register: Register = (on, options) => {
               {hunks > 1 && <Text color={theme.muted}>{`${c.hunk + 1}/${hunks}`}</Text>}
               {hunks > 1 && <Button key="next" plain dimColor={c.hunk >= hunks - 1} label="▼" onPress={() => step(1)} />}
               <Button key="open" plain label="Open" onPress={() => void openFile($, c.path)} />
-              <Button key="reload" plain dimColor label="Refresh" onPress={() => void (async () => $.state.set(CHANGES, { ...(await changesFor($, c.path)), hunk: c.hunk }))()} />
+              <Button key="reload" plain dimColor label="Refresh" onPress={() => void (async () => {
+                const fresh = await changesFor($, c.path)
+                await $.state.set(CHANGES, { ...fresh, hunk: Math.max(0, Math.min(hunkCount(fresh.diff) - 1, c.hunk)) })
+              })()} />
               <Button key="close" plain dimColor label="Close" onPress={() => void $.state.set(CHANGES, null)} />
             </Box>
           </Box>
