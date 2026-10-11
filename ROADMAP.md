@@ -192,6 +192,20 @@ the full tier. Kickoff sorts a slow build or browser test into the full tier, an
 seconds, and the full tier at ship still catches a bug the fast tier missed. **Effort:**
 3-4 days, plus about $5 of runs.
 
+**Built for JavaScript, 2026-10-11, waits for a release (#107).** A step's `"related"`
+command runs after each change on the changed source files; kickoff adds it for Vitest and
+Jest. On a 200-feature Vitest sample the wait after a one-file change fell from 49 seconds
+to 7-8, and 15 for a helper 40 features use. A bug in the changed feature still blocked the
+turn, and a test that reads a file without importing it, which the narrow run cannot see,
+failed at the end of the task. Measured with the test tools directly, not in benchmark runs
+with Claude, so no money was spent. **Left:** `pytest` (about 1 day).
+
+### Test speed of easyClaude itself
+
+Since #108 each test area runs in its own process: the full run fell from 306 to about 120
+seconds, and warns over 5 minutes. When it warns, run only the areas a change uses (about
+1 day), and remove tests that check the same thing twice (half a day each review).
+
 ## Later
 
 - **Panels for everyone.** 1.1.0 ships a progress panel and a control panel as a Claude
