@@ -725,7 +725,7 @@ test('session-start: with everything installed, the check says so, for kickoff t
 test('cost fingerprint: a skill body edit is ignored, a description edit is not', async () => {
   const { costFingerprint } = await import('../scripts/cost-inputs.mjs');
   const { workspace, editText } = await import('./harness.mjs');
-  const dir = workspace();
+  const dir = await workspace();
   const before = costFingerprint(dir);
   editText(dir, 'skills/deploy/SKILL.md', (t) => `${t}\nOne more step.\n`);
   assert(costFingerprint(dir) === before, 'a body edit changed the fingerprint.');

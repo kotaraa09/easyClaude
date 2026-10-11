@@ -7,27 +7,28 @@
 // way a good answer would fix it, and fixed the wrong way. The first and last must fail.
 import { test, assert, repoRoot } from './harness.mjs';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFile } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { gradeWorkspace } from '../scripts/bench.mjs';
 
 const caseDir = (name) => join(repoRoot, 'evals', 'outcomes', name);
 
-// The same scaffold the runner uses, in a fresh folder.
+// The same scaffold the runner uses, in a fresh folder. Asynchronous, so the other tests
+// keep running while bash and git build it.
 function shop(variant = 'base') {
   const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchtest-'));
-  const r = spawnSync('bash', [join(repoRoot, 'evals', '_fixture', 'setup.sh'), variant], {
-    cwd: dir, encoding: 'utf8',
-    env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
+  return new Promise((done, fail) => {
+    execFile('bash', [join(repoRoot, 'evals', '_fixture', 'setup.sh'), variant], {
+      cwd: dir, encoding: 'utf8',
+      env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
+    }, (error, stdout, stderr) => (error ? fail(new Error(`setup.sh ${variant} failed:\n${stdout}${stderr}`)) : done(dir)));
   });
-  if (r.status !== 0) throw new Error(`setup.sh ${variant} failed:\n${r.stdout}${r.stderr}`);
-  return dir;
 }
 const edit = (dir, rel, fn) => writeFileSync(join(dir, rel), fn(readFileSync(join(dir, rel), 'utf8')));
 
 async function grade(name, variant, change) {
-  const dir = shop(variant);
+  const dir = await shop(variant);
   try {
     if (change) change(dir);
     return await gradeWorkspace(caseDir(name), dir);

@@ -26,7 +26,7 @@ import { join } from 'node:path';
 // report that does not say what broke sends the reader back into the source.
 function breaks(name, checkId, mutate, expected) {
   test(`${checkId}: ${name}`, async () => {
-    const dir = workspace();
+    const dir = await workspace();
     mutate(dir);
     const r = await runValidate(dir);
     assert(r.code !== 0,
@@ -39,7 +39,7 @@ function breaks(name, checkId, mutate, expected) {
 // change of contract, so the exit code is asserted too.
 function warns(name, checkId, mutate, expected) {
   test(`${checkId}: ${name}`, async () => {
-    const dir = workspace();
+    const dir = await workspace();
     mutate(dir);
     const r = await runValidate(dir);
     assertMatch(r.out, expected, `check ${checkId} did not warn about this.`);
@@ -63,7 +63,7 @@ const appendLine = (dir, rel, line) => editText(dir, rel, (t) => `${t}\n${line}\
 // Without this, every case above could be passing because the copy is broken rather than
 // because the mutation worked.
 test('baseline: an unmutated copy of the tree validates clean', async () => {
-  const r = await runValidate(workspace());
+  const r = await runValidate(await workspace());
   assert(r.code === 0, `a clean copy of the repo must validate. Output:\n${r.out}`);
   assertMatch(r.out, /^OK - /m, 'a clean copy must report OK.');
 });
@@ -256,7 +256,7 @@ breaks('an always-on cost over budget', '10',
 // or it argues for the wrong one. No number is hard-coded here: the case reads the
 // measured figure back both ways and only requires that unscoping raises it.
 test('10: a rule with paths: frontmatter is not counted against the budget', async () => {
-  const dir = workspace();
+  const dir = await workspace();
   const measured = (out) => {
     // The figure appears with a thousands separator in one message and without it in
     // another. Matching only the bare form captured a leading "1" out of "1,250".
@@ -286,7 +286,7 @@ test('10: a rule with paths: frontmatter is not counted against the budget', asy
 // skill once sat in the always-on set unmentioned. No figure is hard-coded: the case reads
 // the measured total back with the agent and without it.
 test('10: a shipped agent is counted against the budget', async () => {
-  const dir = workspace();
+  const dir = await workspace();
   const measured = (out) => {
     const m = out.match(/([\d,]+) tok\/turn always-on/) ?? out.match(/measured ([\d,]+)/);
     assert(m, `no measured always-on figure in the output:\n${out}`);
@@ -579,7 +579,7 @@ const toBlockList = (t) => t
   .replace('allowed_tools: [Skill, Read, Glob, Grep]', 'allowed_tools:\n  - Skill\n  - Read\n  - Glob\n  - Grep');
 
 test('16: a case written with YAML block lists is accepted', async () => {
-  const dir = workspace();
+  const dir = await workspace();
   editText(dir, `${CASE}/prompt.md`, toBlockList);
   const r = await runValidate(dir);
   assert(r.code === 0,
@@ -588,7 +588,7 @@ test('16: a case written with YAML block lists is accepted', async () => {
 
 test('16: a fault in a block-list case is still caught', async () => {
   // Otherwise the fix above would have bought acceptance by checking nothing.
-  const dir = workspace();
+  const dir = await workspace();
   editText(dir, `${CASE}/prompt.md`, (t) => toBlockList(t).replace('  - Skill\n', ''));
   const r = await runValidate(dir);
   assert(r.code !== 0, 'a case that withholds the tool it asserts on must still fail.');
@@ -615,7 +615,7 @@ breaks('a suite with no should-not-fire case', '16',
 // Both of these once replaced the whole report: a missing README.md sent the cost check
 // into a null read, and a broken script was not read for syntax at all.
 test('robustness: a missing README is a finding, not a stack trace', async () => {
-  const dir = workspace();
+  const dir = await workspace();
   removeFile(dir, 'README.md');
   const r = await runValidate(dir);
   assert(!/TypeError|at Array\.forEach/.test(r.out),
@@ -626,7 +626,7 @@ test('robustness: a missing README is a finding, not a stack trace', async () =>
 
 test('robustness: the validator runs from a directory that is not the repo', async () => {
   // It resolves its own root. It used to read cwd and die on ENOENT over its own report.
-  const dir = workspace();
+  const dir = await workspace();
   const r = await runValidate(dir);
   assert(r.code === 0, `the validator must work when run from elsewhere:\n${r.out}`);
 });
