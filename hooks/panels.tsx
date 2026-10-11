@@ -314,11 +314,23 @@ const refresh = async ($: any, atStart: boolean) => {
       : `easyClaude: last request ${money(spent)}, ${duration(r.endedAt - r.startedAt)}`)
 }
 
+// The request's title: the person's own words. The desktop app wraps pasted text in
+// <pasted_content id="..."> markers, and a message that was only pasted text showed that
+// marker as its title. Pasted text is not the request, so it is left out; an attached image
+// leaves "[Image #1]" behind, which goes too. Nothing of their own: a plain name.
+export const requestTitle = (said: string): string => {
+  const own = said
+    .replace(/<pasted_content\b[^>]*>[\s\S]*?(<\/pasted_content\b[^>]*>|$)/g, ' ')
+    .replace(/\[Image #\d+\]/g, ' ')
+    .replace(/\s+/g, ' ').trim()
+  if (!own) return /\[Image #\d+\]/.test(said) && !/<pasted_content\b/.test(said) ? 'Image' : 'Pasted text'
+  return own.length > 70 ? `${own.slice(0, 70)}...` : own
+}
+
 const startRequest = async ($: any, said: string) => {
   const now = await $.clock.now()
-  const text = said.replace(/\s+/g, ' ').trim()
   const r: Request = {
-    text: text.length > 70 ? `${text.slice(0, 70)}...` : text,
+    text: requestTitle(said),
     startedAt: now, endedAt: null, steps: [], recent: [], tools: 0, costAtStart: null, waiting: [],
   }
   await update($, request, () => r)
@@ -345,7 +357,7 @@ const recordTool = async ($: any, input: any, result: any) => {
 // Whether a submission carries on the request in progress: a background task's report,
 // which Claude Code sends when a task Claude started in the background ends.
 export const continuesRequest = (origin: { kind?: string } | undefined, text: string): boolean =>
-  origin?.kind === 'task-notification' || /^s*<task-notification>/.test(text)
+  origin?.kind === 'task-notification' || /^\s*<task-notification>/.test(text)
 
 // The request runs again, under the title the user gave it. With none, it gets a plain one.
 const resumeRequest = async ($: any) => {
