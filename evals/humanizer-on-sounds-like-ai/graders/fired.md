@@ -1,6 +1,6 @@
 ---
 type: tool_used
 tool: Skill
-input_match: slopmonster
+input_match: humanizer
 min: 1
 ---

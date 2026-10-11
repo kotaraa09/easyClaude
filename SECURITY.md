@@ -20,7 +20,7 @@ to be named.
 - A way to make the verify gate run a command the user did not approve.
 - A way around the guards, such as reading `.env` or a force push that should be blocked.
 - A skill, recipe or hook that sends data off the machine without saying so.
-- Anything in the vendored code under `skills/slopmonster/`. Report it upstream too.
+- Anything in the vendored skill under `skills/humanizer/`. Report it upstream too.
 
 ## Supported versions
 

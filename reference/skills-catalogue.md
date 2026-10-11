@@ -17,22 +17,21 @@
 
 These two arrive with easyClaude. Nobody chooses them and nobody can skip them.
 
-### slopmonster - the prose gate
+### humanizer - the prose rewrite
 
-The prose linter, vendored at a pinned commit into `skills/slopmonster/` and always on.
-It scores copy out of 5 across five rule groups - AI vocabulary, AI constructions,
-punctuation cadence, rule-of-three rhythm, invented proof - and exits red below 5/5. Say
-"does this sound like AI" or "de-slop this" and it fires.
+[blader/humanizer](https://github.com/blader/humanizer), vendored at a pinned commit into
+`skills/humanizer/` and always on. It rewrites text that reads as AI-written, keeping what it
+says: staged contrasts, one-line closers, forced triads, dashes everywhere, inflated claims,
+stock AI words. Its numbered patterns come from Wikipedia's "Signs of AI writing". Say "does
+this sound like AI" or ask to make a draft sound human, and it fires.
 
-- MIT. **1 skill, 59 tokens per turn**, paid on every session whether there is prose or not.
-- It needs Python for the linter, and bash for the optional cleanse step. On Windows the
-  command is `python`, not the `python3` its own documentation says.
-- The cleanse step sends your draft to a rival model CLI and that call is billed. The
-  linter itself makes no network call at all. Both scripts were read in full before they
-  were vendored; the notes are in `skills/slopmonster/PROVENANCE.md`.
-- It scored this framework's own README at 2 out of 5 until that README was rewritten to
-  pass. Note the limit that exposed: the catalogue is English only, so README.th.md scores
-  5 out of 5 without the scorer reading a word of it.
+- MIT. **1 skill, about 89 tokens per turn**, paid on every session whether there is prose or
+  not.
+- Instructions only: no code to run, no Python, and nothing sent anywhere. The notes are in
+  `skills/humanizer/PROVENANCE.md`.
+- It replaced slopmonster on 2026-10-11. slopmonster gave a score out of 5 that a person could
+  check, but needed Python and sent the draft to a second, billed model. humanizer gives no
+  score; Claude judges the text against its patterns.
 
 ### SkillSpector - the install gate
 
