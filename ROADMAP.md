@@ -266,3 +266,9 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   the background is still running, and the panel and the status line say what it waits for.
   A dev server or a watcher does not keep it waiting. Beginners had seen Done, found nothing
   yet, and said it did not work. #99.
+- **1.3.0** - Each helper in the progress panel wears a uniform for its job: a programmer, an
+  artist, a reviewer, a planner, a writer or an explorer. A click on a changed file in the file
+  tree shows what changed since the last save to git, under the tree (file tree 0.2.25).
+  humanizer replaces slopmonster as the built-in skill for AI-sounding text: instructions only,
+  no Python, nothing sent to a second model. Three trigger cases brought up to date with 1.1.3
+  and the Stop hook. #102, #103, #104.
