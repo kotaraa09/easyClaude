@@ -20,7 +20,7 @@
       ],
       "contains_executable_code": false,
       "why": "Rewrites text so it does not read as AI-written, which nothing else here does. Users who cannot judge prose themselves still publish it: a landing page, a README, an email. It replaced slopmonster on 2026-10-11 at the owner's request, because it does the same job as instructions alone.",
-      "reviewed": "SKILL.md and LICENSE were read in full and match the upstream files at the pinned commit byte for byte. SKILL.md is prose: numbered patterns from Wikipedia's \"Signs of AI writing\", and a four-step way to rewrite. It runs nothing, reads nothing outside the conversation, and calls nothing. Full notes in skills/humanizer/PROVENANCE.md.",
+      "reviewed": "SKILL.md and LICENSE were read in full and match the upstream files at the pinned commit, apart from LF line endings and SKILL.md's frontmatter folded to one line. SKILL.md is prose: numbered patterns from Wikipedia's \"Signs of AI writing\", and a four-step way to rewrite. It runs nothing, reads nothing outside the conversation, and calls nothing. Full notes in skills/humanizer/PROVENANCE.md.",
       "needs": "Nothing. No runtime, no network."
     }
   ],

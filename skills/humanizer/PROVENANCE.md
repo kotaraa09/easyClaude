@@ -19,8 +19,9 @@ does. The skill credits its own source, Wikipedia's "Signs of AI writing", insid
 
 ## What was vendored, and what was left behind
 
-Taken: `SKILL.md` and `LICENSE`. `LICENSE` matches upstream byte for byte (git blob
-`625297fb`). `SKILL.md` matched too (`19fc6342`) before one change: its frontmatter is folded
+Taken: `SKILL.md` and `LICENSE`, both stored with LF line endings, as `.gitattributes` asks.
+`LICENSE` matches upstream (git blob `625297fb`) apart from that. `SKILL.md` matched too
+(`19fc6342`) before one change: its frontmatter is folded
 to plain `key: value` lines, because `scripts/validate.mjs` reads no other form. The
 description keeps every word; the `license: MIT` line and the `metadata: version: "3.1.0"`
 block are dropped (the licence is in `LICENSE`), and the
