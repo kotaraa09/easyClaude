@@ -2,7 +2,15 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-08, at 1.1.3.
+nothing to learn first. Last reviewed on 2026-10-11, at 1.3.0.
+
+**What a prompt is worth, measured 2026-10-11.** The four outcome tasks were each asked four
+ways: two beginner wordings, and two expert wordings that add only general good practice.
+Without easyClaude, the expert wordings passed 40 of 40 and the beginner wordings 31 of 40.
+With easyClaude, the beginners passed 40 of 40 and the experts 39 of 40. The whole gap came
+from one task, `fix-checkout`: the experts asked for a regression test, and the beginners
+got one only from the `debug` skill. The other three tasks passed every time at every
+wording, so they cannot show a gap. Items 1, 2 and 9 aim at the tasks that can.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -34,6 +42,9 @@ and bills real money rather than plan usage.
 **Done when.** A full `--shell` run is published beside the Windows one. **Effort:** half
 a day, plus about $5 of runs.
 
+It also gives the prompt measurement its fair figure: with a shell, plain Claude can run
+the tests an expert's request asks it to run.
+
 ### 2. Benchmark: a change that breaks something nobody mentioned
 
 **Why.** A beginner cannot see what a change broke elsewhere. This is where the verify
@@ -42,7 +53,8 @@ gate should earn its cost, and no task measures it yet.
 **What.** A task whose obvious fix breaks another, untested-by-the-user feature, with a
 test for that feature already in the project. Graded on both features working.
 
-**Done when.** The task runs in both arms with a shell. **Effort:** 1 day.
+**Done when.** The task runs in both arms with a shell, at a beginner and an expert wording.
+An expert asks "keep everything else working"; a beginner does not. **Effort:** 1 day.
 
 ### 3. Benchmark: "I want yesterday's version back"
 
@@ -140,6 +152,41 @@ line, because a rule inside a skill did not change behaviour in earlier tests.
 with it than without, and the added cost per task is stated. If it does not, it is not
 shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurement.
 
+### 9. Benchmark: a request that hides a requirement
+
+**Why.** A short request leaves things out, and a beginner leaves out the most. easyClaude
+asks when a request can mean two things, but no outcome task needs a question to pass. On
+the four tasks of the prompt measurement, a beginner's wording already passed at 100%.
+
+**What.** A task where the hidden tests expect something the request does not say. Example:
+"add a sold-out option", where a sold-out plant must also be refused at checkout. Asked at
+the four wordings of `evals/prompt-levels/`, in both arms. A run that asks a good question
+must be able to pass: a second turn from a saved conversation (`context.history_file`)
+answers it.
+
+**Done when.** The task runs at all four wordings, both arms, 5 runs each, and the gap
+between beginner and expert is stated with and without easyClaude. **Effort:** 1-2 days,
+plus about $10 of runs.
+
+### 10. Checks that stay fast as a project grows
+
+**Why.** easyClaude runs the project's checks after each change. In a small project that
+takes seconds. A project with a test for every feature, a build and a browser test can take
+minutes, and then every change waits for it. The gate already has two tiers (fast after
+each change, full at the end of a task and at ship), runs only the checks of the app a
+change is in, and skips a change to notes. It still runs the whole fast tier for any code
+change, and no measurement uses a project larger than the sample plant shop.
+
+**What.** A large sample project: many features, a test file each, a build, a slow
+end-to-end test. Measure the wait per change. Then, where the test tool supports it, let a
+fast step run only the tests related to the changed files (`vitest related`,
+`jest --findRelatedTests`, `pytest` with a changed-file list), with the whole suite kept for
+the full tier. Kickoff sorts a slow build or browser test into the full tier, and says so.
+
+**Done when.** On the large sample, the wait after a one-file change stays under 30
+seconds, and the full tier at ship still catches a bug the fast tier missed. **Effort:**
+3-4 days, plus about $5 of runs.
+
 ## Later
 
 - **Panels for everyone.** 1.1.0 ships a progress panel and a control panel as a Claude
@@ -159,7 +206,14 @@ shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurem
   A run that allows it would show the install works, and the cost it quotes is right.
 - **Planning that waits for a yes, measured.** `plan-feature` stops and asks before it
   builds. The benchmark sends one message per session, so it cannot answer "yes" yet. A
-  saved conversation (`context.history_file`) could.
+  saved conversation (`context.history_file`) could; item 9 builds the same second turn.
+- **Prompt wordings in Thai.** Most easyClaude users write in Thai. A beginner and a terse
+  beginner wording in Thai for the four outcome tasks, both arms. About $8 of runs.
+- **Expert wordings written by people.** Claude wrote the expert prompts of the 2026-10-11
+  measurement. One or two people who write prompts for a living would make the expert side
+  a real one.
+- **More runs only where it is close.** Five runs per wording is enough at 100% against
+  78%. Ten only for a task whose two sides fall within each other's range.
 - **Larger samples.** Three runs per task moves by one or two between days. Five runs on
   the tasks that differ between arms, once the figures are used to decide something.
 - **Claude Code's own memory.** Eval runs start without it. A run with it on would show
