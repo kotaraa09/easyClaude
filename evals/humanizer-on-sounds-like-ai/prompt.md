@@ -1,7 +1,7 @@
 ---
 schema_version: "1.1"
-name: slopmonster-on-sounds-like-ai
-description: "One of the trigger phrases in the slopmonster description, with a draft full of AI tells. No shell in the case, so its linter cannot run."
+name: humanizer-on-sounds-like-ai
+description: "A question about AI-sounding text, with a draft full of AI tells, must reach humanizer. It replaced slopmonster on 2026-10-11 and has not run in this case yet."
 tags: [triggering, positive]
 runs: 3
 max_turns: 6

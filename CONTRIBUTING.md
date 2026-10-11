@@ -65,7 +65,7 @@ reloading; check it in the desktop app and in a terminal.
   pull request that it still needs a translation.
 - **No new dependencies.** Scripts use only Node's built-ins.
 - **Third-party skills** need a `PROVENANCE.md` and their licence. See
-  [`skills/slopmonster/`](skills/slopmonster/) for an example.
+  [`skills/humanizer/`](skills/humanizer/) for an example.
 
 ## Commit messages
 

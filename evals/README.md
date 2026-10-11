@@ -31,8 +31,8 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `kickoff-on-an-empty-folder` | *"I want to make a website for my bakery"* | `kickoff` fires, in an empty folder |
 | `explore-code-on-where-is-it` | *"where do discount codes get checked?"* | `explore-code` fires |
 | `quiet-explore-on-what-next` | *"what should I work on next?"* | `explore-code` does **not** fire |
-| `slopmonster-on-sounds-like-ai` | *"does this sound like AI? ..."* | `slopmonster` fires |
-| `quiet-slopmonster-on-write-copy` | *"write a one-line welcome for the top of the home page"* | `slopmonster` does **not** fire |
+| `humanizer-on-sounds-like-ai` | *"does this sound like AI? ..."* | `humanizer` fires |
+| `quiet-humanizer-on-write-copy` | *"write a one-line welcome for the top of the home page"* | `humanizer` does **not** fire |
 | `library-on-a-calendar` | *"add a calendar so shoppers can pick a delivery day"* | `plan-feature` fires, and names a free library before building |
 | `skills-for-a-godot-game` | *"/easyclaude:skills"*, in a Godot project | it works out the project is a game, offers game skills, installs nothing |
 | `kickoff-offers-godot-skills` | setup in a Godot project, answered in one message | the close offers at most two Godot skills, with a cost in tokens |
@@ -117,7 +117,8 @@ would have gone on. The judges passed those replies, so the grader now also fail
 that started the release and stopped. The `ship` description now ends "not when asked how to
 ship". After that: `ship` fired 0 times of 3 on the question, and still 3 of 3 on `ship it`.
 
-**The explore-code and slopmonster pairs**, same day and settings:
+**The explore-code and slopmonster pairs**, same day and settings. humanizer replaced slopmonster on
+2026-10-11, and its two cases have not run yet:
 
 | case | skill fired correctly | with plugin | without plugin |
 |---|---|---|---|
@@ -467,4 +468,4 @@ permission mode), so those runs set up everything else and said so.
   `explore-code-on-where-is-it` can show the skill firing. Every skill that fires on its own
   now has a case that should reach it.
 - A sentence that should not reach `build-task`, `debug`, `rescue` or `kickoff`. Only `ship`, `plan-feature`,
-  `security-check`, `explore-code` and `slopmonster` have one.
+  `security-check`, `explore-code` and `humanizer` have one.

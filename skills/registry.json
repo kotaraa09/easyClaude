@@ -10,21 +10,21 @@
   "max_vendored": 10,
   "vendored": [
     {
-      "name": "slopmonster",
-      "source": "https://github.com/ItsssssJack/SlopMonster",
-      "commit": "f261dbf11c2a206ecd8780c070a46dae64edd8be",
-      "vendored_on": "2026-09-19",
+      "name": "humanizer",
+      "source": "https://github.com/blader/humanizer",
+      "commit": "225a6f39ac85f76ee48dbad772ea4abe4ed6c9d8",
+      "vendored_on": "2026-10-11",
       "license": "MIT",
       "attribution_files": [
         "LICENSE"
       ],
-      "contains_executable_code": true,
-      "why": "The only mechanical check here aimed at prose rather than code. verify.mjs decides whether the build is honest; nothing decided whether the words were, and \"make it sound less like a robot\" was a judgement call every time. This makes it falsifiable: five rule groups, one point each, exits non-zero below 5/5, and every rule can be looked up and argued with. It is built in by request, not by the bar - see _vendored_comment.",
-      "reviewed": "Both executable files were read in full before vendoring, per the bar. tools/deslop.py imports re, sys and html, opens files only to read them, and makes no network call, no subprocess call and no eval. tools/cleanse.sh pipes the draft to whichever rival model CLI is installed (codex exec, or claude -p), which means the draft leaves the machine and the call is billed. That is the step's whole purpose and it is documented, not hidden. Full notes in skills/slopmonster/PROVENANCE.md.",
-      "needs": "Python 3 for the linter; bash and awk for the cleanse step. This is the first runtime dependency outside Node that this plugin has ever carried, and it is the reason to re-read that trade if it ever grows a second one. On Windows the command is python, not python3."
+      "contains_executable_code": false,
+      "why": "Rewrites text so it does not read as AI-written, which nothing else here does. Users who cannot judge prose themselves still publish it: a landing page, a README, an email. It replaced slopmonster on 2026-10-11 at the owner's request, because it does the same job as instructions alone.",
+      "reviewed": "SKILL.md and LICENSE were read in full and match the upstream files at the pinned commit, apart from LF line endings and SKILL.md's frontmatter folded to one line. SKILL.md is prose: numbered patterns from Wikipedia's \"Signs of AI writing\", and a four-step way to rewrite. It runs nothing, reads nothing outside the conversation, and calls nothing. Full notes in skills/humanizer/PROVENANCE.md.",
+      "needs": "Nothing. No runtime, no network."
     }
   ],
-  "_vendored_comment": "Carries one skill, by explicit request rather than by the bar above. slopmonster is not prose-only, it needs a runtime this plugin otherwise does not use, and one of its two scripts sends your draft to a second model provider and bills you for it. Every one of those is a reason the bar would normally refuse. They are written down in the entry and in PROVENANCE.md instead of being smoothed over, because the point of a bar is that going around it leaves a record. design-taste sat here until 2026-09-19 and was removed for the opposite reason: it picked an aesthetic for everybody. A slop linter is a checker rather than a taste, which is the line being drawn - you can disagree with one of its five rules and go read it.",
+  "_vendored_comment": "Carries one skill. humanizer passes every line of the bar above: prose only, MIT with its licence carried, no runtime, and no job easyClaude's own skills do. Its predecessor, slopmonster (2026-09-19 to 2026-10-11), was kept by request against the bar: it needed Python, and one of its scripts sent the draft to a second model provider and billed for it. design-taste sat here until 2026-09-19 and was removed because it picked an aesthetic for everybody.",
   "_catalogue_comment": "The recommendations the user actually sees live in reference/skills-catalogue.md, not here, and they cover security, testing, marketing and document work as well as design. That file is a catalogue, not a registry, and the bar above does not apply to it: nothing in it is vendored, pinned, or shipped, so nothing in it runs on a user machine unless that user installs it themselves. What applies instead is one rule borrowed from scripts/connect.mjs - every entry was checked against the GitHub API before it was written down, because a catalogue that 404s on first use is worse than no catalogue. Recheck the counts and licences when you touch it; they drift.",
   "recommended_not_vendored": [
     {

@@ -225,14 +225,14 @@ test('skillscan: SKILLSPECTOR_BIN is tried before anything on PATH', () => {
 // Fails closed. A gate that waves things through when it cannot see them is decoration,
 // so "no scanner" must not exit 0 unless the user said so in the command line.
 test('skillscan: no scanner refuses, and says how to get one', async () => {
-  const r = await run(script('skillscan.mjs'), { cwd: repoRoot, args: ['./skills/slopmonster'] });
+  const r = await run(script('skillscan.mjs'), { cwd: repoRoot, args: ['./skills/humanizer'] });
   assert(r.code !== 0, `it exited 0 with no scanner present:\n${r.out}`);
   assertMatch(r.out, /uv tool install/, 'refusing without naming the fix leaves people stuck.');
 });
 
 test('skillscan: --allow-unscanned passes, and says it was not scanned', async () => {
   const r = await run(script('skillscan.mjs'), {
-    cwd: repoRoot, args: ['./skills/slopmonster', '--allow-unscanned'],
+    cwd: repoRoot, args: ['./skills/humanizer', '--allow-unscanned'],
   });
   assert(r.code === 0, `the documented override did not pass:\n${r.out}`);
   assertMatch(r.out, /NOT SCANNED/, 'an unscanned install must say so, not go quiet.');
