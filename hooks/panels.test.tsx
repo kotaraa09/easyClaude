@@ -3,7 +3,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { actionLabel, addRecent, applyTaskUpdate, fromTodos, isDevServer, money, settingsFrom, stepLine, waitingOn } from './panels'
+import { actionLabel, addRecent, applyTaskUpdate, continuesRequest, fromTodos, isDevServer, money, requestTitle, settingsFrom, stepLine, waitingOn } from './panels'
 import { ADVICE_LIMIT, afterStep, afterTurn, freshGuard, holdText, shouldHold } from './clear-reminder'
 import { costumeOf, flowOf, label, side } from './savvy-progress/register'
 import type { Request, Step } from '../types'
@@ -90,6 +90,30 @@ describe('the recent actions', () => {
     for (let i = 0; i < 10; i++) recent = addRecent(recent, `Wrote ${i}.js`)
     expect(recent.length).toBe(8)
     expect(recent[7]).toBe('Wrote 9.js')
+  })
+})
+
+describe('the title of a request', () => {
+  // A message made only of pasted text showed `<pasted_content id="a226"> PS C:\WINDO...` as
+  // its title on the bar and in the progress panel.
+  test('pasted text and its markers never become the title', () => {
+    const pasted = '<pasted_content id="a226">\nPS C:\\WINDOWS\\system32> wsl --install -d Ubuntu\n</pasted_content id="a226">'
+    expect(requestTitle(pasted)).toBe('Pasted text')
+    expect(requestTitle(`${pasted}\nwhy does this fail?`)).toBe('why does this fail?')
+    expect(requestTitle(`<pasted_content id="b1">\nlong log that was cut`)).toBe('Pasted text')
+    expect(requestTitle('[Image #1] Wait, what is this?')).toBe('Wait, what is this?')
+    expect(requestTitle('[Image #1]')).toBe('Image')
+  })
+
+  test('a plain message is kept, shortened past 70 characters', () => {
+    expect(requestTitle('  fix the\n checkout  ')).toBe('fix the checkout')
+    expect(requestTitle('x'.repeat(80))).toBe(`${'x'.repeat(70)}...`)
+  })
+
+  test('a background report continues the request, with or without space before it', () => {
+    expect(continuesRequest(undefined, '<task-notification>done</task-notification>')).toBe(true)
+    expect(continuesRequest(undefined, '\n  <task-notification>done</task-notification>')).toBe(true)
+    expect(continuesRequest(undefined, 'what is a <task-notification>?')).toBe(false)
   })
 })
 
