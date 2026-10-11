@@ -134,7 +134,7 @@ export function report(results) {
   if (wrong.length) lines.push('', `WORDS DIFFER: these runs were not sent their level's words: ${wrong.join(', ')}. Do not use these figures.`);
   if (levels.some((l) => results[l].with?.partial || results[l].without?.partial)) {
     const stopped = levels.reduce((s, l) => s + cell[l].with.limited + cell[l].without.limited, 0);
-    lines.push('', `PARTIAL: a cost ceiling or a usage limit stopped a run${stopped ? `; ${stopped} run(s) a usage limit stopped are left out of the counts` : ''}. Do not publish these figures.`);
+    lines.push('', `PARTIAL: a cost ceiling or a usage limit stopped a run${stopped ? `; ${stopped} run(s) that measured nothing are left out of the counts` : ''}. Do not publish these figures.`);
   }
   const spent = levels.reduce((s, l) => s + cell[l].with.cost + cell[l].without.cost, 0);
   lines.push('', `These runs cost ${money(spent)} at list price, counting the no-easyClaude runs each level reused from the cache.`);

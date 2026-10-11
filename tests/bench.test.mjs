@@ -283,6 +283,9 @@ test('bench: a run stopped by a usage limit is recognised, and a normal reply is
   const { USAGE_LIMIT } = await import('../scripts/bench.mjs');
   assert(USAGE_LIMIT.test("You've hit your monthly spend limit · raise it at claude.ai/settings/usage"), 'the real message');
   assert(!USAGE_LIMIT.test('Done - the shop is now called Green Corner. There is no limit on how many plants a cart holds.'), 'a normal reply');
+  const { NOT_STARTED } = await import('../scripts/bench.mjs');
+  assert(NOT_STARTED.test('case "outcome-rename-shop": path "setup.sh" does not exist'), 'a run whose scaffold was lost never started');
+  assert(!NOT_STARTED.test('The discount code does not exist in the list, so it charges the full price.'), 'a reply about a missing code is a normal reply');
 });
 
 // Both of these reached the table as 0/3 on 2026-09-29, and the second was saved as a full

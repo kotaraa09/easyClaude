@@ -514,7 +514,9 @@ async function runArm(label, pluginDir, opts) {
       // the no-easyClaude arm stopped this way three times, and was cached as 0/3.
       // A run that never started measured nothing either: no sample project, or no login.
       // Both reached the table as 0/3 on 2026-09-29, one marked as a full result.
-      const isLimited = USAGE_LIMIT.test(reply) || NOT_STARTED.test(`${run.error ?? ''}\n${reply}`);
+      // A run whose record was lost measured nothing about the reply: on 2026-10-11 two runs
+      // that fixed the bug lost their trace, so their reply read as empty and as not English.
+      const isLimited = USAGE_LIMIT.test(reply) || NOT_STARTED.test(`${run.error ?? ''}\n${reply}`) || !traceText;
       if (isLimited) limited++;
       // Changed no file and ended on a question: it asked instead of acting. The benchmark
       // sends one message, so a run that asks fails here, though a person could answer it.
@@ -543,7 +545,9 @@ async function runArm(label, pluginDir, opts) {
 }
 
 export const USAGE_LIMIT = /you'?ve hit your [\w ]*limit|usage limit reached/i;
-export const NOT_STARTED = /scaffold failed|failed to authenticate|oauth [\w ]*expired/i;
+// 'path "setup.sh" does not exist': the runner lost the case's scaffold, and 13 runs of one
+// level never started on 2026-10-11, but were counted as failures.
+export const NOT_STARTED = /scaffold failed|failed to authenticate|oauth [\w ]*expired|path "[^"]+" does not exist/i;
 
 // What a task's no-easyClaude result depends on: the Claude Code version, the run
 // settings, the task's own files, its day one if it has one, and the shared sample
