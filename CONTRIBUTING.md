@@ -16,10 +16,13 @@ You need Node.js 22. There are no dependencies to install.
 
 ```bash
 node scripts/validate.mjs   # the plugin's structure and its stated costs
-node scripts/test.mjs       # the checking machinery, about 25 seconds to 5 minutes
+node scripts/test.mjs       # the checking machinery, about 2 minutes
+node scripts/test.mjs verify  # one area only, while you work on it
 ```
 
-Both must pass. CI runs them on Linux and Windows for every pull request.
+Both must pass. CI runs them on Linux and Windows for every pull request. Each test area
+runs in its own process, and the run ends with its five slowest tests. Over 5 minutes, it
+warns, on the pull request too: speed up or split the slow tests before adding more.
 
 The panels are Claude Code hooks modules, and need Claude Code itself (2.1.288 or later):
 easyClaude's own in `hooks/` (`register.tsx` starts the control panel, the progress bar and

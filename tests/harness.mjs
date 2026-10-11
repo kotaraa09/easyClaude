@@ -18,6 +18,7 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
+import { availableParallelism } from 'node:os';
 import { trust } from '../scripts/trust.mjs';
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -58,7 +59,10 @@ function pristine() {
 }
 
 // A fresh, unbroken copy of the plugin. Mutate it freely; nothing here touches the real tree.
-export function workspace() {
+// Async so a caller can move to a non-blocking copy, but the copy itself is synchronous:
+// on Windows fs.promises.cp took twice as long (0.9s against 0.5s), and since each suite
+// runs in its own process, a blocking copy holds up only its own suite.
+export async function workspace() {
   const dir = join(tempDir('easyclaude-work-'), 'plugin');
   cpSync(pristine(), dir, { recursive: true });
   return dir;
@@ -196,8 +200,8 @@ const indent = (t) => t.split('\n').map((l) => `    | ${l}`).join('\n');
 // --- the runner --------------------------------------------------------------
 // Cases run concurrently because most of the wall time is node startup: the validator
 // spawns `node --check` once per script, so a sequential run is dominated by process
-// spawn. The pool is small so a laptop stays usable while it runs.
-const POOL = Number(process.env.EASYCLAUDE_TEST_POOL || 4);
+// spawn. The pool leaves one core free, so a laptop stays usable while it runs.
+const POOL = Number(process.env.EASYCLAUDE_TEST_POOL || Math.max(2, availableParallelism() - 1));
 
 export async function runAll() {
   const started = Date.now();
@@ -228,6 +232,11 @@ export async function runAll() {
     console.log(`\nFAIL  ${r.name}`);
     console.log(indent(r.error?.message ?? String(r.error)));
   }
+
+  // The slowest tests, so a run that grows slow says where the time went.
+  const slowest = [...results].sort((a, b) => b.ms - a.ms).slice(0, 5);
+  console.log('\nslowest:');
+  for (const r of slowest) console.log(`  ${(r.ms / 1000).toFixed(1).padStart(5)}s  ${r.name}`);
 
   const secs = ((Date.now() - started) / 1000).toFixed(1);
   console.log(

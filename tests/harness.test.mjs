@@ -9,7 +9,7 @@
 // is the exact failure the suite exists to catch, one level up, and nothing was watching
 // this level.
 import {
-  test, assert, assertMatch, run, workspace, projectDir,
+  test, assert, assertMatch, run, workspace, projectDir, repoRoot,
   readText, writeText, replaceOnce, exists,
 } from './harness.mjs';
 import { writeFileSync } from 'node:fs';
@@ -72,8 +72,8 @@ test('harness: stdin is closed, so a script reading it does not hang', async () 
 // --- a mutation that changes nothing must be refused ---------------------------
 // A mutation that silently no-ops leaves the validator passing, which reads as a real
 // finding about the validator - the loudest possible false alarm.
-test('harness: replaceOnce refuses a target that is not there', () => {
-  const dir = workspace();
+test('harness: replaceOnce refuses a target that is not there', async () => {
+  const dir = await workspace();
   let threw = null;
   try {
     replaceOnce(dir, 'README.md', 'a phrase that is certainly not in this file', 'x');
@@ -95,9 +95,9 @@ test('harness: replaceOnce changes only the first occurrence', () => {
 // --- copies must be independent ------------------------------------------------
 // The cases run concurrently. If two of them shared a directory, one mutation would leak
 // into another's run and both results would be meaningless.
-test('harness: each workspace is a separate copy', () => {
-  const a = workspace();
-  const b = workspace();
+test('harness: each workspace is a separate copy', async () => {
+  const a = await workspace();
+  const b = await workspace();
   assert(a !== b, 'two workspaces must not be the same directory.');
 
   writeText(a, 'README.md', 'mutated in a');
@@ -105,10 +105,24 @@ test('harness: each workspace is a separate copy', () => {
     'a mutation in one workspace leaked into another.');
 });
 
-test('harness: a workspace is a full copy that the validator can run', () => {
-  const dir = workspace();
+test('harness: a workspace is a full copy that the validator can run', async () => {
+  const dir = await workspace();
   for (const needed of ['scripts/validate.mjs', 'hooks/hooks.json', 'skills/kickoff/SKILL.md']) {
     assert(exists(dir, needed), `the copy is missing ${needed}, so the validator cannot run in it.`);
   }
   assert(!exists(dir, '.git'), 'the copy must not carry .git - nothing here reads history.');
+});
+
+// The time budget in scripts/test.mjs. A budget of 0 makes any run go over it.
+test('harness: a run over the time budget warns, on GitHub too, and still passes', async () => {
+  const over = await run(join(repoRoot, 'scripts', 'test.mjs'), {
+    cwd: repoRoot, args: ['providers'], env: { EASYCLAUDE_TEST_BUDGET_S: '0', GITHUB_ACTIONS: 'true' },
+  });
+  assert(over.code === 0, `a slow run is a warning, not a failure:\n${over.out}`);
+  assertMatch(over.out, /WARN {2}the tests took .* over the 0s budget/, 'the run must say it is over budget.');
+  assertMatch(over.out, /::warning title=Slow tests::/, 'on GitHub the warning must reach the pull request.');
+  const under = await run(join(repoRoot, 'scripts', 'test.mjs'), {
+    cwd: repoRoot, args: ['providers'], env: { EASYCLAUDE_TEST_BUDGET_S: '600', GITHUB_ACTIONS: '' },
+  });
+  assert(!/WARN/.test(under.out), `a run within the budget must not warn:\n${under.out}`);
 });

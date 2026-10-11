@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Validates the easyclaude plugin without needing a live Claude Code session.
 // Every check here exists because something actually broke while building P0.
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync as readFromDisk, readdirSync, existsSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, basename, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +47,11 @@ const HOOK_EVENTS = new Set([
 // load check in scripts/load-check.mjs cannot catch this: the hook loads, and fails later.
 const NO_PROMPT_HOOKS = new Set(['SessionStart']);
 
-const walk = (dir, out = []) => {
+// The validator reads the tree and never writes to it, so each folder is listed once and
+// each text file read once per run. It lists the whole tree about ten times; the test
+// suite runs it 87 times, and the repeated listing and reading was most of each run.
+const listed = new Map();
+const walkOnce = (dir, out) => {
   if (!existsSync(dir)) return out;
   for (const e of readdirSync(dir)) {
     if (e === '.git' || e === 'node_modules') continue;
@@ -55,9 +59,19 @@ const walk = (dir, out = []) => {
     // Run output, git-ignored. A benchmark run saves each workspace Claude left there,
     // package.json and all, and none of it is this plugin's source.
     if (p === join(root, 'evals', 'results')) continue;
-    statSync(p).isDirectory() ? walk(p, out) : out.push(p);
+    statSync(p).isDirectory() ? walkOnce(p, out) : out.push(p);
   }
   return out;
+};
+const walk = (dir) => {
+  if (!listed.has(dir)) listed.set(dir, walkOnce(dir, []));
+  return [...listed.get(dir)];
+};
+const texts = new Map();
+const readFileSync = (f, encoding) => {
+  if (encoding !== 'utf8') return readFromDisk(f, encoding);
+  if (!texts.has(f)) texts.set(f, readFromDisk(f, 'utf8'));
+  return texts.get(f);
 };
 
 const rel = (p) => p.replace(root, '').replace(/\\/g, '/').replace(/^\//, '');
@@ -242,11 +256,30 @@ for (const f of walk(root).filter((p) => p.endsWith('.json'))) {
 //
 // Syntax only. It does not run the file, so a bad import path or a missing export still
 // gets through; the CI smoke tests cover that by actually invoking each entry point.
-for (const f of walk(join(root, 'scripts')).filter((p) => p.endsWith('.mjs'))) {
-  const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
-  if (r.status !== 0) {
-    const first = String(r.stderr ?? '').split(/\r?\n/).find((l) => /Error|error:/.test(l));
-    err(rel(f), `is not valid JavaScript - ${first?.trim() ?? `node --check exited ${r.status}`}`);
+//
+// One child parses every script, rather than one `node --check` each. Starting Node is
+// most of the cost: 34 scripts took 2.5s one by one and 0.1s together, and the test suite
+// runs this validator 87 times. A module is parsed, never linked or run, when it is built.
+// If that child cannot answer, the per-file check runs as before.
+const scriptFiles = walk(join(root, 'scripts')).filter((p) => p.endsWith('.mjs'));
+const PARSE_ALL = 'const vm = require("vm"), fs = require("fs"); const bad = {};' +
+  'for (const f of JSON.parse(fs.readFileSync(0, "utf8"))) {' +
+  '  try { new vm.SourceTextModule(fs.readFileSync(f, "utf8"), { identifier: f }); }' +
+  '  catch (e) { bad[f] = `${e.name}: ${e.message}`; } }' +
+  'process.stdout.write(JSON.stringify(bad));';
+const together = spawnSync(process.execPath, ['--experimental-vm-modules', '--no-warnings', '-e', PARSE_ALL],
+  { encoding: 'utf8', input: JSON.stringify(scriptFiles) });
+let unparsed = null;
+try { if (together.status === 0) unparsed = JSON.parse(together.stdout); } catch { /* fall back below */ }
+if (unparsed) {
+  for (const [f, why] of Object.entries(unparsed)) err(rel(f), `is not valid JavaScript - ${why}`);
+} else {
+  for (const f of scriptFiles) {
+    const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
+    if (r.status !== 0) {
+      const first = String(r.stderr ?? '').split(/\r?\n/).find((l) => /Error|error:/.test(l));
+      err(rel(f), `is not valid JavaScript - ${first?.trim() ?? `node --check exited ${r.status}`}`);
+    }
   }
 }
 

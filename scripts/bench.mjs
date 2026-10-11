@@ -40,7 +40,7 @@
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync,
 } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFile } from 'node:child_process';
 import { join, dirname, basename, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -84,13 +84,18 @@ const ISOLATION = NODE_MAJOR >= 23 ? '--test-isolation=none' : '--experimental-t
 // because the permission model forbids the child processes the default runner starts.
 // Paths go in relative: the runner globs each one, and an absolute path makes it stat
 // the drive root, which the permission model refuses.
+// Asynchronous, so the free tests can grade several workspaces at once; a synchronous run
+// held up every other test in the suite.
 function runTests(dir, files) {
-  const r = spawnSync(process.execPath, [
-    '--permission', `--allow-fs-read=${dir}`, ISOLATION, '--test',
-    ...files.map((f) => relative(dir, f).split(sep).join('/')),
-  ], { cwd: dir, encoding: 'utf8', timeout: 60_000 });
-  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  return { passed: r.status === 0, out: out.split('\n').filter((l) => /^(not ok|# (pass|fail))/.test(l)).join('; ') };
+  return new Promise((done) => {
+    execFile(process.execPath, [
+      '--permission', `--allow-fs-read=${dir}`, ISOLATION, '--test',
+      ...files.map((f) => relative(dir, f).split(sep).join('/')),
+    ], { cwd: dir, encoding: 'utf8', timeout: 60_000, maxBuffer: 32 * 1024 * 1024 }, (error, stdout, stderr) => {
+      const out = `${stdout ?? ''}${stderr ?? ''}`;
+      done({ passed: !error, out: out.split('\n').filter((l) => /^(not ok|# (pass|fail))/.test(l)).join('; ') });
+    });
+  });
 }
 
 // Grades one workspace against one case's check.mjs. Returns [{ name, passed, why }].
@@ -108,12 +113,12 @@ export async function gradeWorkspace(caseDir, workspace) {
         mkdirSync(join(copy, '.bench'), { recursive: true });
         const target = join(copy, '.bench', basename(c.hidden));
         cpSync(join(caseDir, c.hidden), target);
-        const r = runTests(copy, [target]);
+        const r = await runTests(copy, [target]);
         results.push({ name: c.name, passed: r.passed, why: r.out });
       } else if (c.ownTests) {
         const tests = files.filter(isTestFile);
         if (!tests.length) { results.push({ name: c.name, passed: false, why: 'no test files left' }); continue; }
-        const r = runTests(copy, tests.map((f) => join(copy, f)));
+        const r = await runTests(copy, tests.map((f) => join(copy, f)));
         results.push({ name: c.name, passed: r.passed, why: r.out });
       } else if (c.catches) {
         // The project's tests, run against the file as it was before Claude touched it. A
@@ -124,7 +129,7 @@ export async function gradeWorkspace(caseDir, workspace) {
         try {
           cpSync(copy, before, { recursive: true });
           cpSync(join(root, 'evals', '_fixture', 'project', c.catches), join(before, c.catches));
-          const r = tests.length ? runTests(before, tests.map((f) => join(before, f))) : { passed: true };
+          const r = tests.length ? await runTests(before, tests.map((f) => join(before, f))) : { passed: true };
           results.push({ name: c.name, passed: !r.passed, why: `the tests pass against the old ${c.catches}` });
         } finally {
           rmSync(before, { recursive: true, force: true });
