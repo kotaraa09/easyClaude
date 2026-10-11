@@ -5,7 +5,7 @@ This plugin is **vendored third-party code**, not written for easyClaude.
 | | |
 |---|---|
 | Source | https://github.com/data-goblin/claude-code-filetree |
-| Pinned commit | `da1da65724c54541f4a0ec5ddd26641b1a0d672a` (version 0.2.24) |
+| Pinned commit | `da1da65724c54541f4a0ec5ddd26641b1a0d672a` (version 0.2.24; easyClaude ships its changes below as 0.2.25) |
 | Vendored | 2026-10-08 |
 | License | MIT - see `LICENSE` |
 | Contains | **executable code**: a Claude Code hooks module that runs `git`, `gh`, `du` and the system's open command |
@@ -32,6 +32,13 @@ One change, marked with a comment in `hooks/register.tsx`: `/filetree` refused t
 the Claude desktop app. It checked the terminal's layout (fullscreen, 110 columns), and the
 desktop app places the pane beside the conversation whatever that layout is. The two checks
 now apply when the session draws on no desktop surface.
+
+Added by easyClaude: the changes under the tree. A click on a changed file, or `d` on the
+cursor's file, shows its changes since the last save to git (`git diff HEAD`) in the lower
+half of the same pane, drawn by the engine's `Code` element, with arrows to step through the
+hunks. A pane of its own would open as a new tab and hide the tree. `hooks/changes.ts` and
+`hooks/changes.test.ts` are new; the view, its state (`changes` in `types/index.d.ts`) and
+the two calls that show it are in `hooks/register.tsx`.
 
 Left behind: `README.md`, `media/` (6.5MB of GIFs), `tests/`, `scripts/`, `.githooks/`,
 the CI workflow and the marketplace file.

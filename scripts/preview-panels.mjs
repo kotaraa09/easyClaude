@@ -76,6 +76,20 @@ const DEMO = `
       ],
     }))
     await update($, usage, () => u)
+    // \`/easyclaude-preview-demo helpers\` adds one helper in each uniform, half still at work.
+    if (/helpers/.test(String(e.args ?? ''))) {
+      const jobs = [
+        ['general-purpose', 'Fix the checkout bug'], ['general-purpose', 'Make the shop page look better'],
+        ['easyclaude:easyclaude-diff-reviewer', 'Review the branch diff'], ['Plan', 'Plan the delivery calendar'],
+        ['general-purpose', 'Write the README for the shop'], ['Explore', 'Find where discounts are checked'],
+        ['general-purpose', 'Find out what the weather API returns'],
+      ]
+      await update($, helpers, () => jobs.map(([type, description], i) => ({
+        id: 'demo' + i, type, description, model: 'claude-sonnet-5-5', status: i % 2 ? 'done' : 'running',
+        startedAt: now - 60000 - i * 9000, ...(i % 2 ? { endedAt: now - 5000 } : {}),
+        contextTokens: 20000 + i * 7000, contextMax: 1000000, tokens: 30000 + i * 5000, costUsd: 0.04 + i * 0.03, steps: 3 + i, round: 1,
+      })))
+    }
     return { text: 'The preview progress bar now shows a sample request.' }
   })
 }
@@ -97,13 +111,34 @@ write('hooks/hooks.json', JSON.stringify({ modules: ['./register.tsx'] }, null, 
 sources['panels.tsx'] = source;
 for (const f of FILES) write(`hooks/${f}`, sources[f]);
 write('types/index.d.ts', types);
-// The file tree and Blast Radius are plugins of their own, which an installed easyClaude has
-// not had until now, so they load under their own names.
-for (const plugin of ['filetree', 'blast-radius']) {
-  cpSync(join(root, 'plugins', plugin), join(target, plugin), {
-    recursive: true,
-    filter: (src) => !/[\\/]\.claude-plugin[\\/]types([\\/]|$)/.test(src) && !src.endsWith('.test.ts'),
-  });
+// The file tree and Blast Radius are plugins of their own. Blast Radius loads under its own
+// name. The file tree installs with easyClaude since 1.2.1, so its copy is renamed the way the
+// panels are: under the same name the installed one answers, and the preview shows nothing new.
+const copyPlugin = (plugin, to) => cpSync(join(root, 'plugins', plugin), join(target, to), {
+  recursive: true,
+  filter: (src) => !/[\\/]\.claude-plugin[\\/]types([\\/]|$)/.test(src) && !src.endsWith('.test.ts'),
+});
+copyPlugin('blast-radius', 'blast-radius');
+const TREE = 'filetree-preview';
+copyPlugin('filetree', TREE);
+const treeSwaps = {
+  'hooks/register.tsx': [
+    [/plugin: 'filetree'/g, `plugin: '${TREE}'`],
+    [/const PANE = 'filetree'/g, `const PANE = '${TREE}'`],
+    [/name: 'filetree'/g, `name: '${TREE}'`],
+    [/command: 'filetree'/g, `command: '${TREE}'`],
+  ],
+  'types/index.d.ts': [[/^(\s*)filetree: \{/m, `$1'${TREE}': {`]],
+  '.claude-plugin/plugin.json': [[/"name": "filetree"/, `"name": "${TREE}"`]],
+};
+for (const [rel, list] of Object.entries(treeSwaps)) {
+  let text = readFileSync(join(target, TREE, rel), 'utf8');
+  for (const [from, to] of list) {
+    from.lastIndex = 0;
+    if (!from.test(text)) throw new Error(`plugins/filetree/${rel} no longer contains ${from} - update the swaps in this script`);
+    text = text.replace(from, to);
+  }
+  writeFileSync(join(target, TREE, rel), text);
 }
-console.log(`Wrote ${mod}, with filetree and blast-radius beside it. They load when this turn ends, ` +
-  `once hot reloading is on; /${NAME} reopens the control panel.`);
+console.log(`Wrote ${mod}, with ${TREE} and blast-radius beside it. They load when this turn ends, ` +
+  `once hot reloading is on; /${NAME} reopens the control panel, and /${TREE} the file tree.`);

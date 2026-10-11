@@ -366,6 +366,13 @@ const CRAB_CSS = `<style>
 @keyframes wave{50%{transform:skewY(-12deg) scaleX(.85)}}
 .c-explore.run .it{transform-origin:50% 100%;animation:fence .5s ease-in-out infinite}
 @keyframes fence{50%{transform:rotate(25deg)}}
+.c-coder.run .it{animation:blink .5s steps(1) infinite}.c-coder.run .it2{animation:blink .5s steps(1) infinite -.25s}
+.c-artist.run .it{transform-origin:50% 100%;animation:paint .5s ease-in-out infinite}
+@keyframes paint{50%{transform:rotate(-20deg)}}
+.c-reviewer.run .ck{animation:blink 1s steps(1) infinite}.c-reviewer.run .ck2{animation:blink 1s steps(1) infinite -.5s}
+.c-planner.run .it{animation:blink 1s steps(1) infinite}.c-planner.run .it2{animation:blink 1s steps(1) infinite -.5s}
+.c-writer.run .it{transform-origin:50% 100%;animation:write .25s steps(1) infinite}
+@keyframes write{50%{transform:translate(-1px,1px)}}
 @media (prefers-reduced-motion: reduce){.run,.run g{animation:none!important}}
 </style>`
 
@@ -413,10 +420,73 @@ const COSTUMES: Record<string, (f: Fill, t: string) => void> = {
     f(7, 11, 11, 1, INK); f(18, 11, 4, 3, INK)
     f(27, 6, 1, 9, '#C9CCD2', 'it'); f(26, 15, 3, 1, '#7A4A26', 'it')
   },
+  // Coder: programmer in glasses at a laptop; the lines of code on its screen blink.
+  coder: f => {
+    crabBody(f)
+    glasses(f)
+    f(15, 15, 11, 6, '#3A3A3C'); f(16, 16, 9, 4, '#1F2A24')
+    f(17, 17, 4, 1, '#7FD1AE', 'it'); f(17, 18, 6, 1, '#7FD1AE', 'it2'); f(13, 21, 15, 1, '#8E929A')
+  },
+  // Artist: painter in a beret; the brush paints, the palette waits in the other claw.
+  artist: f => {
+    crabBody(f, -4, 'it')
+    stamp(f, 6, 5, ['........b.........', '...rrrrrrrrrrr....', '.rrrrrrrrrrrrrrrr.', 'rrrrrrrrrrrrrrrrrr', '.rrrrrrrrrrrrrrrr.'], { r: '#B33A4A', b: '#7E2633' })
+    f(25, 3, 1, 7, '#A0703F', 'it'); f(25, 2, 1, 1, '#C9CCD2', 'it'); f(24, 0, 3, 2, '#378ADD', 'it')
+    stamp(f, 0, 17, ['.pppp.', 'pRpYpp', 'ppBppp', '.pppp.'], { p: '#E3C79A', R: '#D0453F', Y: '#F5C542', B: '#378ADD' })
+  },
+  // Reviewer: inspector in glasses with a clipboard; the ticks go down the list.
+  reviewer: f => {
+    crabBody(f, -4)
+    glasses(f)
+    f(22, 4, 7, 10, '#A0703F'); f(23, 5, 5, 8, '#F4F3EE'); f(24, 3, 3, 2, '#8E929A')
+    f(24, 7, 1, 1, '#3B9C5F', 'ck'); f(25, 8, 2, 1, '#3B9C5F', 'ck')
+    f(24, 10, 1, 1, '#3B9C5F', 'ck2'); f(25, 11, 2, 1, '#3B9C5F', 'ck2')
+  },
+  // Planner: architect holding up a blueprint; its lines are drawn one after the other.
+  planner: f => {
+    crabBody(f, -4)
+    stamp(f, 6, 6, ['....kkkkkkkkkk....', '..kkkkkkkkkkkkkk..', 'kkkkkkkkkkkkkkkkkk'], { k: '#3A3A3C' })
+    f(19, 2, 10, 10, '#2F6DB5'); f(19, 2, 1, 10, '#24548C'); f(28, 2, 1, 10, '#24548C')
+    f(21, 4, 6, 1, '#A9C8EE', 'it'); f(21, 4, 1, 5, '#A9C8EE', 'it'); f(21, 8, 6, 1, '#A9C8EE', 'it2'); f(26, 5, 1, 4, '#A9C8EE', 'it2')
+  },
+  // Writer: author with a quill and an ink pot; the quill writes.
+  writer: f => {
+    crabBody(f, -4, 'it')
+    f(25, 1, 2, 2, '#F4F3EE', 'it'); f(24, 3, 3, 3, '#F4F3EE', 'it'); f(24, 6, 2, 2, '#E6E8EE', 'it'); f(25, 8, 1, 3, '#3A3A3C', 'it')
+    f(0, 18, 6, 4, '#2B3A55'); f(1, 17, 4, 1, '#3A3A3C')
+    f(8, 9, 14, 1, '#7A4A26')
+  },
   other: f => crabBody(f),
 }
 
-const costumeOf = (type: string): string => (type === 'Explore' ? 'explore' : tierOf(type))
+// Round glasses over both eyes, for the coder and the reviewer.
+function glasses(f: Fill): void {
+  for (const x of [8, 18]) {
+    f(x, 11, 4, 1, INK); f(x, 14, 4, 1, INK); f(x, 11, 1, 4, INK); f(x + 3, 11, 1, 4, INK)
+  }
+  f(12, 12, 6, 1, INK)
+}
+
+// A helper's uniform says what it was sent to do. The type a helper starts as decides first,
+// then the words of its task; a helper neither names gets the plain crab. Savvy's own model
+// tiers keep their costumes, which say how strong a model it runs on.
+const JOBS: [string, RegExp, RegExp][] = [
+  ['reviewer', /review|audit|critic|verif/i, /\breview|\baudit|\bcheck(s|ing)?\b|\bverif|\binspect/i],
+  ['planner', /^plan$|planner|architect/i, /\bplan|\barchitect|\bspec\b|\bdesign (an?|the) (system|api|database|schema)/i],
+  ['writer', /document|writer|copy|docs/i, /\bdoc(s|umentation)?\b|\breadme|\bwrite (the |a |an )?(copy|text|guide|notes|article|post)|\btranslat|\brelease notes/i],
+  ['artist', /design|impeccable|asset|\bui\b|\bux\b|\bart(ist)?\b/i, /\bdesign|\bstyle|\blayout|\bcolou?r|\blogo|\bicon|\bvisual|\bcss\b|\blook(s)? better|\banimat|\bpage look/i],
+  ['coder', /coder|engineer|develop|programm|builder|fixer|debug|tester/i, /\bcode|\bimplement|\bbuild|\bfix|\bbug|\bdebug|\brefactor|\btest|\bfunction|\bscript|\bendpoint|\bcompile|\bwrite (the |a |an )?(function|class|module|component)/i],
+]
+
+export const costumeOf = (type: string, description = ''): string => {
+  if (type === 'Explore') return 'explore'
+  const tier = tierOf(type)
+  if (tier !== 'other') return tier
+  const bare = type.replace(/^[^:]*:/, '')
+  for (const [job, byType] of JOBS) if (byType.test(bare)) return job
+  for (const [job, , byTask] of JOBS) if (byTask.test(description)) return job
+  return 'other'
+}
 
 const CRAB_SCALE = 1.1
 
@@ -487,7 +557,7 @@ const agentSvg = (W: number, a: AgentRun, at: number): string => {
   return svg(
     W,
     66,
-    `${crab(0, 14, costumeOf(a.type), false, a.status === 'running')}
+    `${crab(0, 14, costumeOf(a.type, a.description), false, a.status === 'running')}
 <text class="t" x="42" y="18" font-family="${FONT}" font-size="13" font-weight="600">${xml(fitText(a.description || a.type, 13, textW))}</text>
 <text x="42" y="34" font-family="${FONT}" font-size="11"><tspan fill="${color}">${xml(tier === 'other' ? a.type : tier)}</tspan><tspan class="s">  ${xml(meta.join('  ·  '))}</tspan></text>
 <text class="s" x="${42 + barW}" y="49" text-anchor="end" font-family="${FONT}" font-size="11" font-variant-numeric="tabular-nums">${stats}</text>
@@ -534,8 +604,8 @@ ${statusMark(W - 8, 16, row.status, ACCENT)}
 
 const compactSvg = (W: number, list: AgentRun[], t: ReturnType<typeof totals>): string => {
   const icons = [
-    ...list.filter(a => a.status === 'running').map(a => ({ k: costumeOf(a.type), c: colorOf(tierOf(a.type)), s: 'running', dim: false })),
-    ...list.filter(a => a.status !== 'running').map(a => ({ k: costumeOf(a.type), c: colorOf(tierOf(a.type)), s: a.status, dim: false })),
+    ...list.filter(a => a.status === 'running').map(a => ({ k: costumeOf(a.type, a.description), c: colorOf(tierOf(a.type)), s: 'running', dim: false })),
+    ...list.filter(a => a.status !== 'running').map(a => ({ k: costumeOf(a.type, a.description), c: colorOf(tierOf(a.type)), s: a.status, dim: false })),
   ]
   const fit = Math.max(1, Math.floor((W - 150) / 36))
   const shown = icons.slice(0, fit)

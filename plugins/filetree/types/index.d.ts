@@ -62,12 +62,25 @@ export type Theme = {
   bg: string
 }
 
+// One file's changes since the last save to git, shown under the tree.
+export type Changes = {
+  path: string
+  // The hunks to draw, or '' when there is nothing to draw and `note` says why.
+  diff: string
+  added: number
+  removed: number
+  note: string
+  // The hunk the view starts at; the arrows step through them.
+  hunk: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     filetree: {
       tree: FileTree
       theme: Theme
       activity: Activity[]
+      changes: Changes | null
     }
   }
 }
