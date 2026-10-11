@@ -5,7 +5,7 @@ This plugin is **vendored third-party code**, not written for easyClaude.
 | | |
 |---|---|
 | Source | https://github.com/data-goblin/claude-code-filetree |
-| Pinned commit | `da1da65724c54541f4a0ec5ddd26641b1a0d672a` (version 0.2.24) |
+| Pinned commit | `da1da65724c54541f4a0ec5ddd26641b1a0d672a` (version 0.2.24; easyClaude ships its changes below as 0.2.25) |
 | Vendored | 2026-10-08 |
 | License | MIT - see `LICENSE` |
 | Contains | **executable code**: a Claude Code hooks module that runs `git`, `gh`, `du` and the system's open command |
