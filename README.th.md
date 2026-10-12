@@ -75,13 +75,11 @@
 **วิธีที่ง่ายที่สุด: ให้ Claude ติดตั้งให้** เปิด Claude Code ในโฟลเดอร์ไหนก็ได้ แล้ววางข้อความนี้
 
 ```
-ช่วยติดตั้งปลั๊กอิน easyClaude ของ Claude Code ให้หน่อย ก่อนอื่นตรวจว่ามี Node.js กับ Git
-ไหม ถ้าขาดอะไรให้บอกวิธีติดตั้งเป็นภาษาง่าย ๆ จากนั้นรันสี่คำสั่งนี้
-claude plugin marketplace add kotaraa09/easyClaude
-claude plugin install easyclaude@easyclaude
+ช่วยติดตั้งปลั๊กอิน easyClaude ของ Claude Code ให้หน่อย ตรวจว่ามี Node.js กับ Git ไหม
+ถ้าขาดอะไรให้บอกวิธีติดตั้งเป็นภาษาง่าย ๆ จากนั้นรัน
+claude plugin install easyclaude --marketplace kotaraa09/easyClaude
 claude plugin install filetree@easyclaude
 claude plugin install blast-radius@easyclaude
-ถ้าไม่เจอคำสั่ง claude ให้บอกวิธีติดตั้ง Claude Code สำหรับเทอร์มินัล
 เสร็จแล้วบอกให้ฉันเริ่มเซสชันใหม่
 ```
 
@@ -92,16 +90,15 @@ Claude จะขออนุญาตก่อนรันแต่ละคำ�
 
 <br>
 
-ในเทอร์มินัล ให้รันสี่คำสั่งเดียวกัน
+ในเทอร์มินัล ให้รันสามคำสั่งเดียวกัน คำสั่งแรกจะเพิ่ม marketplace ของ easyClaude และติดตั้ง easyClaude จากที่นั่น
 
 ```bash
-claude plugin marketplace add kotaraa09/easyClaude
-claude plugin install easyclaude@easyclaude
+claude plugin install easyclaude --marketplace kotaraa09/easyClaude
 claude plugin install filetree@easyclaude
 claude plugin install blast-radius@easyclaude
 ```
 
-ใน Claude Code ที่เปิดในเทอร์มินัล พิมพ์ `/plugin marketplace add kotaraa09/easyClaude` และ `/plugin install easyclaude@easyclaude` ก็ได้ ในแอปเดสก์ท็อป `/plugin` จะเปิดหน้าเลือกดูปลั๊กอินและไม่ได้ติดตั้งอะไร จึงต้องใช้คำสั่งด้านบน
+ใน Claude Code ที่เปิดในเทอร์มินัล พิมพ์ `/plugin marketplace add kotaraa09/easyClaude` และ `/plugin install easyclaude@easyclaude` ก็ได้ ในแอปเดสก์ท็อป `/plugin` จะเปิดหน้าเลือกดูปลั๊กอินและไม่ได้ติดตั้งอะไร จึงต้องใช้คำสั่งด้านบน ถ้า Claude Code ของคุณไม่รู้จัก `--marketplace` ให้อัปเดต Claude Code หรือรัน `claude plugin marketplace add kotaraa09/easyClaude` ก่อน แล้วตามด้วย `claude plugin install easyclaude@easyclaude`
 
 [`template/`](template/) เป็นโปรเจกต์ไว้ fork ที่ชี้ไปที่ปลั๊กอินไว้แล้ว Claude Code ควรเสนอติดตั้งให้เมื่อคุณกดเชื่อถือโฟลเดอร์ แต่ในแอปเดสก์ท็อป ตอนทดสอบไม่มีหน้าเสนอขึ้นมา จึงต้องติดตั้งก่อน
 
