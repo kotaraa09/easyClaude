@@ -6,11 +6,11 @@
 // three ways, against the sample project the real run starts from: untouched, fixed the
 // way a good answer would fix it, and fixed the wrong way. The first and last must fail.
 import { test, assert, repoRoot } from './harness.mjs';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync, chmodSync } from 'node:fs';
 import { spawnSync, execFile } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { gradeWorkspace } from '../scripts/bench.mjs';
+import { gradeWorkspace, openKept, removeKept } from '../scripts/bench.mjs';
 
 const caseDir = (name) => join(repoRoot, 'evals', 'outcomes', name);
 
@@ -369,4 +369,28 @@ test('bench: a check path takes "dir/**", "**/" and "*", and is exact otherwise'
     ['planning/DECISIONS.md', '**/DECISIONS.md', true], ['doc/adr/0003-x.md', 'doc/adr/0003-*.md', true],
     ['doc/adr/0003-a/b.md', 'doc/adr/0003-*.md', false], ['indexXhtml', 'index.html', false],
   ]) assert(m(file, glob) === want, `${file} against ${glob} should be ${want}`);
+});
+
+// On Linux the runner seals a kept run: home/ moves into sealed/ with mode 000, and the
+// kept folder turns read-only. The first Linux run found no project there and graded
+// nothing, then stopped on the clean-up.
+test('bench: a kept run is found and removed, sealed or not', async () => {
+  const plain = mkdtempSync(join(tmpdir(), 'easyclaude-kept-'));
+  mkdirSync(join(plain, 'home', 'cwd'), { recursive: true });
+  assert(openKept(plain) === join(plain, 'home', 'cwd'), `an unsealed run: ${openKept(plain)}`);
+  removeKept(plain);
+  assert(!existsSync(plain), 'an unsealed run should be removed');
+  if (process.platform === 'win32') return;
+
+  const kept = mkdtempSync(join(tmpdir(), 'easyclaude-kept-'));
+  mkdirSync(join(kept, 'sealed', 'home', 'cwd', 'src'), { recursive: true });
+  writeFileSync(join(kept, 'sealed', 'home', 'cwd', 'src', 'a.js'), 'x');
+  chmodSync(join(kept, 'sealed', 'home', 'cwd', 'src'), 0o500);
+  chmodSync(join(kept, 'sealed'), 0o000);
+  chmodSync(kept, 0o500);
+  const workspace = openKept(kept);
+  assert(workspace === join(kept, 'sealed', 'home', 'cwd'), `a sealed run: ${workspace}`);
+  assert(readFileSync(join(workspace, 'src', 'a.js'), 'utf8') === 'x', 'the sealed project should be readable');
+  removeKept(kept);
+  assert(!existsSync(kept), 'a sealed run should be removed, read-only folders and all');
 });
