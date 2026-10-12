@@ -6,7 +6,7 @@
 // three ways, against the sample project the real run starts from: untouched, fixed the
 // way a good answer would fix it, and fixed the wrong way. The first and last must fail.
 import { test, assert, repoRoot } from './harness.mjs';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync, chmodSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync, chmodSync, cpSync } from 'node:fs';
 import { spawnSync, execFile } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -303,6 +303,31 @@ test('bench: each day-two run claims a different day-one project, and a spare ru
     assert(c.code !== 0, 'a run with no day one left must fail, not start from an empty folder');
   } finally {
     rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+// Day two is the same person on the same computer, so the checks approved on day one stay
+// approved. Each run has a new home and folder, and with a shell, the first Linux run stopped
+// on day two to ask for that approval, with nobody there to answer.
+test('bench: a day-two project starts with its checks approved, as on day one', async () => {
+  const { isTrusted } = await import('../scripts/trust.mjs');
+  const plugin = mkdtempSync(join(tmpdir(), 'easyclaude-seedtest-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'easyclaude-dayt-'));
+  try {
+    const setup = join(plugin, 'evals', 'outcomes', 'outcome-two-sessions', 'setup.sh');
+    const seed = join(plugin, 'evals', 'results', 'seeds', 'outcome-two-sessions', '1');
+    const steps = [{ name: 'test', cmd: 'node --test' }];
+    mkdirSync(join(seed, '.claude'), { recursive: true });
+    writeFileSync(join(seed, '.claude', 'verify.json'), JSON.stringify({ steps }));
+    mkdirSync(dirname(setup), { recursive: true });
+    writeFileSync(setup, readFileSync(join(caseDir('outcome-two-sessions'), 'setup.sh')));
+    cpSync(join(repoRoot, 'scripts'), join(plugin, 'scripts'), { recursive: true });
+    const r = spawnSync('bash', [setup], { cwd, encoding: 'utf8' });
+    assert(r.status === 0, `setup.sh failed: ${r.stderr}`);
+    assert(isTrusted(cwd, steps), 'the copied project should have its checks approved');
+  } finally {
+    rmSync(plugin, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
   }
 });
 
