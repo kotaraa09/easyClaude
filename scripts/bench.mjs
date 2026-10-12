@@ -138,8 +138,13 @@ export async function gradeWorkspace(caseDir, workspace) {
         const hits = files.filter((f) => matchesGlob(f, c.contains))
           .some((f) => c.pattern.test(readFileSync(join(copy, f), 'utf8')));
         results.push({ name: c.name, passed: c.absent ? !hits : hits, why: `${c.pattern} in ${c.contains}` });
+      } else if (c.onlyFiles) {
+        // The project only. The runner's own file_exists grader also counts what a shell
+        // leaves in the run's home folder, so on Linux every run failed it.
+        const extra = files.filter((f) => !c.onlyFiles.includes(f));
+        results.push({ name: c.name, passed: !extra.length, why: extra.length ? `new: ${extra.join(', ')}` : 'no new files' });
       } else {
-        throw new Error(`${basename(caseDir)}/check.mjs: "${c.name}" has no hidden, ownTests, catches or contains`);
+        throw new Error(`${basename(caseDir)}/check.mjs: "${c.name}" has no hidden, ownTests, catches, contains or onlyFiles`);
       }
     }
     return results;

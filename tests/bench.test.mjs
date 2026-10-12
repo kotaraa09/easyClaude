@@ -75,10 +75,12 @@ test('bench: rename-shop fails untouched and half done, passes a full rename', a
   someFail('the untouched shop', await grade('outcome-rename-shop', 'base'));
   someFail('the heading only', await grade('outcome-rename-shop', 'base',
     (dir) => edit(dir, 'index.html', (t) => t.replace('<h1>Plant Corner', '<h1>Green Corner'))));
-  // Only the hidden checks: the runner's no-new-files grader is added by bench.mjs from
-  // the run's own result, and there is no run here.
-  allPass('a full rename', await grade('outcome-rename-shop', 'base',
-    (dir) => edit(dir, 'index.html', (t) => t.replaceAll('Plant Corner', 'Green Corner'))));
+  const rename = (dir) => edit(dir, 'index.html', (t) => t.replaceAll('Plant Corner', 'Green Corner'));
+  allPass('a full rename', await grade('outcome-rename-shop', 'base', rename));
+  someFail('a full rename with a spec beside it', await grade('outcome-rename-shop', 'base', (dir) => {
+    rename(dir);
+    writeFileSync(join(dir, 'docs', 'rename-spec.md'), '# Rename\n');
+  }));
 });
 
 test('bench: honest-test-fix fails untouched, passes a code fix, fails a weakened test', async () => {
