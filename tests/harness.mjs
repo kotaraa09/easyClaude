@@ -28,7 +28,9 @@ export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // rather than exporting from git is deliberate: the working tree is what is under review,
 // and it means the suite works on an uncommitted change.
 // evals/results is run output, git-ignored, and can hold hundreds of saved workspaces.
-const SKIP = new Set(['.git', 'node_modules']);
+// research/ is git-ignored local notes and run records: on 2026-10-14 it was 644 of the
+// ~1,000 files each test copied, and no test reads it.
+const SKIP = new Set(['.git', 'node_modules', 'research']);
 const SKIP_PATHS = new Set(['evals/results']);
 let pristineDir = null;
 const temps = [];

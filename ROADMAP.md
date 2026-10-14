@@ -70,8 +70,11 @@ with Claude, so no money was spent. **Left:** `pytest` (about 1 day).
 ### Test speed of easyClaude itself
 
 Since #108 each test area runs in its own process: the full run fell from 306 to about 120
-seconds, and warns over 5 minutes. When it warns, run only the areas a change uses (about
-1 day), and remove tests that check the same thing twice (half a day each review).
+seconds, and warns over 5 minutes. By 2026-10-14 it took 415 seconds on the Windows laptop.
+Two fixes brought it to 178: the copy of the plugin each test makes no longer includes the
+local `research/` notes (644 of about 1,000 files), and the benchmark tests build each sample
+shop once and copy it. When it warns again, run only the areas a change uses (about 1 day),
+and remove tests that check the same thing twice (half a day each review).
 
 ## Waits for budget: a large project or many runs
 
