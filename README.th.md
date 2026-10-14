@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate: เส้นด้ายที่พันกันยุ่งลอดผ่านประตูหลายบาน แล้วออกมาเป็นเส้นตรงเส้นเดียวที่เรืองแสง">
+    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate เป็นตัวอักษรกลมมนสีพาสเทล ล้อมด้วยสติกเกอร์เครื่องเขียนบนกระดาษสมุดตาราง ได้แก่ ดินสอ กระดาษโน้ต เทปวาชิ คลิปหนีบกระดาษ ยางลบ หมุด ไม้บรรทัด กรรไกร สมุด ปากกาเน้นข้อความ กาวแท่ง และตรายาง">
   </picture>
 </p>
 

@@ -26,9 +26,13 @@ Flat sticker style, thick brown outlines, pastel colors, notebook grid paper. Ma
 
 ## Round 3: drawn in code
 
-Every object and letter is drawn by `design/src/hero.py`, so each object has its real shape and the name is spelled exactly, on one line. Pastel colors only, and a white sticker edge with a soft shadow.
+Every object and letter is drawn by `docs/art/draw.py`, so each object has its real shape and the name is spelled exactly, on one line. Pastel colors only, and a white sticker edge with a soft shadow.
 
 9. `concept-9.webp` and `concept-9-logo.webp`, twelve stationery stickers in a ring around "Mellu.mate", five of them with small faces.
    Simple and modern, and the name reads clearly at any size. The faces add a little warmth without a mascot.
 10. `concept-10.webp` and `concept-10-logo.webp`, the same without faces.
    The calmest and most modern version. It is a little less "friendly helper".
+
+## Chosen: concept 9
+
+The README uses concept 9. `docs/art/draw.py` draws it and `docs/art/render.sh` renders it into `docs/assets/`: the hero in light and dark (`hero-light.png`, `hero-dark.png`, 1640x820, shown at 820 wide), the divider (`divider-light.png`, `divider-dark.png`), and the square logo (`logo.png`, 512x512) for the GitHub avatar and social preview.

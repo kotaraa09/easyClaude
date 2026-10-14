@@ -1,6 +1,7 @@
-"""Draws the Mellu.mate hero and logo as SVG: pastel stationery around the wordmark.
+"""Draws the Mellu.mate README pictures as SVG: the hero, the divider and the logo.
 
-Usage: python design/src/hero.py <out-dir> [--faces]
+Usage: python docs/art/draw.py <out-dir>
+render.sh turns the SVG files into the PNG files in docs/assets/.
 Every object and letter is a hand-written shape, so each object has its real form
 and the name is real lettering, not AI text.
 """
@@ -14,17 +15,25 @@ P = {  # pastel palette: (light, deep)
     'lilac': ('#DDD0F4', '#B8A3E8'), 'peach': ('#FBD5BC', '#F3B087'),
 }
 INK = '#8F88AE'      # soft lavender grey, for eyes and fine detail
-PAPER = '#FFFAF2'
-GRID = '#E3ECF7'
+THEMES = {  # paper, grid lines, sticker shadow
+    'light': ('#FFFAF2', '#E3ECF7', '#B8B0D8', '0.35'),
+    'dark': ('#272433', '#353148', '#0E0C16', '0.55'),
+}
+PAPER, GRID = THEMES['light'][:2]
 STEEL = '#E7E4F2'
 
 FILTER = '''<filter id="sticker" x="-30%" y="-30%" width="160%" height="160%">
   <feMorphology in="SourceAlpha" operator="dilate" radius="{r}" result="d"/>
   <feFlood flood-color="#FFFFFF"/><feComposite in2="d" operator="in" result="w"/>
   <feGaussianBlur in="d" stdDeviation="5" result="b"/><feOffset in="b" dy="5" result="bo"/>
-  <feFlood flood-color="#B8B0D8" flood-opacity="0.35"/><feComposite in2="bo" operator="in" result="s"/>
+  <feFlood flood-color="{shadow}" flood-opacity="{opacity}"/><feComposite in2="bo" operator="in" result="s"/>
   <feMerge><feMergeNode in="s"/><feMergeNode in="w"/><feMergeNode in="SourceGraphic"/></feMerge>
 </filter>'''
+
+
+def filt(r, theme='light'):
+    _, _, shadow, opacity = THEMES[theme]
+    return FILTER.format(r=r, shadow=shadow, opacity=opacity)
 
 
 def face(x=0, y=0, s=1.0):
@@ -179,16 +188,17 @@ def wordmark():
     return '\n'.join(out), last + W / 2
 
 
-def grid(w, h, step=32):
+def grid(w, h, step=32, theme='light'):
+    paper, lines_c = THEMES[theme][:2]
     lines = ''.join(f'<path d="M{i} 0 V{h}"/>' for i in range(step // 2, w, step))
     lines += ''.join(f'<path d="M0 {j} H{w}"/>' for j in range(step // 2, h, step))
-    return f'<rect width="{w}" height="{h}" fill="{PAPER}"/><g stroke="{GRID}" stroke-width="1.5">{lines}</g>'
+    return f'<rect width="{w}" height="{h}" fill="{paper}"/><g stroke="{lines_c}" stroke-width="1.5">{lines}</g>'
 
 
 OBJECTS = [pencil, note, tape, clip, eraser, pushpin, ruler, scissors, notebook, highlighter, glue, stamp]
 
 
-def hero(faces):
+def hero(faces, theme='light'):
     w, h = 1280, 640
     word, ww = wordmark()
     scale = 680 / ww
@@ -203,25 +213,41 @@ def hero(faces):
         col = list(P.values())[i % 6][1]
         deco.append(f'<g transform="translate({x2:.0f} {y2:.0f})">{(sparkle if i % 2 else heart)(col, .8)}</g>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
-            f'<defs>{FILTER.format(r=10)}</defs>{grid(w, h)}{"".join(deco)}{"".join(items)}'
+            f'<defs>{filt(10, theme)}</defs>{grid(w, h, 32, theme)}{"".join(deco)}{"".join(items)}'
             f'<g transform="translate({wx:.1f} {wy:.1f}) scale({scale:.4f})" filter="url(#sticker)">{word}</g></svg>')
 
 
 def logo(faces):
     s = 512
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{s}" height="{s}" viewBox="0 0 {s} {s}">'
-            f'<defs>{FILTER.format(r=12)}<clipPath id="round"><rect width="{s}" height="{s}" rx="112"/></clipPath></defs>'
+            f'<defs>{filt(12)}<clipPath id="round"><rect width="{s}" height="{s}" rx="112"/></clipPath></defs>'
             f'<g clip-path="url(#round)">{grid(s, s, 40)}</g>'
             f'<g transform="translate(300 292) scale(2.1)" filter="url(#sticker)">{note(faces)}</g>'
             f'<g transform="translate(170 246) scale(2.0)" filter="url(#sticker)">{pencil(False)}</g></svg>')
 
 
+def divider():
+    """A row of pastel washi dashes with a heart between two sparkles in the middle."""
+    w, h = 1640, 72
+    cols = [v[1] for v in P.values()]
+    dashes, x, i = [], 0, 0
+    while x + 28 <= w:
+        if abs(x + 14 - w / 2) > 70:
+            dashes.append(f'<rect x="{x}" y="{h / 2 - 4}" width="28" height="8" rx="4" fill="{cols[i % 6]}"/>')
+            i += 1
+        x += 42
+    mid = (f'<g transform="translate({w / 2 - 40} {h / 2})">{sparkle(P["sky"][1], 1.1)}</g>'
+           f'<g transform="translate({w / 2} {h / 2})">{heart(P["pink"][1], 1.8)}</g>'
+           f'<g transform="translate({w / 2 + 40} {h / 2})">{sparkle(P["mint"][1], 1.1)}</g>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
+            f'{"".join(dashes)}{mid}</svg>')
+
+
 if __name__ == '__main__':
     out = sys.argv[1]
-    faces = '--faces' in sys.argv
-    tag = '-faces' if faces else ''
     os.makedirs(out, exist_ok=True)
-    with open(os.path.join(out, f'hero{tag}.svg'), 'w', encoding='utf8') as fh:
-        fh.write(hero(faces))
-    with open(os.path.join(out, f'logo{tag}.svg'), 'w', encoding='utf8') as fh:
-        fh.write(logo(faces))
+    files = {'hero-light.svg': hero(True, 'light'), 'hero-dark.svg': hero(True, 'dark'),
+             'divider.svg': divider(), 'logo.svg': logo(True)}
+    for name, svg in files.items():
+        with open(os.path.join(out, name), 'w', encoding='utf8') as fh:
+            fh.write(svg)

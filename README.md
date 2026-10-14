@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate: a tangled thread passes through a series of gates and leaves as one straight, glowing line.">
+    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate in pastel rounded letters, in a ring of stationery stickers on notebook grid paper: a pencil, a sticky note, washi tape, a paper clip, an eraser, a pushpin, a ruler, scissors, a notebook, a highlighter, a glue stick and a rubber stamp.">
   </picture>
 </p>
 
