@@ -53,7 +53,7 @@ deny rule covers `.env.*`, which includes the example. So test for the block wit
 rather than opening the file, and never append twice:
 
 ```bash
-grep -q 'easyClaude connectors' .env.example 2>/dev/null || node ${CLAUDE_PLUGIN_ROOT}/scripts/connect.mjs --form >> .env.example
+grep -q 'Mellu.mate connectors' .env.example 2>/dev/null || node ${CLAUDE_PLUGIN_ROOT}/scripts/connect.mjs --form >> .env.example
 ```
 
 Then tell them: copy `.env.example` to `.env`, fill in **only** what they already have, and

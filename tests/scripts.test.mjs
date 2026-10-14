@@ -82,7 +82,7 @@ test('env: a missing .env is an absence, not an error', () => {
 // They are the same text in two places, so adding a provider silently staled the template
 // that every fork starts from.
 test('connect: the generated form still matches template/.env.example', async () => {
-  const MARK = '--- easyClaude connectors';
+  const MARK = '--- Mellu.mate connectors';
   const from = (text) => {
     const at = text.indexOf(MARK);
     assert(at !== -1, `the "${MARK}" marker is missing - it is what joins these two files.`);
@@ -173,7 +173,7 @@ for (const out of ['public/hero.png', 'assets/deep/nested/img.webp']) {
 }
 
 // --- the skill scanner gate ---------------------------------------------------
-// /easyclaude:skills hands people other people's repositories and tells them to install
+// /mellu:skills hands people other people's repositories and tells them to install
 // one, so a scanner runs in front of it. These pin the three ways that gate can lie.
 import { verdict, present, run as spawnRunner, runners } from '../scripts/skillscan.mjs';
 
@@ -298,7 +298,7 @@ test('session-start: a set-up project opens with its state, read by the script',
   assert(!/kickoff/.test(r.out), `a set-up project must not be sent to kickoff:\n${r.out}`);
 });
 
-// --- easyClaude's files kept somewhere else ------------------------------------------
+// --- Mellu.mate's files kept somewhere else ------------------------------------------
 // A project whose docs/ is already taken names its own places. See locations.mjs.
 test('locations: defaults, a moved file, and every path that must be refused', async () => {
   const { readLocations, DEFAULTS } = await import('../scripts/locations.mjs');
@@ -490,7 +490,7 @@ test('autoship: each level names its own steps, and an unknown level arms nothin
   assertMatch(commit, /Steps past "commit" still need the user's yes/, 'the level above must still be asked.');
   const merge = standingLine('merge');
   assertMatch(merge, /wait for its checks, merge it/, '"merge" must merge only after the checks.');
-  assertMatch(merge, /easyclaude-diff-reviewer/, 'a merge must have a second reader first.');
+  assertMatch(merge, /mellu-diff-reviewer/, 'a merge must have a second reader first.');
   assert(!/still need the user's yes/.test(merge), 'nothing is past "merge".');
   assert(activeLevel({ enabled: true, through: 'everything' }, { kind: 'personal', git: true }) === null, 'a typo must arm nothing.');
   assert(activeLevel({ enabled: true }, { kind: 'personal', git: true }) === 'commit', 'a file from before levels arms the safest one.');
@@ -616,7 +616,7 @@ test('session-start: the hook form is the JSON Claude Code reads', async () => {
 
 // --- the file tree and Blast Radius -------------------------------------------
 // 1.2.0 listed them as dependencies. An update from 1.1.x did not install them, and Claude
-// Code then loaded none of easyClaude. Now the opener says which are missing, once.
+// Code then loaded none of Mellu.mate. Now the opener says which are missing, once.
 import { missingCompanions, companionsNotice } from '../scripts/companions.mjs';
 
 const configWith = (ids) => {
@@ -628,24 +628,24 @@ const configWith = (ids) => {
 };
 
 test('companions: each missing one is named, with its install command', () => {
-  const configDir = configWith(['easyclaude@easyclaude', 'filetree@easyclaude']);
-  assert(missingCompanions({ configDir }).map((c) => c.id).join() === 'blast-radius@easyclaude',
+  const configDir = configWith(['mellu@mellu-mate', 'filetree@mellu-mate']);
+  assert(missingCompanions({ configDir }).map((c) => c.id).join() === 'blast-radius@mellu-mate',
     'only Blast Radius is missing here.');
   const note = companionsNotice({ source: 'startup' }, { configDir, dataDir: null });
   assertMatch(note, /Blast Radius is not installed/, 'the note must name what is missing.');
-  assertMatch(note, /claude plugin install blast-radius@easyclaude/, 'the note must carry the command.');
+  assertMatch(note, /claude plugin install blast-radius@mellu-mate/, 'the note must carry the command.');
   assert(!/filetree/.test(note), `an installed companion was named:\n${note}`);
 });
 
 test('companions: nothing is said when both are there, or when the record cannot be read', () => {
-  const both = configWith(['easyclaude@easyclaude', 'filetree@easyclaude', 'blast-radius@easyclaude']);
+  const both = configWith(['mellu@mellu-mate', 'filetree@mellu-mate', 'blast-radius@mellu-mate']);
   assert(companionsNotice({ source: 'startup' }, { configDir: both, dataDir: null }) === null, 'both are installed.');
   assert(companionsNotice({ source: 'startup' }, { configDir: projectDir(), dataDir: null }) === null,
     'with no install record, a wrong "missing" would send someone to install what they have.');
 });
 
 test('companions: said once for the same missing set, and only when a session starts', () => {
-  const configDir = configWith(['easyclaude@easyclaude']);
+  const configDir = configWith(['mellu@mellu-mate']);
   const dataDir = join(projectDir(), 'data');
   assert(companionsNotice({ source: 'resume' }, { configDir, dataDir }) === null, 'a resumed session is not a new start.');
   assert(companionsNotice({ source: 'compact' }, { configDir, dataDir }) === null, 'a compaction is mid-task.');
@@ -655,14 +655,14 @@ test('companions: said once for the same missing set, and only when a session st
 });
 
 test('session-start: a missing companion reaches the user, not Claude', async () => {
-  const configDir = configWith(['easyclaude@easyclaude', 'blast-radius@easyclaude']);
+  const configDir = configWith(['mellu@mellu-mate', 'blast-radius@mellu-mate']);
   const dir = projectDir();
   const r = await run(script('session-start.mjs'), {
     cwd: dir, env: { CLAUDE_PROJECT_DIR: dir, CLAUDE_CONFIG_DIR: configDir, CLAUDE_PLUGIN_DATA: '' },
     input: JSON.stringify({ session_id: 's1', source: 'startup' }),
   });
   const j = JSON.parse(r.out);
-  assertMatch(j.systemMessage ?? '', /claude plugin install filetree@easyclaude/, 'the user must see the command.');
+  assertMatch(j.systemMessage ?? '', /claude plugin install filetree@mellu-mate/, 'the user must see the command.');
   assert(!/filetree/.test(j.hookSpecificOutput.additionalContext), 'Claude must not pay for the note.');
 });
 
@@ -761,14 +761,14 @@ test('prompt hook: history is the growth past the smallest request, so /compact 
 
 test('prompt hook: cheap mode in a long conversation holds the task and asks for /clear or /compact', async () => {
   const { dir, file } = transcript([30_000, 80_000]);
-  const r = await promptHook(dir, file, '/easyclaude:cheap add a counter');
+  const r = await promptHook(dir, file, '/mellu:cheap add a counter');
   assertMatch(r.out, /Do not start the task/, 'a long conversation must hold the cheap task.');
   assertMatch(r.out, /\/clear[\s\S]*\/compact/, 'both ways out must be named.');
 });
 
 test('prompt hook: cheap mode in a short conversation says nothing', async () => {
   const { dir, file } = transcript([30_000, 35_000]);
-  const r = await promptHook(dir, file, '/easyclaude:cheap add a counter');
+  const r = await promptHook(dir, file, '/mellu:cheap add a counter');
   assert(r.out.trim() === '', `a short conversation needs no advice:\n${r.out}`);
 });
 
@@ -811,8 +811,9 @@ test('prompt hook: a calendar, a map or a chart gets the library line; code does
 // --- the cost notices ---------------------------------------------------------
 // Claude Code reports what reopening or switching will re-send, before it is sent. The
 // notices show that to the user only when it is worth /clear, and never to Claude.
+// An empty config folder, so the companions note (read from the real home) stays out of it.
 const noticeRun = (name, dir, payload) => run(script(name), {
-  cwd: dir, env: { CLAUDE_PROJECT_DIR: dir }, input: JSON.stringify(payload),
+  cwd: dir, env: { CLAUDE_PROJECT_DIR: dir, CLAUDE_CONFIG_DIR: projectDir() }, input: JSON.stringify(payload),
 });
 const BIG = { context_tokens: 182_340, estimated_cache_write_usd: 1.1396, pricing: 'catalog' };
 const SMALL = { context_tokens: 12_000, estimated_cache_write_usd: 0.07, pricing: 'catalog' };
@@ -873,7 +874,7 @@ test('cost notice: with no price, tokens decide, and the figure says so', async 
 });
 
 // --- the bug-report line -------------------------------------------------------
-// scripts/bench.mjs found that with easyClaude loaded, a one-line bug fix shipped with no
+// scripts/bench.mjs found that with Mellu.mate loaded, a one-line bug fix shipped with no
 // test in two runs of three. This line is what fixed it, so its reach is pinned both ways.
 test('prompt hook: a bug report gets the debug line, other requests do not', async () => {
   const { looksLikeBug } = await import('../scripts/prompt-check.mjs');
@@ -882,7 +883,7 @@ test('prompt hook: a bug report gets the debug line, other requests do not', asy
     assert(looksLikeBug(p), `a bug report was missed: ${p}`);
   }
   for (const p of ['add shipping for orders under $50', 'rename the shop', 'keep going', 'ship it',
-    'is this safe to make public?', '/easyclaude:cheap fix the error']) {
+    'is this safe to make public?', '/mellu:cheap fix the error']) {
     assert(!looksLikeBug(p), `this is not a bug report, or it is a command: ${p}`);
   }
 });
@@ -963,7 +964,7 @@ test('prompt hook: a Thai bug report gets the language line, an English one does
 
 test('prompt hook: cheap mode gets no debug line', async () => {
   const { dir, file } = transcript([30_000, 31_000]);
-  const r = await promptHook(dir, file, '/easyclaude:cheap the checkout breaks');
+  const r = await promptHook(dir, file, '/mellu:cheap the checkout breaks');
   assert(!/debug skill/.test(r.out), `cheap mode asks for the smallest fix, not a test:\n${r.out}`);
 });
 
@@ -986,7 +987,7 @@ test('prompt hook: work left for later is caught, in English and Thai, and nothi
     'ทำอันแรกก่อน ที่เหลือพรุ่งนี้', 'ที่เหลือไว้ทำทีหลัง']) {
     assert(leavesWorkForLater(p), `work left for later was missed: ${p}`);
   }
-  for (const p of ['add shipping', 'keep going', 'the checkout breaks', '/easyclaude:cheap later']) {
+  for (const p of ['add shipping', 'keep going', 'the checkout breaks', '/mellu:cheap later']) {
     assert(!leavesWorkForLater(p), `nothing is being left for later here: ${p}`);
   }
 });
@@ -1014,7 +1015,7 @@ test('prompt hook: finishing several is caught, one thing and cheap mode are not
     assert(!asksToFinishSeveral(p), `this asks for one thing, or nothing: ${p}`);
   }
   const { dir, file } = transcript([30_000, 31_000]);
-  const cheap = await promptHook(dir, file, '/easyclaude:cheap finish the rest');
+  const cheap = await promptHook(dir, file, '/mellu:cheap finish the rest');
   assert(!/finish several tasks/.test(cheap.out), `cheap mode does one thing a turn on purpose:\n${cheap.out}`);
 });
 
@@ -1068,7 +1069,7 @@ test('commit check: a .env file is held; an example file and a confirmed test va
   const env = repoWith({ '.env': 'API=1\n' });
   assertMatch((await commitHook(env.dir, 'git add . && git commit -m x')).out, /\.env - a file that holds secrets/,
     'a .env that is not ignored must never be committed.');
-  const ok = repoWith({ '.env.example': 'API=\n', 'test/fixture.js': `const k = "${FAKE_AWS}"; // easyclaude: not a secret\n` });
+  const ok = repoWith({ '.env.example': 'API=\n', 'test/fixture.js': `const k = "${FAKE_AWS}"; // mellu: not a secret\n` });
   const r = await commitHook(ok.dir, 'git add -A && git commit -m x');
   assert(r.code === 0, `a blank example and a value the user confirmed must go through:\n${r.out}`);
 });
@@ -1124,7 +1125,7 @@ test('steps check: a slash command or pasted code starts a request; a reminder o
   };
   const user = (content, extra = {}) => ({ type: 'user', uuid: `u${Math.random()}`, message: { content }, ...extra });
   const edit = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit', input: {} }] } };
-  for (const start of ['<command-name>/easyclaude:build-task</command-name>', '<div> is broken on the home page'])
+  for (const start of ['<command-name>/mellu:build-task</command-name>', '<div> is broken on the home page'])
     assert(currentRequest(write([user('old'), edit, edit, user(start)])).edits === 0, `not seen as a new request: ${start}`);
   for (const [why, entry] of [
     ['a reminder', user([{ type: 'text', text: '<system-reminder>x</system-reminder>' }])],
@@ -1172,7 +1173,7 @@ test('planning gate: a new folder holds the build until the user says start', as
     assert((await edit(dir, 'Write', { file_path: join(dir, f) })).code === 0, `planning notes must still be written: ${f}`);
   assert((await edit(dir, 'Bash', { command: 'npm create vite@latest site' })).code === 2, 'creating a project must be held.');
   assert((await edit(dir, 'Bash', { command: 'npm install react' })).code === 2, 'installing must be held.');
-  assert((await edit(dir, 'Bash', { command: `rm "${join(tmpdir(), 'easyclaude-plan-x.json')}"` })).code === 2, 'the gate file must not be removable by a command.');
+  assert((await edit(dir, 'Bash', { command: `rm "${join(tmpdir(), 'mellu-plan-x.json')}"` })).code === 2, 'the gate file must not be removable by a command.');
   assert((await edit(dir, 'Bash', { command: 'git init' })).code === 0, 'other commands must run.');
 });
 

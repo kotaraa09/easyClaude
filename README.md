@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero-light.png" width="820" alt="easyClaude: a tangled thread passes through a series of gates and leaves as one straight, glowing line.">
+    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate: a tangled thread passes through a series of gates and leaves as one straight, glowing line.">
   </picture>
 </p>
 
@@ -9,13 +9,25 @@
   A Claude Code plugin for people who build with Claude and do not write code themselves.
 </p>
 
+## In 10 seconds
+
+The same request in a small sample shop, run three times with Mellu.mate and three times without:
+
+| you say | plain Claude Code | with Mellu.mate |
+|---|---|---|
+| *"the checkout breaks when there's no discount code"* | Fixes it. Adds no test that catches the bug if it comes back, 0 of 3. | Fixes it and adds that test, 3 of 3. |
+| day one: five changes, *"just the first one today"*. Day two, in a new session: *"finish the rest"* | 0 of 3. The new session does not know what "the rest" is. | All five changes work in 2 of 3. The third put shipping in a separate total that the checkout does not use. |
+| *"I want yesterday's version back"* | Asks before it changes anything in 1 of 3. The others restore at once, or hand over git commands. | Says what it would restore, and asks first, 3 of 3. |
+
+Where it helps, it does more work and costs more: about $0.23 against $0.13 for the bug fix. Three runs is a small sample, and the runs had no shell, which favours Mellu.mate. [Full results below](#what-changes-when-it-is-on).
+
 <p align="center">
   <kbd><b>English</b></kbd>
   <a href="README.th.md"><kbd>ภาษาไทย</kbd></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml"><img src="https://github.com/kotaraa09/easyClaude/actions/workflows/validate.yml/badge.svg" alt="Build status"></a>
+  <a href="https://github.com/kotaraa09/mellu-mate/actions/workflows/validate.yml"><img src="https://github.com/kotaraa09/mellu-mate/actions/workflows/validate.yml/badge.svg" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1F1E1D" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/costs-~1.7k%20tokens%2Fturn-8C8781" alt="Around 1.7k tokens per turn">
 </p>
@@ -29,24 +41,33 @@
 
 ## What it does
 
-- **Asks when your words are unclear.** If a request like "make it better" can mean several things, it names the likely meanings, says which it would pick, and waits for you.
-- **Plans before it builds.** A new feature gets a short plan and a task list first. If your request is one sentence, it asks a few questions in a form, each with a default you can accept. It builds nothing until you pick "start building": only you decide when the questions are over.
-- **Keeps the plan in a file.** `docs/STATE.md` holds what is in progress, what is next and what was skipped. A new session reads it, so "finish the rest" works the next day.
-- **Runs your project's checks after each change.** You approve the commands once on your computer, and again whenever they change, so a project from someone else cannot run commands you have not seen. If a check fails, Claude has to fix it before it can say "done". On a website it also asks Claude to look at the page.
-- **Suggests a free library** before it hand-writes a calendar, a map or a chart.
-- **Blocks a few destructive commands**, such as force pushes and reading `.env`.
-- **Asks before Claude deletes a lot.** Before `rm -rf`, `git reset --hard` or a database migration runs, a box shows what it would delete or change, with Proceed and Cancel. This is [Blast Radius](plugins/blast-radius/PROVENANCE.md), adapted for Windows and PowerShell.
-- **Stops a commit that would save an API key or a password**, and says which file it is in. A key in a saved version stays in the history for good.
-- **Answers in your language, in plain words.** Setup turns on short answers without code terms, unless you say no. `/easyclaude:plain off` turns them off later.
-- **Shows its progress, and puts every feature on a button.** A bar above the prompt shows the request in progress and how many of its steps are done, from [Savvy Progress](hooks/savvy-progress/PROVENANCE.md). Its Details button opens a progress panel with each step of the request, or what Claude did lately, and each helper Claude started, with its cost and time (`/easyclaude-helpers`). Each helper wears a uniform for its job: a programmer, an artist, a reviewer, a planner, a writer or an explorer. A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup, and it shows what the session has cost. "What do these do?" explains each button. A [file tree](plugins/filetree/PROVENANCE.md) beside the conversation shows which files Claude reads and changes (`/filetree`). Click a changed file to see its changes since the last save to git, in red and green, as an editor shows them. All of these run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/easyclaude-panels` opens the control panel once it does.
+- It asks when a request like "make it better" can mean several things, says which meaning it would pick, and waits for you.
+- It writes a short plan and a task list before it builds a new feature, and builds nothing until you pick "start building".
+- It keeps the plan in `docs/STATE.md`, so a new session the next day knows what "finish the rest" means.
+- It runs the checks you approved on your computer after each change, and Claude cannot say "done" while one of them fails.
+- It suggests a free library before it hand-writes a calendar, a map or a chart.
+- It blocks a few destructive commands, such as force pushes and reading `.env`.
+- Before `rm -rf`, `git reset --hard` or a database migration runs, [Blast Radius](plugins/blast-radius/PROVENANCE.md) shows what it would delete or change, with Proceed and Cancel.
+- It stops a commit that would save an API key or a password, and says which file the key is in.
+- It answers in your language and in plain words, and `/mellu:plain off` turns the plain words off.
+- A progress bar and a control panel show what it is doing, with a button for each feature.
 
-None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. easyClaude sets them up for you, and it measures whether the result is better.
+<details>
+<summary><b>More about the progress bar and the panels</b></summary>
+
+<br>
+
+A bar above the prompt shows the request in progress and how many of its steps are done, from [Savvy Progress](hooks/savvy-progress/PROVENANCE.md). Its Details button opens a progress panel with each step of the request, or what Claude did lately, and each helper Claude started, with its cost and time (`/mellu-helpers`). Each helper wears a uniform for its job: a programmer, an artist, a reviewer, a planner, a writer or an explorer. A control panel has a button for each feature: the autoship level, cheap mode, plain answers, skills and setup, and it shows what the session has cost. "What do these do?" explains each button. A [file tree](plugins/filetree/PROVENANCE.md) beside the conversation shows which files Claude reads and changes (`/filetree`). Click a changed file to see its changes since the last save to git, in red and green, as an editor shows them. All of these run outside Claude, so they add nothing to what a request costs. They use a Claude Code feature still in early access: where Claude Code does not show plugin panels yet, nothing changes, and `/mellu-panels` opens the control panel once it does.
+
+</details>
+
+None of these is new on its own. Each one is a normal Claude Code feature: a file, a hook, a permission rule. Mellu.mate sets them up for you, and it measures whether the result is better.
 
 ## What changes when it is on
 
-The same request, in the same small sample shop, three runs with easyClaude and three without:
+The same request, in the same small sample shop, three runs with Mellu.mate and three without:
 
-| you say | plain Claude Code | with easyClaude |
+| you say | plain Claude Code | with Mellu.mate |
 |---|---|---|
 | *"the checkout breaks when there's no discount code"* | Fixes it. Adds no test that catches the bug if it comes back, 0 of 3. | Fixes it and adds that test, 3 of 3. |
 | the same, in Thai | Fixes it, and adds that test in 2 of 3. | A test in 3 of 3, and the reply stays in Thai. |
@@ -59,7 +80,7 @@ The same request, in the same small sample shop, three runs with easyClaude and 
 
 **What it costs.** Where it helps, it does more work, so the run costs more: about $0.23 against $0.13 for the bug fix, and $0.86 against $0.33 for the two-day task (Sonnet 5 at list price; on a Claude plan it is plan usage). Where it makes no difference, the cost is about the same. Every turn also carries about 1,700 tokens of its setup, so it is probably not worth it for one-off questions and snippets.
 
-**How this was measured.** The first three rows are from 2026-10-02 and 2026-10-03, on 0.2.6, the Thai row after the language fix in 0.2.7. In the first three rows, hidden tests that Claude never saw check the files it left. In the last three, a second Claude grades the reply against written criteria. Three runs is a small sample, and a row can move by one run between days. The runs had no shell, which favours easyClaude, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run.
+**How this was measured.** The first three rows are from 2026-10-02 and 2026-10-03, on 0.2.6, the Thai row after the language fix in 0.2.7. In the first three rows, hidden tests that Claude never saw check the files it left. In the last three, a second Claude grades the reply against written criteria. Three runs is a small sample, and a row can move by one run between days. The runs had no shell, which favours Mellu.mate, because its checks run as a hook. [`evals/README.md`](evals/README.md) has every run.
 
 <p align="center">
   <picture>
@@ -75,11 +96,11 @@ You need **Claude Code** (the [desktop app](https://claude.ai/download) or the t
 **The easy way: ask Claude.** Open Claude Code in any folder and paste this:
 
 ```
-Install the easyClaude plugin for Claude Code. Check that Node.js and Git are installed,
+Install the Mellu.mate plugin for Claude Code. Check that Node.js and Git are installed,
 and tell me in plain words how to get anything missing. Then run:
-claude plugin install easyclaude --marketplace kotaraa09/easyClaude
-claude plugin install filetree@easyclaude
-claude plugin install blast-radius@easyclaude
+claude plugin install mellu --marketplace kotaraa09/mellu-mate
+claude plugin install filetree@mellu-mate
+claude plugin install blast-radius@mellu-mate
 When it is done, tell me to start a new session.
 ```
 
@@ -90,15 +111,15 @@ Claude asks before it runs each command. Then start a new session, in the deskto
 
 <br>
 
-In a terminal, run the same three commands. The first adds the easyClaude marketplace and installs easyClaude from it:
+In a terminal, run the same three commands. The first adds the Mellu.mate marketplace and installs Mellu.mate from it:
 
 ```bash
-claude plugin install easyclaude --marketplace kotaraa09/easyClaude
-claude plugin install filetree@easyclaude
-claude plugin install blast-radius@easyclaude
+claude plugin install mellu --marketplace kotaraa09/mellu-mate
+claude plugin install filetree@mellu-mate
+claude plugin install blast-radius@mellu-mate
 ```
 
-Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/easyClaude` and `/plugin install easyclaude@easyclaude` also work. In the desktop app, `/plugin` opens a browsing screen and installs nothing, so use the commands above. If your Claude Code does not know `--marketplace`, update it, or run `claude plugin marketplace add kotaraa09/easyClaude` first and then `claude plugin install easyclaude@easyclaude`.
+Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/mellu-mate` and `/plugin install mellu@mellu-mate` also work. In the desktop app, `/plugin` opens a browsing screen and installs nothing, so use the commands above. If your Claude Code does not know `--marketplace`, update it, or run `claude plugin marketplace add kotaraa09/mellu-mate` first and then `claude plugin install mellu@mellu-mate`.
 
 [`template/`](template/) is a project to fork that already points at the plugin, so Claude Code is meant to offer the install when you trust the folder. In the desktop app that offer did not appear in testing, so install it first.
 
@@ -106,7 +127,7 @@ Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/eas
 
 ## The first time
 
-Open a project and say what you want. If the project is not set up yet, easyClaude asks its questions in a form: what you build, who uses it, and what must work. The same form offers at most two extra skills that fit your project, each with its cost. Each form ends with "is the plan clear enough to start?", and nothing is built until you say yes. Then it writes a few files into `docs/`.
+Open a project and say what you want. If the project is not set up yet, Mellu.mate asks its questions in a form: what you build, who uses it, and what must work. The same form offers at most two extra skills that fit your project, each with its cost. Each form ends with "is the plan clear enough to start?", and nothing is built until you say yes. Then it writes a few files into `docs/`.
 
 After that, each session starts like this:
 
@@ -147,19 +168,19 @@ Small changes skip all of that.
 You never need these for the common jobs. They cost nothing until you type them.
 
 ```
-/easyclaude:start              run setup by hand
-/easyclaude:write-tests        start a test suite, so the checks cover behaviour
-/easyclaude:security-check     look for secrets and risks before going public
-/easyclaude:deploy             put it online and check the live address
-/easyclaude:generate-asset     images, audio and 3D, through a provider you have a key for
-/easyclaude:pick-library       find and check a library before hand-writing one
-/easyclaude:skills             add third-party skills that fit this project
-/easyclaude:connect            connect other tools (a browser, Figma, GitHub)
-/easyclaude:cheap <task>       one task in the fewest steps
-/easyclaude:cheap-session      stay in cheap mode until /easyclaude:full
-/easyclaude:full               leave cheap mode
-/easyclaude:plain [off]        short answers in plain words
-/easyclaude:autoship pr        stop asking before commit, push and pull request (off, commit, push, pr, merge)
+/mellu:start              run setup by hand
+/mellu:write-tests        start a test suite, so the checks cover behaviour
+/mellu:security-check     look for secrets and risks before going public
+/mellu:deploy             put it online and check the live address
+/mellu:generate-asset     images, audio and 3D, through a provider you have a key for
+/mellu:pick-library       find and check a library before hand-writing one
+/mellu:skills             add third-party skills that fit this project
+/mellu:connect            connect other tools (a browser, Figma, GitHub)
+/mellu:cheap <task>       one task in the fewest steps
+/mellu:cheap-session      stay in cheap mode until /mellu:full
+/mellu:full               leave cheap mode
+/mellu:plain [off]        short answers in plain words
+/mellu:autoship pr        stop asking before commit, push and pull request (off, commit, push, pr, merge)
 ```
 
 </details>
@@ -169,7 +190,7 @@ You never need these for the common jobs. They cost nothing until you type them.
 
 <br>
 
-Claude cannot make these, so `/easyclaude:generate-asset` sends the job to a provider you have an API key for: Replicate, ElevenLabs, OpenAI, Gemini or Venice, or Automatic1111 and ComfyUI on your own computer. It asks before it spends money, and logs each result in `docs/asset-log.md`. A subscription such as ChatGPT Plus is not an API key.
+Claude cannot make these, so `/mellu:generate-asset` sends the job to a provider you have an API key for: Replicate, ElevenLabs, OpenAI, Gemini or Venice, or Automatic1111 and ComfyUI on your own computer. It asks before it spends money, and logs each result in `docs/asset-log.md`. A subscription such as ChatGPT Plus is not an API key.
 
 So far only Replicate images were tested end to end. `node scripts/gen/generate.mjs --list` shows what each provider has produced.
 
@@ -180,7 +201,7 @@ So far only Replicate images were tested end to end. `node scripts/gen/generate.
 
 <br>
 
-`/easyclaude:connect` adds MCP servers from a form in `.env`. Three need no key: **playwright** (a real browser), **inspo** (design examples from real sites) and **graft** (a map of your own code). Keys stay in `.env`, which Claude cannot read, and never appear in a command line. Nothing is connected by default, because each server adds its tool list to every turn.
+`/mellu:connect` adds MCP servers from a form in `.env`. Three need no key: **playwright** (a real browser), **inspo** (design examples from real sites) and **graft** (a map of your own code). Keys stay in `.env`, which Claude cannot read, and never appear in a command line. Nothing is connected by default, because each server adds its tool list to every turn.
 
 </details>
 
@@ -189,7 +210,7 @@ So far only Replicate images were tested end to end. `node scripts/gen/generate.
 
 <br>
 
-Without it, Claude asks "should I commit?", then "should I push?", then "should I open a pull request?", and each answer is one more message. Pick a level once with `/easyclaude:autoship off`, `commit`, `push`, `pr` or `merge`, and Claude does every step up to that level by itself when what you asked is finished and every check passed. It still asks when a check fails, when a change touches sign-in, payments or a database migration, or when you tell it to wait. Off by default, off in a folder with no git, and each session tells you the level.
+Without it, Claude asks "should I commit?", then "should I push?", then "should I open a pull request?", and each answer is one more message. Pick a level once with `/mellu:autoship off`, `commit`, `push`, `pr` or `merge`, and Claude does every step up to that level by itself when what you asked is finished and every check passed. It still asks when a check fails, when a change touches sign-in, payments or a database migration, or when you tell it to wait. Off by default, off in a folder with no git, and each session tells you the level.
 
 </details>
 
@@ -200,7 +221,7 @@ Without it, Claude asks "should I commit?", then "should I push?", then "should 
 
 <br>
 
-Node.js is almost certainly missing. easyClaude runs on it, and without it a session opens as plain Claude Code. Install the LTS version from [nodejs.org](https://nodejs.org), restart Claude, and type `/easyclaude:start` if setup still does not begin.
+Node.js is almost certainly missing. Mellu.mate runs on it, and without it a session opens as plain Claude Code. Install the LTS version from [nodejs.org](https://nodejs.org), restart Claude, and type `/mellu:start` if setup still does not begin.
 
 </details>
 
@@ -244,7 +265,7 @@ No. A failing check sends Claude back while it keeps changing files. If it chang
 
 <br>
 
-`claude plugin uninstall easyclaude@easyclaude`. The files in `docs/` are plain text and stay yours.
+`claude plugin uninstall mellu@mellu-mate`. The files in `docs/` are plain text and stay yours.
 
 </details>
 
@@ -270,16 +291,16 @@ Measured with Claude Code in a set-up project whose plan is in English:
 
 The plan part grows with your plan; a plan in Thai costs a little more than the same plan in English. Skill bodies and stack recipes load only when they are used.
 
-Three moments cost more, and easyClaude tells you about each one: reopening an old conversation, switching model in a long one (a line shows the cost when it is over about $0.25), and a conversation past about 80,000 tokens of history. There, easyClaude holds your next message once, with a note that suggests `/clear`; send the message again to go on. The note comes again after each `/clear`, and it costs nothing, because Claude does not write it. Your plan is in `docs/STATE.md`, so `/clear` loses nothing.
+Three moments cost more, and Mellu.mate tells you about each one: reopening an old conversation, switching model in a long one (a line shows the cost when it is over about $0.25), and a conversation past about 80,000 tokens of history. There, Mellu.mate holds your next message once, with a note that suggests `/clear`; send the message again to go on. The note comes again after each `/clear`, and it costs nothing, because Claude does not write it. Your plan is in `docs/STATE.md`, so `/clear` loses nothing.
 
 <details>
 <summary><b>How the cost is kept in check</b></summary>
 
 <br>
 
-`node scripts/measure-cost.mjs` measures the figures above (about $1 a run), and CI fails if this page quotes different ones. CI also estimates the plugin's own share on every push, from the size of its files: <!--cost:885,314,514,57-->**~885 tokens per turn**: ~314 of rules, ~514 of skill descriptions, ~57 of agent descriptions. `skills/registry.json` sets a ceiling of 1,400, and the build fails above it.
+`node scripts/measure-cost.mjs` measures the figures above (about $1 a run), and CI fails if this page quotes different ones. CI also estimates the plugin's own share on every push, from the size of its files: <!--cost:873,313,504,56-->**~873 tokens per turn**: ~313 of rules, ~504 of skill descriptions, ~56 of agent descriptions. `skills/registry.json` sets a ceiling of 1,400, and the build fails above it.
 
-<!--always-on:8-->Eight skills stay loaded so plain sentences reach them. Seven are the steps in the table under "Just say what you want", plus setup. The eighth is humanizer, which rewrites text that reads as AI-written. The five occasional skills load only when typed, so they cost nothing per turn. One read-only agent, the diff reviewer that `ship` uses, costs ~57. `.mcp.json` ships empty, because MCP tool lists are usually the largest cost of all and this ceiling cannot count them.
+<!--always-on:8-->Eight skills stay loaded so plain sentences reach them. Seven are the steps in the table under "Just say what you want", plus setup. The eighth is humanizer, which rewrites text that reads as AI-written. The five occasional skills load only when typed, so they cost nothing per turn. One read-only agent, the diff reviewer that `ship` uses, costs ~56. `.mcp.json` ships empty, because MCP tool lists are usually the largest cost of all and this ceiling cannot count them.
 
 </details>
 

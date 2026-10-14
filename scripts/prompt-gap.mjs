@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Does the way a request is written change the result, and does easyClaude close the gap
+// Does the way a request is written change the result, and does Mellu.mate close the gap
 // between a beginner and someone who writes prompts well?
 //
 //   node scripts/prompt-gap.mjs --runs 3 --max-cost-usd 40   run every level, both arms, then report
@@ -10,7 +10,7 @@
 // the rule for writing one. This runs scripts/bench.mjs --prompts <level> once per level, so
 // each level gets both arms, the hidden-test grading and the bench's own cost ceiling. Then it
 // pools the two beginner levels and the two expert levels, and compares the gap between them
-// with easyClaude and without.
+// with Mellu.mate and without.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
@@ -87,7 +87,7 @@ export function report(results) {
     `Prompt levels - ${results[levels[0]]?.version ?? '?'}, ${results[levels[0]]?.opts?.model ?? '?'}` +
       (results[levels[0]]?.opts?.shell ? ', shell allowed' : ', no shell'),
     '',
-    '| level | works, with easyClaude | works, without | stopped to ask, with | stopped to ask, without | cost, with | cost, without |',
+    '| level | works, with Mellu.mate | works, without | stopped to ask, with | stopped to ask, without | cost, with | cost, without |',
     '|---|---|---|---|---|---|---|',
   ];
   for (const l of levels) {
@@ -99,7 +99,7 @@ export function report(results) {
   const B = { with: side('beginner', 'with'), without: side('beginner', 'without') };
   const E = { with: side('expert', 'with'), without: side('expert', 'without') };
   const rate = (t) => (t.n ? t.ok / t.n : 0);
-  lines.push('', '| side | with easyClaude | 95% range | without | 95% range |', '|---|---|---|---|---|');
+  lines.push('', '| side | with Mellu.mate | 95% range | without | 95% range |', '|---|---|---|---|---|');
   for (const [name, t] of [['beginner (both levels)', B], ['expert (both levels)', E]]) {
     lines.push(`| ${name} | ${t.with.ok}/${t.with.n} (${pct(t.with.ok, t.with.n)}) | ${range(t.with.ok, t.with.n)} | ` +
       `${t.without.ok}/${t.without.n} (${pct(t.without.ok, t.without.n)}) | ${range(t.without.ok, t.without.n)} |`);
@@ -110,8 +110,8 @@ export function report(results) {
   const gapWithout = gap(E.without, B.without);
   const pts = (x) => (x === null ? 'not measured' : `${x >= 0 ? '+' : ''}${Math.round(x * 100)} points`);
   lines.push('',
-    `Gap, expert minus beginner: ${pts(gapWith)} with easyClaude, ${pts(gapWithout)} without.`,
-    `A beginner with easyClaude: ${pct(B.with.ok, B.with.n)}. An expert without it: ${pct(E.without.ok, E.without.n)}.`);
+    `Gap, expert minus beginner: ${pts(gapWith)} with Mellu.mate, ${pts(gapWithout)} without.`,
+    `A beginner with Mellu.mate: ${pct(B.with.ok, B.with.n)}. An expert without it: ${pct(E.without.ok, E.without.n)}.`);
 
   const tasks = [...new Set(levels.flatMap((l) => Object.keys(cell[l].with.tasks)))].sort();
   lines.push('', `| task | ${levels.map((l) => `${l}, with / without`).join(' | ')} |`, `|---|${levels.map(() => '---|').join('')}`);
@@ -137,7 +137,7 @@ export function report(results) {
     lines.push('', `PARTIAL: a cost ceiling or a usage limit stopped a run${stopped ? `; ${stopped} run(s) that measured nothing are left out of the counts` : ''}. Do not publish these figures.`);
   }
   const spent = levels.reduce((s, l) => s + cell[l].with.cost + cell[l].without.cost, 0);
-  lines.push('', `These runs cost ${money(spent)} at list price, counting the no-easyClaude runs each level reused from the cache.`);
+  lines.push('', `These runs cost ${money(spent)} at list price, counting the no-Mellu.mate runs each level reused from the cache.`);
   return { text: lines.join('\n'), gapWith, gapWithout, beginner: B, expert: E, wrong };
 }
 

@@ -1,7 +1,7 @@
-// Where this project keeps the files easyClaude writes: the plan, the decisions, and the rest.
+// Where this project keeps the files Mellu.mate writes: the plan, the decisions, and the rest.
 //
 // They used to be fixed paths under docs/. A project that already had its own docs/ folder
-// - a documentation site, a folder of ADRs, a changelog of its own - got easyClaude's files
+// - a documentation site, a folder of ADRs, a changelog of its own - got Mellu.mate's files
 // mixed into it, or a second copy beside the one it used. So a project can name its own
 // places in .claude/easyclaude.json:
 //
@@ -82,13 +82,13 @@ export function locationsNotice(root, { compact = false } = {}) {
   if (!moved.length && !rejected.length) return null;
   let text = '';
   if (moved.length) {
-    text = 'This project keeps some of easyClaude\'s files in its own places. Wherever a skill, ' +
+    text = 'This project keeps some of Mellu.mate\'s files in its own places. Wherever a skill, ' +
       'rule or hook names the path on the left, read and write the path on the right instead:\n\n' +
       moved.map(([, from, to]) => `- ${from} -> ${to}` + (isFolder(to)
         ? ' (one new numbered file per decision, in the format of the newest one there)' : '')).join('\n');
   }
   if (rejected.length) {
-    text += (text ? '\n\n' : '') + `${LOCATIONS_FILE} has entries easyClaude cannot use, so ` +
+    text += (text ? '\n\n' : '') + `${LOCATIONS_FILE} has entries Mellu.mate cannot use, so ` +
       `their defaults apply: ${rejected.join(', ')}. A path must be a Markdown file inside the ` +
       'project (decisions may be a folder ending in /). In your first reply, tell the user this in one plain sentence.';
   }

@@ -1,7 +1,7 @@
 # Prompt levels
 
 The same five outcome tasks, each asked four ways, to measure one question: how much does the
-way a request is written change the result, and does easyClaude close the gap between a
+way a request is written change the result, and does Mellu.mate close the gap between a
 beginner and someone who writes prompts well?
 
 | level | who writes it | example (fix-checkout) |
@@ -39,7 +39,7 @@ again from the saved runs without running anything.
 
 What it reports, per level and arm: tasks that work (graded by hidden tests and file checks,
 no judge model), runs that stopped to ask a question instead of changing anything, and cost.
-Then the gap: expert minus beginner, with easyClaude and without. easyClaude closes the gap
+Then the gap: expert minus beginner, with Mellu.mate and without. Mellu.mate closes the gap
 when its gap is smaller, and helps a beginner most when a beginner with it does as well as an
 expert without it.
 
@@ -47,9 +47,9 @@ expert without it.
 
 - The benchmark sends one message. A run that asks a good question and stops fails, though a
   person could have answered it. The table counts those runs on their own.
-- On native Windows neither arm can run commands, and easyClaude's verify hook still runs the
-  tests. An expert prompt that says "run the tests" cannot be followed without easyClaude.
-  That narrows the gap without easyClaude. Run it under WSL2 or Linux with `--shell` for the
+- On native Windows neither arm can run commands, and Mellu.mate's verify hook still runs the
+  tests. An expert prompt that says "run the tests" cannot be followed without Mellu.mate.
+  That narrows the gap without Mellu.mate. Run it under WSL2 or Linux with `--shell` for the
   fair figure (ROADMAP item 1).
 - Three runs per level and arm is 12 runs per level, 24 per side. A difference of one or two
   runs is noise.

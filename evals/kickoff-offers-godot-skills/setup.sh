@@ -1,4 +1,4 @@
-# A Godot 4 project that easyClaude has not set up yet: code, no docs/. The end of setup must
+# A Godot 4 project that Mellu.mate has not set up yet: code, no docs/. The end of setup must
 # offer the game skills that fit, by name and cost, without being asked and without the user
 # knowing any category name. Added after a user asked for exactly that on 2026-10-02.
 set -euo pipefail

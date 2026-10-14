@@ -1,11 +1,11 @@
 # Provenance
 
-This plugin is **vendored third-party code**, not written for easyClaude.
+This plugin is **vendored third-party code**, not written for Mellu.mate.
 
 | | |
 |---|---|
 | Source | https://github.com/data-goblin/claude-code-filetree |
-| Pinned commit | `da1da65724c54541f4a0ec5ddd26641b1a0d672a` (version 0.2.24; easyClaude ships its changes below as 0.2.25) |
+| Pinned commit | `da1da65724c54541f4a0ec5ddd26641b1a0d672a` (version 0.2.24; Mellu.mate ships its changes below as 0.2.25) |
 | Vendored | 2026-10-08 |
 | License | MIT - see `LICENSE` |
 | Contains | **executable code**: a Claude Code hooks module that runs `git`, `gh`, `du` and the system's open command |
@@ -16,10 +16,10 @@ permission notice to travel with every copy.
 ## Why it is a plugin of its own
 
 Claude Code loads one hooks module per plugin and takes one hook per event from it. The file
-tree hooks events easyClaude hooks too (`session.start`, `tool.call`, `prompt.submit`), so
-it cannot live inside easyClaude's module without being rewritten. As a plugin of its own
-it runs as its author wrote it. easyClaude lists it under `dependencies`, so it installs
-and updates with easyClaude.
+tree hooks events Mellu.mate hooks too (`session.start`, `tool.call`, `prompt.submit`), so
+it cannot live inside Mellu.mate's module without being rewritten. As a plugin of its own
+it runs as its author wrote it. Mellu.mate lists it under `dependencies`, so it installs
+and updates with Mellu.mate.
 
 ## What was vendored, and what was left behind
 
@@ -33,7 +33,7 @@ the Claude desktop app. It checked the terminal's layout (fullscreen, 110 column
 desktop app places the pane beside the conversation whatever that layout is. The two checks
 now apply when the session draws on no desktop surface.
 
-Added by easyClaude: the changes under the tree. A click on a changed file, or `d` on the
+Added by Mellu.mate: the changes under the tree. A click on a changed file, or `d` on the
 cursor's file, shows its changes since the last save to git (`git diff HEAD`) in the lower
 half of the same pane, drawn by the engine's `Code` element, with arrows to step through the
 hunks. A pane of its own would open as a new tab and hide the tree. `hooks/changes.ts` and

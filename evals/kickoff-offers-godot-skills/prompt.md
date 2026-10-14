@@ -1,7 +1,7 @@
 ---
 schema_version: "1.1"
 name: kickoff-offers-godot-skills
-description: "Setup in a Godot project, answered in one message. The closing message must offer at most two game skills that fit, by name and cost, and install nothing without a yes. Needs easyClaude: run with --ablation none."
+description: "Setup in a Godot project, answered in one message. The closing message must offer at most two game skills that fit, by name and cost, and install nothing without a yes. Needs Mellu.mate: run with --ablation none."
 tags: [triggering, positive]
 runs: 3
 max_turns: 25

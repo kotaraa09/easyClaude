@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the sample project every eval case runs in: a small shop that easyClaude already
+# Builds the sample project every eval case runs in: a small shop that Mellu.mate already
 # set up, with saved state, a verify contract, a known bug and a git history.
 #
 # Without it each case ran in an empty folder. The SessionStart hook correctly sends an
@@ -17,10 +17,10 @@
 #   bash setup.sh badge      plus a cart badge and a receipt line that share one price format
 #   bash setup.sh button     plus page code whose Pay button does nothing, with every test green
 #
-# The outcome benchmark (scripts/bench.mjs) also runs every case without easyClaude. Its
+# The outcome benchmark (scripts/bench.mjs) also runs every case without Mellu.mate. Its
 # copy of the suite carries a .bench-baseline file at the plugin root, and then the shop is
 # built as a project nobody set up: no docs/, no CLAUDE.md, no .claude/. The code and the
-# git history are the same, so the only difference between the arms is easyClaude.
+# git history are the same, so the only difference between the arms is Mellu.mate.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"

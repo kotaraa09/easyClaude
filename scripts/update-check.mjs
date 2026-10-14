@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Installs easyClaude the two ways users get it, and fails when Claude Code will not load it:
+// Installs Mellu.mate the two ways users get it, and fails when Claude Code will not load it:
 //
 //   1. a fresh install of this working tree
 //   2. the last released version, then `claude plugin update` to this working tree

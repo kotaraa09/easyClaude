@@ -62,10 +62,10 @@ const LEAVES_MARK = 'node -e "require(\'fs\').writeFileSync(\'ran.txt\', \'x\')"
 const ranIn = (dir) => {
   try { readFileSync(join(dir, 'ran.txt')); return true; } catch { return false; }
 };
-const ownTrust = () => ({ EASYCLAUDE_TRUST_FILE: join(projectDir(), 'trusted-checks.json') });
+const ownTrust = () => ({ MELLU_TRUST_FILE: join(projectDir(), 'trusted-checks.json') });
 const stopIn = (dir, env, { session = `trust-${Date.now()}-${Math.random()}`, active = false } = {}) =>
   run(join(repoRoot, 'scripts', 'verify.mjs'), {
-    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '', ...env },
+    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, MELLU_SKIP_VERIFY: '', ...env },
     input: JSON.stringify(session ? { session_id: session, stop_hook_active: active } : { stop_hook_active: active }),
   });
 
@@ -152,7 +152,7 @@ test('trust: the approval lives outside the project, so a repository cannot ship
   const env = ownTrust();
   const dir = projectDir({ steps: [{ name: 'test', cmd: PASSES }] }, { approved: false });
   await runVerify(dir, ['--trust'], env);
-  const store = readFileSync(env.EASYCLAUDE_TRUST_FILE, 'utf8');
+  const store = readFileSync(env.MELLU_TRUST_FILE, 'utf8');
   assert(store.includes('"projects"'), 'the approval must be recorded in the per-user file.');
   const files = readdirSync(dir, { recursive: true }).map(String).sort();
   assert(files.join() === ['.claude', join('.claude', 'verify.json')].sort().join(),
@@ -246,9 +246,9 @@ test('gate: an unknown tier is reported rather than silently demoting a step', a
 
 // --- the escape hatch is loud ---------------------------------------------------
 test('gate: the skip switch allows the turn and announces itself', async () => {
-  const r = await hook({ steps: [{ name: 'test', cmd: FAILS }] }, { EASYCLAUDE_SKIP_VERIFY: '1' });
+  const r = await hook({ steps: [{ name: 'test', cmd: FAILS }] }, { MELLU_SKIP_VERIFY: '1' });
   assert(r.code === ALLOW, `the skip switch must allow the turn. Got exit ${r.code}:\n${r.out}`);
-  assertMatch(r.out, /EASYCLAUDE_SKIP_VERIFY/,
+  assertMatch(r.out, /MELLU_SKIP_VERIFY/,
     'switching the gate off silently is the dead gate this framework exists to prevent.');
   assertMatch(r.out, /Do not describe this work as verified/,
     'the model must be told the work was not checked.');
@@ -316,7 +316,7 @@ const repeat = async () => {
   writeFileSync(join(dir, 'app.js'), 'export const x = 2;\n');
   const call = (active, session = 's1') => run(join(repoRoot, 'scripts', 'verify.mjs'), {
     cwd: dir, args: ['--hook'],
-    env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+    env: { CLAUDE_PROJECT_DIR: dir, MELLU_SKIP_VERIFY: '' },
     input: JSON.stringify({ session_id: session, stop_hook_active: active }),
   });
   return { dir, call };
@@ -419,7 +419,7 @@ const twoApps = () => {
   const stopAfter = (file) => {
     writeFileSync(join(dir, file), '2;\n');
     return run(join(repoRoot, 'scripts', 'verify.mjs'), {
-      cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+      cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, MELLU_SKIP_VERIFY: '' },
       input: JSON.stringify({ session_id: `apps-${Date.now()}-${Math.random()}`, stop_hook_active: false }),
     });
   };
@@ -461,7 +461,7 @@ const relatedProject = (step = {}, files = {}) => {
   git('add', '-A');
   git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start');
   const stopNow = () => run(join(repoRoot, 'scripts', 'verify.mjs'), {
-    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, MELLU_SKIP_VERIFY: '' },
     input: JSON.stringify({ session_id: `rel-${Date.now()}-${Math.random()}`, stop_hook_active: false }),
   });
   const ran = (where = '') => {
@@ -517,7 +517,7 @@ test('related: in an app folder, the files are given relative to that folder', a
   assert(p.ran('apps/web') === 'ALL', 'a change outside the app must run its whole command.');
 });
 
-// {tests}: pytest cannot find the tests a change reaches, so easyClaude follows the imports.
+// {tests}: pytest cannot find the tests a change reaches, so Mellu.mate follows the imports.
 const WRITES_TESTS = WRITES_FILES.replace('{files}', '{tests}');
 const pythonProject = () => relatedProject({ related: WRITES_TESTS }, {
   'src/shop/__init__.py': '',
@@ -614,7 +614,7 @@ const askLater = (dir, session) => run(join(repoRoot, 'scripts', 'prompt-check.m
   input: JSON.stringify({ prompt: "just the first one, we'll do the rest tomorrow", session_id: session }),
 });
 const stop = (dir, session) => run(join(repoRoot, 'scripts', 'verify.mjs'), {
-  cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+  cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, MELLU_SKIP_VERIFY: '' },
   input: JSON.stringify({ session_id: session, stop_hook_active: false }),
 });
 
@@ -638,7 +638,7 @@ test('gate: work left for later that STATE.md records is not held', async () => 
   assert(r.code === ALLOW, `the plan was written, so nothing to hold:\n${r.out}`);
 });
 
-// --- easyClaude's files kept somewhere else ----------------------------------------
+// --- Mellu.mate's files kept somewhere else ----------------------------------------
 // A project whose docs/ is already taken names its own places in .claude/easyclaude.json.
 // The plan is rewritten on every turn, so a moved plan must not run the suite either.
 const MOVED = JSON.stringify({ files: { state: 'planning/STATE.md' } });
@@ -697,7 +697,7 @@ const lookStop = (dir, entries, session = `look-${Date.now()}-${Math.random()}`)
   const transcript = join(dir, '..', `${session}.jsonl`);
   writeFileSync(transcript, entries.map((e) => JSON.stringify(e)).join('\n') + '\n');
   return run(join(repoRoot, 'scripts', 'verify.mjs'), {
-    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, EASYCLAUDE_SKIP_VERIFY: '' },
+    cwd: dir, args: ['--hook'], env: { CLAUDE_PROJECT_DIR: dir, MELLU_SKIP_VERIFY: '' },
     input: JSON.stringify({ session_id: session, transcript_path: transcript, stop_hook_active: false }),
   });
 };

@@ -118,7 +118,7 @@ if (COMPACT) {
 } else if (setUp) {
   parts.push(opener(state));
 } else if (!hasCode()) {
-  parts.push('This project is not set up for easyClaude yet, and it has no code. Invoke the ' +
+  parts.push('This project is not set up for Mellu.mate yet, and it has no code. Invoke the ' +
     '`kickoff` skill before doing anything else, including before answering in detail. If the ' +
     "user's first message already says what they want to build, treat that as the answer to " +
     "kickoff's first question and do not ask it again.");
@@ -127,7 +127,7 @@ if (COMPACT) {
 } else {
   // A beginner in testing was offered "kickoff in adopt mode", which named nothing they
   // knew. The offer now says what they would get, and leaves the names to Claude.
-  parts.push('This project has code but is not set up for easyClaude yet. In one plain ' +
+  parts.push('This project has code but is not set up for Mellu.mate yet. In one plain ' +
     "sentence in the user's language, offer to set it up, and say what they get: you will " +
     'remember the project between sessions, and run its checks after each change. Do not name ' +
     'the skill. If they say yes, run the `kickoff` skill in adopt mode. Do not start its ' +
@@ -151,7 +151,7 @@ if (COMPACT) {
 if (!COMPACT && !setUp) {
   const missing = missingTools(root);
   parts.push(missing.length
-    ? 'Tools check: this computer is missing something easyClaude needs. In your first reply, ' +
+    ? 'Tools check: this computer is missing something Mellu.mate needs. In your first reply, ' +
       "tell the user each one in plain words and in the user's language: what they lose, and " +
       'how to fix it, in a sentence or two, with no jargon. Offer to run a fix that is a ' +
       'command, and run nothing without a clear yes. Then carry on:\n\n' +
@@ -178,10 +178,10 @@ if (cheapOn) {
   const contract = read('.claude/cheap-contract.md');
   parts.push('The user armed cheap mode for this session. ' +
     (COMPACT ? '' : 'Add one line to your first reply saying cheap mode is on and that ' +
-      '/easyclaude:full turns it off. ') +
+      '/mellu:full turns it off. ') +
     (contract ? `This contract applies to every turn of this session:\n\n${contract.trim()}`
       : 'The contract file .claude/cheap-contract.md is missing, so tell the user to run ' +
-        '/easyclaude:cheap-session again.'));
+        '/mellu:cheap-session again.'));
 }
 
 // A broken autoship.json arms nothing, and neither does a folder with no git. The rule comes

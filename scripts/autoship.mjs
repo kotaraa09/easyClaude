@@ -1,7 +1,7 @@
 // Automatic shipping: the level the user chose, and the standing line that tells Claude to
 // stop asking about it.
 //
-// /easyclaude:autoship off | commit | push | pr | merge writes .claude/autoship.json. Each
+// /mellu:autoship off | commit | push | pr | merge writes .claude/autoship.json. Each
 // level includes the ones before it. The point is the questions it removes: "should I
 // commit?", "should I push?", "should I open a PR?" are one more message each, and every
 // message re-sends the whole conversation. Until 1.1 it fired only from build-task, at the
@@ -67,11 +67,11 @@ export function standingLine(level, base = 'main', { compact = false } = {}) {
     'uploaded, open for review, or added to the main version), only what you confirmed' +
     (n >= 2 ? ', with the pull request link' : '') + '. Do not name the branch, ' +
     'commands or commit ids unless they ask. ' +
-    (n >= 2 ? 'Before you open a pull request or merge, have the easyclaude-diff-reviewer ' +
+    (n >= 2 ? 'Before you open a pull request or merge, have the mellu-diff-reviewer ' +
       'subagent read the branch diff once, and fix what it finds. ' : '') +
     'Stop and ask instead when a check fails, when the change touches sign-in, payments or a ' +
     'database migration, or when the user said to wait.' +
     (n < LEVELS.length - 1 ? ` Steps past "${level}" still need the user's yes.` : '') +
     (compact ? '' : ' Add one plain line to your first reply: what you will now do without asking ' +
-      `(${PLAIN[level]}), and that /easyclaude:autoship off turns it off.`);
+      `(${PLAIN[level]}), and that /mellu:autoship off turns it off.`);
 }

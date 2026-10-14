@@ -53,7 +53,7 @@ export function cheapArmed(root, opts) {
 // turns a file back into the user's own setting: --cached leaves it on disk.
 export function ignoredNotice(files) {
   if (!files.length) return null;
-  return `easyClaude ignored these files: ${files.join(', ')}. Each one holds one person's ` +
+  return `Mellu.mate ignored these files: ${files.join(', ')}. Each one holds one person's ` +
     'choice, and git tracks it, so it came with the code, or git could not say. Nothing they ' +
     'would switch on is on. In your first reply, tell the user in one plain sentence. If the ' +
     'user says the files are their own, `git rm --cached <file>` keeps each one on disk and ' +

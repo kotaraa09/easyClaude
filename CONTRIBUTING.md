@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping. easyClaude is for people who do not write code, so every change is
+Thank you for helping. Mellu.mate is for people who do not write code, so every change is
 judged by one question: does it make Claude better for them, at a cost they can see?
 
 ## Before you start
@@ -25,10 +25,10 @@ runs in its own process, and the run ends with its five slowest tests. Over 5 mi
 warns, on the pull request too: speed up or split the slow tests before adding more.
 
 The panels are Claude Code hooks modules, and need Claude Code itself (2.1.288 or later):
-easyClaude's own in `hooks/` (`register.tsx` starts the control panel, the progress bar and
+Mellu.mate's own in `hooks/` (`register.tsx` starts the control panel, the progress bar and
 the /clear reminder), and the file tree and Blast Radius, each a plugin of its own in
-`plugins/`, installed beside easyClaude. Do not list them under `dependencies`: an update
-does not install a new dependency, and Claude Code then refuses to load all of easyClaude.
+`plugins/`, installed beside Mellu.mate. Do not list them under `dependencies`: an update
+does not install a new dependency, and Claude Code then refuses to load all of Mellu.mate.
 CI cannot run these, so run them yourself when you change one:
 
 ```bash
@@ -53,7 +53,7 @@ The first time Claude Code loads the plugin, it writes the API's types to
 contains, not how it looks, and two releases went out with faults anyone would see on
 screen. In a Claude Code session, load the `plugin-authoring` skill (it names a dev-mods
 folder for the session), then run `node scripts/preview-panels.mjs <that folder>`. A copy
-called `easyclaude-preview` loads beside your installed easyClaude once you allow hot
+called `mellu-preview` loads beside your installed Mellu.mate once you allow hot
 reloading; check it in the desktop app and in a terminal.
 
 ## Rules for a change
@@ -88,7 +88,7 @@ GitHub's own merge commits keep their default message.
 
 ## Releases
 
-Release notes are public. Write them for people who use easyClaude, in a neutral tone:
+Release notes are public. Write them for people who use Mellu.mate, in a neutral tone:
 
 - Group the entries under **Added**, **Changed** and **Fixed**, and leave out an empty group.
 - Describe what changes for the user, not how it was found. No stories about testing, no

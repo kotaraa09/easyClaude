@@ -3,7 +3,7 @@
 //
 //   node model-switch.mjs     the hook - reads hook JSON on stdin, prints hook JSON or nothing
 //
-// /easyclaude:cheap-session tells the user to run /model sonnet. In a long conversation
+// /mellu:cheap-session tells the user to run /model sonnet. In a long conversation
 // that switch re-sends everything to the new model, and it can cost more than the cheap
 // session saves. The figure is in the hook input, so this shows it.
 //

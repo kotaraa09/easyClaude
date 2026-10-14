@@ -137,6 +137,6 @@ written down.
 
 ## Not in cheap mode
 
-`/easyclaude:cheap` forbids new dependencies and web searches on purpose. If a cheap turn
+`/mellu:cheap` forbids new dependencies and web searches on purpose. If a cheap turn
 runs into this, say in one line that the task wants a library and needs a normal turn to
 choose one safely. Do not vet a package on a budget.

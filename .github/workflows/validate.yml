@@ -79,7 +79,7 @@ jobs:
       - name: Test the checking machinery
         run: node scripts/test.mjs
 
-      # The gate running easyClaude's own contract, on this platform. Fast tier only: the
+      # The gate running Mellu.mate's own contract, on this platform. Fast tier only: the
       # full tier of that contract is the suite above, which has just run.
       - name: Verify contract passes
         run: |

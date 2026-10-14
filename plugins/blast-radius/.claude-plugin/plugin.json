@@ -1,7 +1,7 @@
 {
   "name": "blast-radius",
   "version": "0.1.1",
-  "description": "Holds risky shell commands (rm -rf, Remove-Item -Recurse, git reset --hard, git clean, force push, migrations) and shows what they would change, with Proceed and Cancel buttons. Adapted for Windows and PowerShell by easyClaude.",
+  "description": "Holds risky shell commands (rm -rf, Remove-Item -Recurse, git reset --hard, git clean, force push, migrations) and shows what they would change, with Proceed and Cancel buttons. Adapted for Windows and PowerShell by Mellu.mate.",
   "author": {
     "name": "Claude Code DevRel"
   },
@@ -11,5 +11,5 @@
     "git"
   ],
   "license": "Apache-2.0",
-  "homepage": "https://github.com/kotaraa09/easyClaude/tree/main/plugins/blast-radius"
+  "homepage": "https://github.com/kotaraa09/mellu-mate/tree/main/plugins/blast-radius"
 }

@@ -1,6 +1,6 @@
 # Provenance
 
-This mod is **vendored third-party code**, adapted for easyClaude.
+This mod is **vendored third-party code**, adapted for Mellu.mate.
 
 | | |
 |---|---|
@@ -31,7 +31,7 @@ What feeds it changed.
   as dimmed crabs under the helpers. Here the request comes first: its cost, actions and
   time, then each step of Claude's own step list as a row in that style, or the latest
   actions when Claude keeps no list, then the helpers.
-- **The panel opens on the session's first helper**, once; after that, `/easyclaude-helpers`
+- **The panel opens on the session's first helper**, once; after that, `/mellu-helpers`
   or the Details button on the bar opens it. The button is on every request, with `×N` once
   helpers run. Upstream showed only `×N`, opened the panel for `savvy-` helpers only, and
   named the command `/agents-info`.
@@ -39,12 +39,12 @@ What feeds it changed.
   table has `Svg`, which includes the terminal, and a plain terminal showed an empty row with
   only the close button. A terminal now gets upstream's text bar.
 - English only. Upstream also spoke Russian, chosen by a `language` setting.
-- The `$.state` values belong to easyClaude: `agents`, `agentsPanel` and `agentsNow`.
+- The `$.state` values belong to Mellu.mate: `agents`, `agentsPanel` and `agentsNow`.
 - `session.start` and `turn.complete` are hooked in `hooks/panels.tsx`, which registers
-  `/easyclaude-helpers` and marks a helper done when its turn ends: Claude Code takes one
+  `/mellu-helpers` and marks a helper done when its turn ends: Claude Code takes one
   hook per event from a plugin.
 
 ## Updating
 
 Compare the drawing functions with a newer commit and take their fixes by hand. The feed
-is easyClaude's own and stays. Update the commit here.
+is Mellu.mate's own and stays. Update the commit here.

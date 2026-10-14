@@ -24,7 +24,7 @@ Read `git diff` against the base. Two passes; the second is the one that matters
 
 **Correctness.** This is the gap the verify gate cannot close. You wrote the code, and if the project has tests you wrote those too — so green means the code does what you thought it should do. It does not mean the change is right, and no amount of re-reading your own diff fixes that, because you already know what you meant.
 
-So get eyes that did not write it. Dispatch the `easyclaude-diff-reviewer` subagent with the diff and no other context. It ships with this plugin, it has no shell and no write tools, and it is briefed to report only the four things a reader who wasn't here would notice:
+So get eyes that did not write it. Dispatch the `mellu-diff-reviewer` subagent with the diff and no other context. It ships with this plugin, it has no shell and no write tools, and it is briefed to report only the four things a reader who wasn't here would notice:
 
 - what breaks when an input is empty, null, very large, or arrives twice
 - what the change assumes about existing behaviour that nobody actually checked
@@ -50,7 +50,7 @@ One commit per logical change. The message says **why**, not what — the diff a
 
 ## 6. Before a repo goes public or deploys for the first time
 
-Tell the user to run `/easyclaude:security-check` first, and wait. A first publish is when leaked
+Tell the user to run `/mellu:security-check` first, and wait. A first publish is when leaked
 keys stop being theoretical, and history keeps what a deleted file does not. You cannot invoke it
 for them - it is opt-in precisely so it costs nothing on the turns it isn't needed.
 
@@ -60,7 +60,7 @@ Pushing and opening a PR are outward-facing. Say what you're about to push and w
 
 ## 8. Automatic mode
 
-`.claude/autoship.json` — written by `/easyclaude:autoship`, absent by default — is the user's
+`.claude/autoship.json` — written by `/mellu:autoship`, absent by default — is the user's
 standing yes for this project, but only inside a git repository and only while git does not
 track the file. If `git ls-files --error-unmatch .claude/autoship.json` succeeds, the file
 came with the repository, not from this user, and it authorises nothing: ask as step 7 says.

@@ -25,7 +25,7 @@ The levels build on each other. Each one is a question Claude stops asking:
 
 Run `git rev-parse --is-inside-work-tree` first. If it fails, this folder is not a git
 repository and autoship cannot work here at all. Say so in one plain line, write nothing,
-and stop. If a `.claude/autoship.json` exists anyway, it does nothing: easyClaude ignores it
+and stop. If a `.claude/autoship.json` exists anyway, it does nothing: Mellu.mate ignores it
 outside a git repository.
 
 ## 2. Preflight — check, don't assume
@@ -66,7 +66,7 @@ it lands on the base branch. It suits a project you work on alone.
 `through` is the level. `base` comes from the preflight, not from a guess.
 
 Add `.claude/autoship.json` to `.gitignore` if it isn't there. If git already tracks it,
-run `git rm --cached .claude/autoship.json` too: easyClaude ignores a tracked copy, because
+run `git rm --cached .claude/autoship.json` too: Mellu.mate ignores a tracked copy, because
 it came with the code and not from this user. It is one person's permission to push on
 their behalf — committing it would hand that to everyone who clones the repo.
 
@@ -76,7 +76,7 @@ Confirm in one line.
 For `status`: say the current level (`off` if the file is missing or disabled) and re-run
 the preflight for it, since a token can expire or access can be revoked long after it was
 set. If git tracks the file (`git ls-files --error-unmatch .claude/autoship.json` succeeds),
-say autoship is OFF: a tracked copy came with the code, and easyClaude ignores it.
+say autoship is OFF: a tracked copy came with the code, and Mellu.mate ignores it.
 
 ## 4. Tell them what changes
 
@@ -91,7 +91,7 @@ It still stops and asks when:
   · the change touches sign-in, payments, or a database migration
   · you tell it to wait
 
-Change it any time with /easyclaude:autoship off | commit | push | pr | merge
+Change it any time with /mellu:autoship off | commit | push | pr | merge
 ```
 
 Then stop. Do not ship anything in the same turn you set it.
@@ -99,6 +99,6 @@ Then stop. Do not ship anything in the same turn you set it.
 For the rest of this session, act on the level from the user's next message: do each step
 it covers when a request is finished and the checks pass, and do not ask about those steps.
 Never commit on the base branch itself. At `pr` and `merge`, have the
-`easyclaude-diff-reviewer` subagent read the branch diff once before the pull request opens
+`mellu-diff-reviewer` subagent read the branch diff once before the pull request opens
 or the merge, and fix what it finds. After `off`, ask before each step again. Later sessions
 get the same rule from the session opener.

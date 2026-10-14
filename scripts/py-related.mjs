@@ -1,7 +1,7 @@
 // The pytest half of "related": which test files can reach the changed Python files.
 //
 // Vitest and Jest follow imports themselves ("vitest related", "jest --findRelatedTests").
-// pytest has no such command, so easyClaude follows them: it reads every import in the
+// pytest has no such command, so Mellu.mate follows them: it reads every import in the
 // project, and walks back from the changed files to the test files that import them,
 // directly or through other modules. A step names the result with {tests}:
 //

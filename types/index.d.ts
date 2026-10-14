@@ -1,4 +1,4 @@
-// What easyClaude's hooks module keeps in the session's $.state, so `claude plugin validate`
+// What Mellu.mate's hooks module keeps in the session's $.state, so `claude plugin validate`
 // can hold every key it names to a declared type.
 
 // One step of the request in progress, from Claude's own step list (TodoWrite or the Task
@@ -70,7 +70,7 @@ export type AgentRun = {
 export type Panel = {
   isCompact: boolean
   isDoneCollapsed: boolean
-  // The session's first helper opens the panel once; after that only /easyclaude-helpers does.
+  // The session's first helper opens the panel once; after that only /mellu-helpers does.
   isAutoOpened: boolean
   // The request whose bar the user closed (its startedAt); the next request shows again.
   dismissedAt: number
@@ -78,7 +78,7 @@ export type Panel = {
 
 declare module 'claude-code' {
   interface PluginState {
-    easyclaude: {
+    mellu: {
       request: Request | null
       usage: Usage
       agents: AgentRun[]

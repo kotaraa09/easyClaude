@@ -23,4 +23,4 @@
 - **Secrets only in `.env`**, never in source or a commit.
 - **Finish what was asked.** Mention anything else you spot, and do not fix it uninvited.
 
-**Run on request:** `/easyclaude:` + `write-tests` (no suite yet) · `security-check` (before going public) · `deploy` (put it online) · `generate-asset` (images, audio, 3D) · `pick-library` (before hand-rolling) · `skills` (add skills that fit this project).
+**Run on request:** `/mellu:` + `write-tests` (no suite yet) · `security-check` (before going public) · `deploy` (put it online) · `generate-asset` (images, audio, 3D) · `pick-library` (before hand-rolling) · `skills` (add skills that fit this project).

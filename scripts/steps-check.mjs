@@ -5,7 +5,7 @@
 //
 // The progress panel shows Claude's own step list. A user testing 1.1.2 saw it empty on
 // every request: Claude did fifty things and then said it was done, and the panel could
-// only say "working", then "done". Nothing in easyClaude asked for a list. A line in a skill
+// only say "working", then "done". Nothing in Mellu.mate asked for a list. A line in a skill
 // is weighed and often dropped, so this asks at the moment it matters: the second change
 // of a request that has no list yet. Once per request, and never in cheap mode.
 //
@@ -23,7 +23,7 @@ const TAIL_BYTES = 1024 * 1024;
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const LIST_TOOLS = new Set(['TodoWrite', 'TaskCreate', 'TaskUpdate']);
 const sha = (s) => createHash('sha256').update(s).digest('hex');
-const memoPath = (session) => join(tmpdir(), `easyclaude-steps-${sha(String(session)).slice(0, 16)}.json`);
+const memoPath = (session) => join(tmpdir(), `mellu-steps-${sha(String(session)).slice(0, 16)}.json`);
 
 function tail(path) {
   const fd = openSync(path, 'r');
@@ -72,7 +72,7 @@ export function currentRequest(transcriptPath) {
   };
 }
 
-export const ASK = 'easyClaude: this request takes several steps, and the user follows them in a ' +
+export const ASK = 'Mellu.mate: this request takes several steps, and the user follows them in a ' +
   'progress panel that shows your task list. Write the steps of this request into your task ' +
   'list now (TodoWrite, or TaskCreate if that is the tool you have), each in plain words the ' +
   'user understands, and mark each one in progress and then done as you go. Then carry on.';

@@ -23,9 +23,9 @@ import { createHash, randomBytes } from 'node:crypto';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
-// EASYCLAUDE_TRUST_FILE exists for the test suite, which must not write to a real home.
+// MELLU_TRUST_FILE exists for the test suite, which must not write to a real home.
 export const trustFile = () =>
-  process.env.EASYCLAUDE_TRUST_FILE || join(homedir(), '.claude', 'easyclaude', 'trusted-checks.json');
+  process.env.MELLU_TRUST_FILE || join(homedir(), '.claude', 'easyclaude', 'trusted-checks.json');
 
 // The commands, in order, and the folder each one runs in. Nothing else in a step runs.
 // The same command in another folder runs another project's scripts, so a changed "dir"
@@ -82,7 +82,7 @@ export function trust(root, steps) {
 // answer, is not asked again at the end of every turn. With no session there is nothing to
 // key on, so the caller asks only on a turn's first stop; see verify.mjs.
 const askMemo = (root, session, steps) =>
-  join(tmpdir(), `easyclaude-ask-${sha(`${folderKey(root)}\0${session}\0${fingerprint(steps)}`).slice(0, 16)}`);
+  join(tmpdir(), `mellu-ask-${sha(`${folderKey(root)}\0${session}\0${fingerprint(steps)}`).slice(0, 16)}`);
 export const askedAlready = (root, session, steps) => Boolean(session) && existsSync(askMemo(root, session, steps));
 export function markAsked(root, session, steps) {
   if (!session) return;

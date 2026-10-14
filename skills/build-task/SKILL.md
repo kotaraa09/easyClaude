@@ -54,7 +54,7 @@ If you cannot make it pass after a genuine attempt, stop and say exactly what's 
 ## 5. Ship it, to the level the user chose
 
 Skip this unless the session opener said autoship is set, or the user set it with
-`/easyclaude:autoship` in this session. Otherwise say nothing about shipping: do not ask
+`/mellu:autoship` in this session. Otherwise say nothing about shipping: do not ask
 "should I commit?", and do not offer it either - the user decides that with the command.
 
 When it is set and this task passed its checks, invoke the `ship` skill and let it work to

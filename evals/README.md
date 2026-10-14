@@ -34,7 +34,7 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `humanizer-on-sounds-like-ai` | *"does this sound like AI? ..."* | `humanizer` fires |
 | `quiet-humanizer-on-write-copy` | *"write a one-line welcome for the top of the home page"* | `humanizer` does **not** fire |
 | `library-on-a-calendar` | *"add a calendar so shoppers can pick a delivery day"* | `plan-feature` fires, and names a free library before building |
-| `skills-for-a-godot-game` | *"/easyclaude:skills"*, in a Godot project | it works out the project is a game, offers game skills, installs nothing |
+| `skills-for-a-godot-game` | *"/mellu:skills"*, in a Godot project | it works out the project is a game, offers game skills, installs nothing |
 | `kickoff-offers-godot-skills` | setup in a Godot project, answered in one message | the close offers at most two Godot skills, with a cost in tokens |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
@@ -43,7 +43,7 @@ so the score is the outcome grader alone, compared against a no-plugin baseline 
 
 ## The sample project
 
-Every case runs in `_fixture/project/`: a small plant shop that easyClaude already set up.
+Every case runs in `_fixture/project/`: a small plant shop that Mellu.mate already set up.
 It has a filled-in `docs/STATE.md`, a verify contract, the plugin's rules, a two-day git
 history, a real bug (checkout fails with no discount code) and a typo in the footer.
 `_fixture/setup.sh` builds it, with two variants: `ship` adds finished uncommitted work on a
@@ -71,13 +71,13 @@ claude plugin eval . --tag triggering --scaffold --allow-tools Edit --no-publish
 - `--scaffold` is required. Without it every case runs in an empty folder again.
 - `--allow-tools Edit` lets the typo and debug cases change files. Edit is a gated tool.
 - No case allows a shell. On Windows the runner refuses any shell grant, because it has no
-  sandbox there. So Claude cannot run the checks itself in `ship` and `debug`. easyClaude's
+  sandbox there. So Claude cannot run the checks itself in `ship` and `debug`. Mellu.mate's
   Stop hook still runs them, so the `debug` grader accepts a reply that says the automatic
   checks ran, and the `ship` grader accepts a reply that says it could not run them and stops.
 - `--case` takes one glob. A second `--case` replaces the first.
 - A full run is about 90 agent runs: about 10 minutes with `-j 4`, and about 14 US dollars on
   Claude Code 2.1.292 (7 to 9 dollars on 2.1.284).
-- `skills-for-a-godot-game` and `kickoff-offers-godot-skills` need easyClaude, so run them with
+- `skills-for-a-godot-game` and `kickoff-offers-godot-skills` need Mellu.mate, so run them with
   `--ablation none`. In the default run their no-plugin arm measures nothing.
 
 CI does not run this: it costs money and needs a login. Check 16 in `validate.mjs` checks
@@ -108,7 +108,7 @@ Every skill fires where it should and stays quiet where it should.
 | quiet-on-how-to-ship | 3/3 | 3/3 | 3/3 |
 
 In an empty folder, plain Claude answered a bakery owner with a plan or a finished page. With
-easyClaude it asked one plain question each time.
+Mellu.mate it asked one plain question each time.
 
 `quiet-on-how-to-ship` found a real bug on its first run. `ship` fired on *"how do I ship
 this?"* three times of three, and each reply said it could not ship *yet*: it had taken the
@@ -132,8 +132,8 @@ two source files, and Claude found the answer with one search, correctly each ti
 skill says it is for a large or unfamiliar codebase, so this is not a failure, but the case
 cannot show the skill firing until the sample project is bigger. The answer is still graded.
 
-The first run of `quiet-explore-on-what-next` scored 0/3 with easyClaude, and the grader was
-wrong, not easyClaude. Every reply recommended fixing a real problem first: the fake-discount
+The first run of `quiet-explore-on-what-next` scored 0/3 with Mellu.mate, and the grader was
+wrong, not Mellu.mate. Every reply recommended fixing a real problem first: the fake-discount
 risk from the project notes, or the real crash with no discount code. The grader read those
 as invented tasks. It now names both as real, and the rerun passed 3/3.
 
@@ -152,7 +152,7 @@ the table says six:
 | build-task-on-keep-going | - | - | 3/3 / 3/3 |
 
 *"Make the shop look better"* is so broad that plain Claude asks too, so it measures nothing.
-*"Sort the plants"* is the case that does: without easyClaude, Claude sorted by price and
+*"Sort the plants"* is the case that does: without Mellu.mate, Claude sorted by price and
 reported it done in 2 runs of 6. With it, Claude asked every time. The first wording, "the
 likely meanings and your pick", left the pick out of 2 questions of 6, and the grader fails
 those; one more failed a good reply for using a list, and both graders now accept a list.
@@ -188,7 +188,7 @@ two slopmonster cases did not run.
 | quiet-on-how-to-ship | 2/3 | 0/2 | - |
 | the other seven | 21/21 | 16/21 | - |
 
-The three failures were in the cases, not in easyClaude. In `debug`, every reply said the
+The three failures were in the cases, not in Mellu.mate. In `debug`, every reply said the
 checks ran and passed, and they had: the Stop hook runs them with no shell tool, and tells
 Claude the result before its last reply. The grader still failed any claim that the tests
 passed. In `kickoff`, every reply asked the 1.1.3 setup questions in chat, ending with the
@@ -234,11 +234,11 @@ beginner cares about. Twelve tasks, in a beginner's words, in the same sample pr
 `two-sessions` is the only task that needs two sessions. `bench.mjs` runs day one
 (`outcome-two-sessions-day1`) first, keeps the project each run leaves, and starts each
 day-two run from one of them. Nothing else carries over: not the conversation, and not
-any memory outside the project. It is the task that tests what easyClaude is for, which
+any memory outside the project. It is the task that tests what Mellu.mate is for, which
 is that the plan outlives the conversation.
 
 `fix-checkout-th` and `rename-shop-th` are the first two, asked in Thai. Most people
-easyClaude is for write in Thai. They run in the shop set up for a Thai owner (`setup.sh
+Mellu.mate is for write in Thai. They run in the shop set up for a Thai owner (`setup.sh
 thai`): `CLAUDE.md` names Thai, and `docs/STATE.md` is written in it, as kickoff leaves it.
 
 Every task also fails if the reply is not in the language it was asked in. For Thai, that
@@ -248,8 +248,8 @@ means at least 30% of the reply outside code is Thai, and no paragraph almost al
 node scripts/bench.mjs
 ```
 
-It runs each task three times with easyClaude, and three times in the same project with
-no easyClaude at all: no plugin, no `docs/`, no `CLAUDE.md`, no `.claude/`. Then it grades
+It runs each task three times with Mellu.mate, and three times in the same project with
+no Mellu.mate at all: no plugin, no `docs/`, no `CLAUDE.md`, no `.claude/`. Then it grades
 what Claude left on disk with hidden tests Claude never saw. Grading runs code Claude
 wrote, so it runs on a copy, under Node's permission model: read the copy, write nothing,
 start nothing. `tests/bench.test.mjs` proves every check fails on the untouched project
@@ -258,7 +258,7 @@ check.
 
 **Cost.** About $0.20 per task run on Sonnet 5, at list price. When you are signed in with
 a Claude plan, it is plan usage, not a charge. The first run of both arms is about $4. The
-no-easyClaude arm does not change when easyClaude does, so each task's result is saved in
+no-Mellu.mate arm does not change when Mellu.mate does, so each task's result is saved in
 `results/outcome-baseline.json` under its own key, and reused until Claude Code, the model,
 the run count, the sample project or that task changes. After that, a full run is about
 $3.50, most of it the two-day task, and one small task is about $0.60. There is no judge
@@ -266,7 +266,7 @@ model: every check is a test or a pattern, so grading is free.
 
 **Fair results, with a shell, on 1.3.0.** 2026-10-12 to 10-14, Ubuntu under WSL2, Claude Code
 2.1.296, Sonnet 5, three runs per task, `--shell --fresh-baseline`. Both arms could run
-commands, so these are the fair figures. The ones below, without a shell, favour easyClaude.
+commands, so these are the fair figures. The ones below, without a shell, favour Mellu.mate.
 
 | task | works, with | works, without | cost, with | cost, without |
 |---|---|---|---|---|
@@ -280,14 +280,14 @@ commands, so these are the fair figures. The ones below, without a shell, favour
 | **all** | **19/21** | **15/21** | | |
 
 With a shell, plain Claude can run the tests itself, and the gap shrank from 6 runs to 4.
-It stays where easyClaude adds something a beginner does not ask for. In `fix-checkout`,
+It stays where Mellu.mate adds something a beginner does not ask for. In `fix-checkout`,
 plain Claude fixed the bug but twice wrote no test that catches it coming back. In
 `two-sessions`, plain Claude did one change of five on day two, in all three runs. Both
-easyClaude misses were work done only in part: in Thai, an empty discount code still broke
+Mellu.mate misses were work done only in part: in Thai, an empty discount code still broke
 the checkout; on day two, a discount counted one cart line instead of all, and the limit of
 10 of one plant was left out.
 
-The first Linux run found three faults in the benchmark, not in easyClaude, now fixed:
+The first Linux run found three faults in the benchmark, not in Mellu.mate, now fixed:
 
 - On Linux the runner seals each kept run: what the plugin wrote moves into `sealed/` with
   mode 000. `bench.mjs` found no project, graded nothing, and stopped on the clean-up. It
@@ -296,10 +296,10 @@ The first Linux run found three faults in the benchmark, not in easyClaude, now 
   run's home folder, so every run failed it, in both arms. It is now a `check.mjs` check
   over the project's own files.
 - Day two of `two-sessions` starts in a new folder with a new home, so the approval of the
-  project's checks was gone. With a shell, easyClaude asked for it, as it should, and two
+  project's checks was gone. With a shell, Mellu.mate asked for it, as it should, and two
   runs of three stopped with nobody there to answer. A real user on the same computer keeps
   that approval, so day two's `setup.sh` now gives it again. The `two-sessions` row with
-  easyClaude is the rerun after this fix; the no-easyClaude arm has no checks, and kept
+  Mellu.mate is the rerun after this fix; the no-Mellu.mate arm has no checks, and kept
   its first result.
 
 **`cart-badge`, with a shell, on 1.3.0.** 2026-10-14, same machine and settings, three runs
@@ -332,27 +332,27 @@ machine and settings, three runs per arm.
 (`context.history_file`): the first turn asked, and the run is the turn after the yes. Both
 arms asked first on the first turn. On the yes, plain Claude once threw today's unsaved
 edits away, and said they could be got back from git's history; they could not, because they
-were never saved. With easyClaude they were kept each time.
+were never saved. With Mellu.mate they were kept each time.
 
 `sold-out` is the first task that shows a gap from a requirement the request leaves out. At
 the beginner wording, plain Claude added a "sold out" label to the page in all three runs, and
-a shopper could still buy the plant. With easyClaude, two runs of three also stopped it in the
+a shopper could still buy the plant. With Mellu.mate, two runs of three also stopped it in the
 cart; the third added only the label. At the expert wording, which asks what else a sold-out
 plant should change, both arms found it. The "then 3/3" is one run that named the requirement
 and ended "Let me know, or I'll proceed with B", with no question mark. The rule for a question
 counted it as no question; it now counts "let me know" and its like.
 
 All four wordings of `sold-out`, pooled two per side as `evals/prompt-levels/` does: the
-beginner side passed 4 of 6 with easyClaude and 3 of 6 without; the expert side passed 6 of 6
+beginner side passed 4 of 6 with Mellu.mate and 3 of 6 without; the expert side passed 6 of 6
 in both arms. The wording made the larger difference: beginners 7 of 12, experts 12 of 12.
-easyClaude's share is one run in six, which three runs a wording cannot tell from chance.
+Mellu.mate's share is one run in six, which three runs a wording cannot tell from chance.
 The two beginner wordings disagree on their own: plain Claude passed 0 of 3 at `beginner` and
 3 of 3 at `beginner-terse`. Two more runs a wording, to five, about $5, would show more.
 
 **`dead-button`, with a shell, on 1.3.0.** 2026-10-14, same machine and settings, three runs
-per arm: 3/3 with easyClaude and 3/3 without, at $0.11 and $0.18 a run. Every run found the
+per arm: 3/3 with Mellu.mate and 3/3 without, at $0.11 and $0.18 a run. Every run found the
 id the page code looked for, and fixed it. The page check showed in the replies instead. With
-easyClaude, all three said Claude had not seen the page, and told the user to open it and
+Mellu.mate, all three said Claude had not seen the page, and told the user to open it and
 click Pay. Without it, none gave those steps; one said only "Fixed". No grader reads that,
 so it is not in the score.
 
@@ -370,9 +370,9 @@ Both arms ran fresh, since Claude Code had changed. Cost is per run, at list pri
 | `two-sessions` | 2/3 | 0/3 | $0.86 | $0.33 |
 | **all** | **20/21** | **14/21** | | |
 
-The run found a step back in Thai: 2/6 with easyClaude. The page check from 0.2.4 holds the
+The run found a step back in Thai: 2/6 with Mellu.mate. The page check from 0.2.4 holds the
 turn with an English message, and Claude then wrote its "how to see it" line in English, and
-once in Japanese. It was the third English message from easyClaude to do this, so 0.2.7 sends
+once in Japanese. It was the third English message from Mellu.mate to do this, so 0.2.7 sends
 every one through `scripts/language.mjs`, and a test fails if `verify.mjs` holds a turn any
 other way. The two Thai tasks reran on 2026-10-03: 6/6. The "then" figures are that rerun.
 
@@ -383,7 +383,7 @@ The user asked for shipping "added to what people pay", so it counts as a miss.
 **Earlier results.** Claude Code 2.1.280, Sonnet 5, three runs per task, no shell.
 2026-09-26:
 
-| task | works, with easyClaude | works, without |
+| task | works, with Mellu.mate | works, without |
 |---|---|---|
 | `add-shipping` | 3/3 | 3/3 |
 | `fix-checkout` | 3/3 | 1/3 |
@@ -393,12 +393,12 @@ The user asked for shipping "added to what people pay", so it counts as a miss.
 | **all** | **15/15** | **10/15** |
 
 The four small tasks are from one run, and `two-sessions` from a second after its last
-fix; the no-easyClaude figures for the small tasks are cached from the day before. Plain
+fix; the no-Mellu.mate figures for the small tasks are cached from the day before. Plain
 Claude's `fix-checkout` moved between runs: it wrote the test that locks the fix in three
 times of three on 2026-09-25, and once of three on 2026-09-26. Three runs is a small
 sample, and single tasks move by one or two.
 
-How it got there. The first run of the four small tasks scored 7/12 with easyClaude
+How it got there. The first run of the four small tasks scored 7/12 with Mellu.mate
 against 12/12 without, and found three real problems, which is what it is for:
 
 - **Replies in the wrong language.** Four of twelve English requests got an answer in
@@ -418,7 +418,7 @@ against 12/12 without, and found three real problems, which is what it is for:
   sent helpers to try. It now says the checks were not run, and stops. $0.49 a run became
   $0.19.
 
-The two-session task started at 0/3 with easyClaude too, and found three more:
+The two-session task started at 0/3 with Mellu.mate too, and found three more:
 
 - **"The rest" went unrecorded, or to the bottom.** Day one wrote the four remaining
   requests into `docs/STATE.md` in two runs of three, and put them below older tasks. Day
@@ -438,11 +438,11 @@ The two-session task started at 0/3 with easyClaude too, and found three more:
 Plain Claude scores 0/3 on the two-session task because a new session starts with nothing
 from the last one, and it says so honestly. One fairness note: Claude Code can keep its own
 memory between sessions on some setups, and eval runs start without it. A beginner with that
-memory switched on might do better than 0/3 without easyClaude.
+memory switched on might do better than 0/3 without Mellu.mate.
 
 **The tasks in Thai.** 2026-09-26, same settings, three runs per task:
 
-| task | works, with easyClaude | works, without |
+| task | works, with Mellu.mate | works, without |
 |---|---|---|
 | `fix-checkout-th` | 3/3 | 1/3 |
 | `rename-shop-th` | 3/3 | 3/3 |
@@ -450,27 +450,27 @@ memory switched on might do better than 0/3 without easyClaude.
 Plain Claude's two misses are the same as in English: the fix came with no test. The first
 two runs found three problems:
 
-- **English notes to a Thai user.** In the bug-fix task, two easyClaude runs of three wrote
+- **English notes to a Thai user.** In the bug-fix task, two Mellu.mate runs of three wrote
   English between steps ("Root cause found: ...", "no new Debt entry is needed"), and one
   opened its final reply with an English paragraph. The rename task, which gets no line from
   `prompt-check.mjs`, had none. So the English line sent with a bug report pulled Claude
   into English. When a message is mostly in another script, `prompt-check.mjs` now adds one
   more line to whatever it sends: notes go in the language of the user's message. English
-  messages never get it. In the next run, no easyClaude run wrote English.
+  messages never get it. In the next run, no Mellu.mate run wrote English.
 - **The sample project said "the user writes in English".** The first run used it for the
   Thai tasks too. That is not the project a Thai user has, so the `thai` variant exists.
 - **A usage limit counted as a result.** The account hit its limit during a run, and the
-  no-easyClaude arm was cached as 0/3 with "You've hit your monthly spend limit" as each
+  no-Mellu.mate arm was cached as 0/3 with "You've hit your monthly spend limit" as each
   reply. `bench.mjs` now treats such a run as partial: it says so, and caches nothing.
 
-**Plain answers.** `output-styles/plain.md` is a style kickoff offers and `/easyclaude:plain`
+**Plain answers.** `output-styles/plain.md` is a style kickoff offers and `/mellu:plain`
 turns on: the result first, five sentences at most, no code terms unless the user must type
-them. `node scripts/bench.mjs --with-only --style plain` runs the easyClaude arm with it on.
+them. `node scripts/bench.mjs --with-only --style plain` runs the Mellu.mate arm with it on.
 An eval run loads no project settings, so a style set in the sample project never loaded
 (the trace said "default"); the flag adds the style's text to each case instead, which is
 what Claude Code does with a style that keeps the coding instructions. Each reply is also
 measured: its length (letters outside code) and its code terms (anything in backticks, file
-names, camelCase names). easyClaude only, three runs per task:
+names, camelCase names). Mellu.mate only, three runs per task:
 
 | task | works, no style | works, plain | length, no style | length, plain | code terms, no style | code terms, plain |
 |---|---|---|---|---|---|---|
@@ -496,7 +496,7 @@ is a small, simple decisions log - not worth adding..."), despite the language l
 **Setup in a project someone else started.** `outcome-adopt-existing` runs setup in a
 recipe site that a friend handed over: `docs/` is a published MkDocs site, decisions are one
 file each in `doc/adr/`, the team wrote its own `CLAUDE.md`, and a front end and a back end
-sit side by side. It needs easyClaude, so run it alone:
+sit side by side. It needs Mellu.mate, so run it alone:
 
 ```bash
 node scripts/bench.mjs --with-only --case outcome-adopt-existing
@@ -517,8 +517,8 @@ check once, so it rightly writes none.
 and getting yesterday's version back. Both need a shell to be fair, see below.
 
 **No shell on Windows.** The runner grants no shell on native Windows, because it has no
-sandbox there, so neither arm can run commands. easyClaude's verify gate still runs the
-tests, because it is a hook and not a tool. That favours easyClaude. Under Linux or WSL2,
+sandbox there, so neither arm can run commands. Mellu.mate's verify gate still runs the
+tests, because it is a hook and not a tool. That favours Mellu.mate. Under Linux or WSL2,
 `node scripts/bench.mjs --shell --fresh-baseline` gives the fair figure: see "Fair results,
 with a shell" above. Linux also needs `bubblewrap` and `socat` for the runner's sandbox.
 
@@ -538,22 +538,22 @@ with a shell" above. Linux also needs `bubblewrap` and `socat` for the runner's 
 - **Judge criteria were too strict at first.** The typo grader failed a correct fix for one
   extra line about the commit. The criteria now say what extra text is fine.
 
-**From the first real use**, 2026-10-02, same settings. A user who writes little tried easyClaude
+**From the first real use**, 2026-10-02, same settings. A user who writes little tried Mellu.mate
 on a new project and found four problems; these two cases check the fixes:
 
 | case | skill fired correctly | with plugin | without plugin |
 |---|---|---|---|
 | library-on-a-calendar | 2/3 | 3/3 | 2/3 |
-| skills-for-a-godot-game | - | 3/3 | (needs easyClaude) |
+| skills-for-a-godot-game | - | 3/3 | (needs Mellu.mate) |
 
-Every easyClaude reply to the calendar named flatpickr (MIT) or the browser's own date box,
+Every Mellu.mate reply to the calendar named flatpickr (MIT) or the browser's own date box,
 and asked before adding anything. Two of three asked five questions, each with a default; the
 third asked two, after putting the library decision first. Plain Claude asked good questions
 twice, and once built a calendar straight away. In the Godot project every reply offered the
 game entries, said the design skills do not cover a game, and installed nothing.
 
 The same day the user asked why they had to know a category name at all. Now
-`/easyclaude:skills` with nothing after it works out the project, and the end of setup offers
+`/mellu:skills` with nothing after it works out the project, and the end of setup offers
 the skills that fit without being asked. With no category, in the Godot project: 3/3. The end
 of setup: every reply offered Godot skills by name and installed nothing, but two of three gave
 the cost as "a little extra on every turn". kickoff now asks for a number of tokens; the rerun

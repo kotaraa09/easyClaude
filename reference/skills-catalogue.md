@@ -1,4 +1,4 @@
-# Skill catalogue (read only when `/easyclaude:skills` runs)
+# Skill catalogue (read only when `/mellu:skills` runs)
 
 <!-- This file does NOT live in rules/ and is NOT a skill. Everything in rules/ loads on
      every turn of every session, and every skill's description does the same. This file
@@ -15,7 +15,7 @@
 
 ## Already built in
 
-These two arrive with easyClaude. Nobody chooses them and nobody can skip them.
+These two arrive with Mellu.mate. Nobody chooses them and nobody can skip them.
 
 ### humanizer - the prose rewrite
 
@@ -108,7 +108,7 @@ design conventions.
 ### UX/UI pro max - for people who want all of it
 
 hallmark plus impeccable plus emilkowalski/skills, with the `inspo` and `playwright` MCP
-servers from `/easyclaude:connect` underneath them.
+servers from `/mellu:connect` underneath them.
 
 Say this part out loud before anyone agrees to it. Two design skills with near-identical
 descriptions will compete for the same turn, and the wrong one will win some of them.
@@ -129,7 +129,7 @@ triage. Split into separate plugins, so you install the two or three you need.
 - `/plugin marketplace add trailofbits/skills`, then `/plugin` and pick from the list
 - CC-BY-SA-4.0. **44 plugins.** Do not install all of them.
 - Worth starting with: `static-analysis`, `insecure-defaults`, `supply-chain-risk-auditor`.
-- Overlap to name honestly: easyClaude already ships `/easyclaude:security-check`, which
+- Overlap to name honestly: Mellu.mate already ships `/mellu:security-check`, which
   is a pre-release sweep. These are audit tools in a different weight class, and several
   want external programs such as Semgrep installed. They do not replace each other.
 
@@ -143,7 +143,7 @@ conflict resolution.
 
 - `/plugin marketplace add mattpocock/skills`, then `/plugin` and pick from the list
 - MIT. **19 engineering skills** plus other groups. Install the ones you want, not the set.
-- Overlap to name honestly: easyClaude already ships `write-tests` and `debug`. The TDD
+- Overlap to name honestly: Mellu.mate already ships `write-tests` and `debug`. The TDD
   skill is stricter than `write-tests` and will argue with a build-first habit, which is
   the point of it.
 
@@ -223,7 +223,7 @@ export, with checklists for each.
 ### Randroids-Dojo/skills, the godot plugin - the light Godot pick
 
 One skill for testing, building and exporting a Godot 4 game: GdUnit4 tests, scripted play
-tests, web and desktop exports, CI. It fills the gap easyClaude's checks leave on Godot, where
+tests, web and desktop exports, CI. It fills the gap Mellu.mate's checks leave on Godot, where
 a test runner is the hard part.
 
 - Add the marketplace `Randroids-Dojo/skills`, then install `godot` only. The marketplace holds
@@ -242,7 +242,7 @@ execution, TDD, review. It ships a `SessionStart` hook and its own workflow.
 It is a peer framework, not a component. `hooks/hooks.json` reserves `SessionStart` for the
 opener, which is told to add nothing else. Running both means two frameworks
 narrating the same first turn and disagreeing about what happens next. Install it instead
-of easyClaude, or alongside it knowingly, but not because a catalogue suggested it.
+of Mellu.mate, or alongside it knowingly, but not because a catalogue suggested it.
 
 ### rebelytics/one-skill-to-rule-them-all
 
@@ -253,7 +253,7 @@ Same shape of problem, recorded in `skills/registry.json` with the full reasonin
 The most-starred game-development set on GitHub (MIT, around 25,000 stars, checked 2026-10-02):
 49 agents and 72 workflow skills that model a whole game studio. Same shape of problem as
 superpowers: it is a framework with its own way of running a project, and the 72 skill
-descriptions alone cost more per turn than all of easyClaude. For engine knowledge without a
+descriptions alone cost more per turn than all of Mellu.mate. For engine knowledge without a
 second framework, take one engine plugin from the game development section above.
 
 ### alirezarezvani/claude-skills

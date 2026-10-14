@@ -20,7 +20,7 @@ import { locations } from './locations.mjs';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const memoPath = (root, session) =>
-  join(tmpdir(), `easyclaude-later-${sha(`${root}\0${session}`).slice(0, 16)}.json`);
+  join(tmpdir(), `mellu-later-${sha(`${root}\0${session}`).slice(0, 16)}.json`);
 const stateHash = (root) => {
   try { return sha(readFileSync(join(root, locations(root).state), 'utf8')); } catch { return null; }
 };
@@ -44,7 +44,7 @@ export function laterBlock(root, session) {
   }
   try { writeFileSync(file, JSON.stringify({ ...memo, reminded: true })); } catch { return null; }
   const plan = locations(root).state;
-  return `easyClaude: the user left part of this work for another session, and ${plan} ` +
+  return `Mellu.mate: the user left part of this work for another session, and ${plan} ` +
     'has not changed this turn. That session will not see this conversation. Put every item ' +
     `they asked for and you did not finish at the top of ## Next in ${plan}, in their ` +
     'words, each ending with the date they asked, then end the turn. If nothing was left for ' +

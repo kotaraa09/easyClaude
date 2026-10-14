@@ -19,7 +19,7 @@ const project = (on: On, files: Record<string, string>, { git = true } = {}) => 
   const clock = mock.clock(on, { now: 1_000_000 })
   on('fs.exists', async (_$, e: any) => ({ value: git && /[\\/]\.git$/.test(String(e.path)) }) as any)
   on('session.root', async () => ({ value: '/p' }) as any)
-  // What the band shows with nothing of easyClaude's: the engine draws it in a session.
+  // What the band shows with nothing of Mellu.mate's: the engine draws it in a session.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
     const { Box } = $.ui.resolve(e)
     return <Box />
@@ -78,7 +78,7 @@ describe('the recent actions', () => {
     expect(actionLabel({ tool: 'Write', file_path: '/p/index.html' })).toBe('Wrote index.html')
     expect(actionLabel({ tool: 'Bash', command: 'npm test', description: 'Run the tests' })).toBe('Run the tests')
     expect(actionLabel({ tool: 'Bash', command: 'npm test' })).toBe('Ran a command')
-    expect(actionLabel({ tool: 'Skill', skill: 'easyclaude:build-task' })).toBe('Used the build-task skill')
+    expect(actionLabel({ tool: 'Skill', skill: 'mellu:build-task' })).toBe('Used the build-task skill')
     expect(actionLabel({ tool: 'mcp__Claude_Browser__navigate' })).toBe('Looked at the page')
     expect(actionLabel({ tool: 'TodoWrite', todos: [] })).toBe(null)
   })
@@ -169,7 +169,7 @@ describe('the progress bar', () => {
 describe('the uniforms of the helpers', () => {
   test('a helper dresses for the job its type names', () => {
     expect(costumeOf('Explore')).toBe('explore')
-    expect(costumeOf('easyclaude:easyclaude-diff-reviewer', 'Review the branch diff')).toBe('reviewer')
+    expect(costumeOf('mellu:mellu-diff-reviewer', 'Review the branch diff')).toBe('reviewer')
     expect(costumeOf('Plan', 'Find the files to change')).toBe('planner')
     expect(costumeOf('impeccable-documenter')).toBe('writer')
     expect(costumeOf('impeccable-asset-producer')).toBe('artist')
@@ -232,7 +232,7 @@ describe('the control panel state', () => {
     const s = settingsFrom({
       autoship: JSON.stringify({ enabled: true, through: 'pr' }),
       cheap: '2026-10-06',
-      local: JSON.stringify({ outputStyle: 'easyclaude:plain' }),
+      local: JSON.stringify({ outputStyle: 'mellu:plain' }),
       state: '# State\n',
     })
     expect(s).toEqual({ autoship: 'pr', cheap: true, plain: true, setUp: true, git: true })
@@ -257,13 +257,13 @@ describe('the panels, drawn', () => {
       ],
     } as any)
     for (const surface of SURFACES) {
-      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...band() })
+      const ui = await $.ui.mount({ plugin: 'mellu', surface, ...band() })
       // The desktop draws the bar as one picture; the terminal as text.
       if (surface === 'terminal') {
         expect(await ui.find({ type: 'Text', text: /make a website for my bakery/ })).toBeDefined()
         expect(await ui.find({ type: 'Text', text: '1/2 steps' })).toBeDefined()
       }
-      expect(await ui.find({ key: 'easyclaude-dismiss' })).toBeDefined()
+      expect(await ui.find({ key: 'mellu-dismiss' })).toBeDefined()
       await ui.unmount()
     }
   })
@@ -273,17 +273,17 @@ describe('the panels, drawn', () => {
     on('prompt.submit', async (_$, e: any) => ({ text: e.text }) as any)
     on('tool.call', async () => ({ result: {} }) as any)
     await $.prompt.submit({ text: 'fix the footer' } as any)
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
-    await ui.press({ key: 'easyclaude-dismiss' })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
+    await ui.press({ key: 'mellu-dismiss' })
     await ui.unmount()
-    const closed = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    const closed = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
     expect(await closed.find({ type: 'Text', text: /fix the footer/ })).toBeUndefined()
     await closed.unmount()
     await clock.advance(60_000)
     await $.prompt.submit({ text: 'and the header' } as any)
     // A tool call waits for the request's record, which is written in the background.
     await $.tool.call({ tool: 'Read', file_path: '/p/index.html' } as any)
-    const again = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    const again = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
     expect(await again.find({ type: 'Text', text: /and the header/ })).toBeDefined()
     await again.unmount()
   })
@@ -293,12 +293,12 @@ describe('the panels, drawn', () => {
     on('agent.spawn', async () => ({ agentId: 'a1', model: 'claude-sonnet-5-5' }) as any)
     on('turn.complete', async () => ({ text: '' }) as any)
     await $.agent.spawn({ prompt: 'look', description: 'Find the checkout code', subagentType: 'Explore' } as any)
-    const running = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    const running = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-helpers') })
     expect(await running.find({ type: 'Text', text: /Find the checkout code/ })).toBeDefined()
     expect(await running.find({ type: 'Text', text: '●' })).toBeDefined()
     await running.unmount()
     await $.turn.complete({ agentId: 'a1', reason: 'answer', answer: '', durationMs: 1000, isAborted: false, turnId: 't1' } as any)
-    const done = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    const done = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-helpers') })
     expect(await done.find({ type: 'Text', text: '✓' })).toBeDefined()
     await done.unmount()
   })
@@ -317,11 +317,11 @@ describe('the panels, drawn', () => {
       ],
     } as any)
     for (const surface of SURFACES) {
-      const bar = await $.ui.mount({ plugin: 'easyclaude', surface, ...band() })
-      expect(await bar.find({ key: 'easyclaude-helpers' })).toBeDefined()
+      const bar = await $.ui.mount({ plugin: 'mellu', surface, ...band() })
+      expect(await bar.find({ key: 'mellu-helpers' })).toBeDefined()
       await bar.unmount()
     }
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-helpers') })
     expect(await ui.find({ type: 'Text', text: /add a contact form/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Steps · 1/3' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Sending the email/ })).toBeDefined()
@@ -336,7 +336,7 @@ describe('the panels, drawn', () => {
     await $.prompt.submit({ text: 'fix the typo' } as any)
     await $.tool.call({ tool: 'Read', file_path: '/p/about.html' } as any)
     await $.tool.call({ tool: 'Edit', file_path: '/p/about.html' } as any)
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-helpers') })
     expect(await ui.find({ type: 'Text', text: 'Latest actions' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Changed about.html/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Read about.html/ })).toBeDefined()
@@ -351,7 +351,7 @@ describe('the panels, drawn', () => {
     await $.tool.call({ tool: 'Read', file_path: '/p/a.js' } as any)
     await $.prompt.submit({ text: '<task-notification> <task-id>b1</task-id> done</task-notification>' } as any)
     await $.tool.call({ tool: 'Read', file_path: '/p/b.js' } as any)
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
     expect(await ui.find({ type: 'Text', text: /run the tests/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /task-notification/ })).toBeUndefined()
     await ui.unmount()
@@ -374,14 +374,14 @@ describe('the panels, drawn', () => {
       background_tasks: [{ id: 'b1', type: 'shell', status: 'running', description: 'Run the tests', command: 'npm test' }],
     } as any)
     for (const surface of SURFACES) {
-      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...band() })
+      const ui = await $.ui.mount({ plugin: 'mellu', surface, ...band() })
       if (surface === 'terminal') {
         expect(await ui.find({ type: 'Text', text: 'Done' })).toBeUndefined()
         expect(await ui.find({ type: 'Text', text: 'Waiting' })).toBeDefined()
       }
       await ui.unmount()
     }
-    const panel = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-helpers') })
+    const panel = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-helpers') })
     expect(await panel.find({ type: 'Text', text: /Run the tests/ })).toBeDefined()
     await panel.unmount()
 
@@ -389,7 +389,7 @@ describe('the panels, drawn', () => {
     await $.prompt.submit({ text: '<task-notification><task-id>b1</task-id><status>completed</status></task-notification>' } as any)
     await $.turn.complete({ reason: 'answer', answer: 'All tests pass.', durationMs: 1000, isAborted: false, turnId: 't2' } as any)
     await $.classic.Stop({ stop_hook_active: false, background_tasks: [] } as any)
-    const done = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    const done = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
     expect(await done.find({ type: 'Text', text: 'Done' })).toBeDefined()
     await done.unmount()
   })
@@ -408,7 +408,7 @@ describe('the panels, drawn', () => {
     // The report wakes Claude, and the person interrupts before the turn's Stop.
     await $.prompt.submit({ text: '<task-notification><task-id>b1</task-id><status>completed</status></task-notification>' } as any)
     await $.turn.complete({ reason: 'aborted', answer: '', durationMs: 500, isAborted: true, turnId: 't2' } as any)
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
     expect(await ui.find({ type: 'Text', text: 'Waiting' })).toBeUndefined()
     await ui.unmount()
   })
@@ -424,7 +424,7 @@ describe('the panels, drawn', () => {
       stop_hook_active: false,
       background_tasks: [{ id: 'b2', type: 'shell', status: 'running', description: 'Start the dev server', command: 'npm run dev' }],
     } as any)
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...band() })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...band() })
     expect(await ui.find({ type: 'Text', text: 'Done' })).toBeDefined()
     await ui.unmount()
   })
@@ -437,24 +437,24 @@ describe('the panels, drawn', () => {
       return { text: '' }
     })
     for (const surface of SURFACES) {
-      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
+      const ui = await $.ui.mount({ plugin: 'mellu', surface, ...pane('mellu-controls') })
       await ui.select({ key: 'autoship', value: 'pr' })
       await ui.press({ key: 'skills' })
       await ui.unmount()
     }
-    expect(ran).toEqual(['easyclaude:autoship pr', 'easyclaude:skills', 'easyclaude:autoship pr', 'easyclaude:skills'])
+    expect(ran).toEqual(['mellu:autoship pr', 'mellu:skills', 'mellu:autoship pr', 'mellu:skills'])
   })
 
   test('the control panel shows the level the project has, explains it on request, and offers setup only before it', async ($, on) => {
     project(on, { '.claude/autoship.json': JSON.stringify({ enabled: true, through: 'push' }) })
-    const short = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
+    const short = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-controls') })
     expect(await short.find({ type: 'Text', text: /^When a task is done/ })).toBeDefined()
     // Short by default: the buttons and settings, and no notes.
     expect(await short.find({ type: 'Text', text: /does this much by itself/ })).toBeUndefined()
     expect(await short.find({ type: 'Text', text: /Changes nothing/ })).toBeUndefined()
     await short.press({ key: 'controls-help' })
     await short.unmount()
-    const ui = await $.ui.mount({ plugin: 'easyclaude', surface: 'terminal', ...pane('easyclaude-controls') })
+    const ui = await $.ui.mount({ plugin: 'mellu', surface: 'terminal', ...pane('mellu-controls') })
     expect(await ui.find({ key: 'autoship' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /does this much by itself/ })).toBeDefined()
     // Each button says what it does beside it: at Save and upload, saving uploads too.
@@ -470,7 +470,7 @@ describe('the panels, drawn', () => {
     const sent: string[] = []
     on('prompt.submit', async (_$, e: any) => { sent.push(e.text); return { text: e.text } as any })
     for (const surface of SURFACES) {
-      const ui = await $.ui.mount({ plugin: 'easyclaude', surface, ...pane('easyclaude-controls') })
+      const ui = await $.ui.mount({ plugin: 'mellu', surface, ...pane('mellu-controls') })
       expect(await ui.find({ key: 'autoship' })).toBeUndefined()
       expect(await ui.find({ type: 'Text', text: /Saved versions are not set up yet/ })).toBeDefined()
       await ui.press({ key: 'create-repo' })

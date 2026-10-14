@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Scan a third-party skill with NVIDIA SkillSpector before it is installed.
 //
-// /easyclaude:skills hands people a catalogue of other people's repositories and tells
+// /mellu:skills hands people a catalogue of other people's repositories and tells
 // them to install one. That is the framework recommending third-party code, and NVIDIA's
 // own numbers on this ecosystem are not comfortable reading: a quarter of skills carry
 // vulnerabilities and a twentieth look deliberately hostile. A catalogue without a scanner

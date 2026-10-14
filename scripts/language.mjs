@@ -1,4 +1,4 @@
-// The one place an easyClaude message to Claude gets the user's language.
+// The one place an Mellu.mate message to Claude gets the user's language.
 //
 // Every message a hook sends Claude is English, and three times an English message pulled
 // a Thai user's notes into English: the session opener in 0.1.10, the bug-report line in

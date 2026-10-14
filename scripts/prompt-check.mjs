@@ -6,9 +6,9 @@
 //
 // Every step of a turn re-reads the whole conversation. Measured on one small task, a
 // fresh conversation cost $0.18 and a long one $1.25, and the reading alone was nine times
-// more. easyClaude keeps the plan in docs/STATE.md and the opener reads it back, so a fresh
+// more. Mellu.mate keeps the plan in docs/STATE.md and the opener reads it back, so a fresh
 // conversation loses nothing - but only the user can type /clear or /compact. In cheap mode
-// (/easyclaude:cheap, /easyclaude:cheap-session, or an armed cheap session) this hook
+// (/mellu:cheap, /mellu:cheap-session, or an armed cheap session) this hook
 // measures the conversation from the session file, and in a long one tells Claude not to
 // start the task and to ask for /clear or /compact first.
 //
@@ -32,7 +32,7 @@ import { isGo, isOpen as planningOpen, isSetup, close as closePlanning, SETUP_GO
 // is subtracted rather than guessed, and a user with many MCP servers is not penalised.
 export const CHEAP_LIMIT = 20_000;
 
-const CHEAP_COMMAND = /^\s*\/easyclaude:cheap(-session)?\b/;
+const CHEAP_COMMAND = /^\s*\/mellu:cheap(-session)?\b/;
 
 // Context size of each main-thread request, from the usage Claude Code writes per reply.
 export function historyTokens(transcriptPath) {
@@ -63,7 +63,7 @@ const WRAPPED = /<(system-reminder|task-notification|agent-message)\b[^>]*>[\s\S
 export const userWords = (prompt) => String(prompt ?? '').replace(WRAPPED, ' ').trim();
 
 // A bug report in plain words. The outcome benchmark (scripts/bench.mjs) found that with
-// easyClaude loaded, Claude fixed "the checkout breaks" in one edit and wrote no test in
+// Mellu.mate loaded, Claude fixed "the checkout breaks" in one edit and wrote no test in
 // two runs of three, where Claude with no plugin wrote one every time. The debug skill
 // says to write that test, and a rule in workflow.md said it too - but neither loads
 // when Claude decides the fix is too small to need them, and here it decided that before
@@ -94,7 +94,7 @@ export const looksLikeBug = (prompt) => {
   const words = userWords(prompt);
   return !/^\s*\//.test(words) && BUG_REPORT.test(words.replace(ASKS_FOR_ERROR, ' '));
 };
-const BUG_NUDGE = 'easyClaude: this reads like a bug report. Use the debug skill: find the ' +
+const BUG_NUDGE = 'Mellu.mate: this reads like a bug report. Use the debug skill: find the ' +
   'cause before you edit, and add a test that fails without the fix. A one-line fix gets ' +
   'its test too.';
 
@@ -110,7 +110,7 @@ export const leavesWorkForLater = (prompt) => {
   const words = userWords(prompt);
   return !/^\s*\//.test(words) && LATER.test(words);
 };
-const laterNudge = (date, plan) => 'easyClaude: the user is leaving part of this for another ' +
+const laterNudge = (date, plan) => 'Mellu.mate: the user is leaving part of this for another ' +
   `session, and that session will not see this conversation - only ${plan} carries ` +
   'over. Before you end this turn, put every item they asked for and you did not finish at ' +
   `the top of ## Next, in their words, each ending with "(asked ${date})".`;
@@ -128,11 +128,11 @@ export const asksToFinishSeveral = (prompt) => {
   const words = userWords(prompt);
   return !/^\s*\//.test(words) && FINISH.test(words);
 };
-const FINISH_NUDGE = 'easyClaude: the user asked you to finish several tasks. Do them one ' +
+const FINISH_NUDGE = 'Mellu.mate: the user asked you to finish several tasks. Do them one ' +
   'after another in this turn, each checked and ticked off before the next. Do not stop to ' +
   'ask whether to go on; stop when all are done, or at the first one that fails.';
 
-// A piece of interface that free libraries already do well. A user trying easyClaude on
+// A piece of interface that free libraries already do well. A user trying Mellu.mate on
 // 2026-09-30 found features built by hand where a library existed, and the debugging and
 // restyling that followed. plan-feature says to name one, but the plan is skipped for small
 // work, and here the decision is made before any skill loads. "map" is matched as a word, so
@@ -145,7 +145,7 @@ export const asksForSolvedPiece = (prompt) => {
   const words = userWords(prompt);
   return !/^\s*\//.test(words) && SOLVED_PIECE.test(words);
 };
-const LIBRARY_NUDGE = 'easyClaude: this asks for something free, open-source libraries already do ' +
+const LIBRARY_NUDGE = 'Mellu.mate: this asks for something free, open-source libraries already do ' +
   'well. Before writing it yourself, name one widely used library for it, with its licence and ' +
   'one line on why it fits, and ask the user before adding it. Prefer MIT, BSD or Apache-2.0, ' +
   'and nothing that needs a paid account.';
@@ -207,10 +207,10 @@ function main() {
 
   let context = null;
   if (history > CHEAP_LIMIT) {
-    context = `easyClaude cheap mode: this conversation already holds ${k} of history, and every ` +
+    context = `Mellu.mate cheap mode: this conversation already holds ${k} of history, and every ` +
       'step re-reads all of it, so it now costs more than the cheap rules save. Do not start ' +
       'the task, and do not read or edit anything this turn. ' +
-      (/^\s*\/easyclaude:cheap-session\b/.test(prompt)
+      (/^\s*\/mellu:cheap-session\b/.test(prompt)
         ? 'Arm the cheap session as the command says, then stop. '
         : '') +
       "In the user's language, tell them in two or three plain sentences: type /clear (their plan " +

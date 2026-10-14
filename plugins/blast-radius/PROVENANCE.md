@@ -1,6 +1,6 @@
 # Provenance
 
-This mod is **vendored third-party code**, adapted for easyClaude.
+This mod is **vendored third-party code**, adapted for Mellu.mate.
 
 | | |
 |---|---|
@@ -44,10 +44,10 @@ refuses the command and tells Claude not to retry it.
 ## Why it is a plugin of its own
 
 Claude Code loads one hooks module per plugin and takes one hook per event from it, and
-easyClaude hooks `tool.call` itself. As a plugin of its own, Blast Radius keeps its own
-hooks. easyClaude lists it under `dependencies`, so it installs and updates with easyClaude.
+Mellu.mate hooks `tool.call` itself. As a plugin of its own, Blast Radius keeps its own
+hooks. Mellu.mate lists it under `dependencies`, so it installs and updates with Mellu.mate.
 
-`hooks/blast-radius.test.ts` is easyClaude's: it checks the Windows, PowerShell and no-hold
+`hooks/blast-radius.test.ts` is Mellu.mate's: it checks the Windows, PowerShell and no-hold
 changes with `claude plugin test plugins/blast-radius`.
 
 ## Updating

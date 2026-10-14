@@ -12,7 +12,7 @@ Budget mode, **this turn only**. The user is low on credits and wants a working 
      belongs to one model, so a one-turn switch made the new model re-read the whole
      conversation at the cache-write price - and Sonnet 5.5 is half the price of Opus 5.5 for
      new text only, not a fifth; reading the cached conversation costs the same on both. Measured on one task, staying on the session's model with these
-     rules saved about a third, run after run. For a longer stretch, /easyclaude:cheap-session
+     rules saved about a third, run after run. For a longer stretch, /mellu:cheap-session
      suggests /model sonnet once, and the saving then holds. The largest saving of all is a
      short conversation: scripts/prompt-check.mjs holds this command back when the
      conversation is long, until the user types /clear or /compact. -->
@@ -21,7 +21,7 @@ Budget mode, **this turn only**. The user is low on credits and wants a working 
 
 $ARGUMENTS
 
-If the above is empty, continue the previous `/easyclaude:cheap` task under this same contract.
+If the above is empty, continue the previous `/mellu:cheap` task under this same contract.
 
 ## Contract
 
@@ -41,7 +41,7 @@ If the above is empty, continue the previous `/easyclaude:cheap` task under this
 
 ## Refuse to cut these corners
 
-If the change touches **authentication, payments, or a data migration**, do not skip verification. Say in one line that this one needs full care, and either do it properly or stop and tell the user to re-run without `/easyclaude:cheap`.
+If the change touches **authentication, payments, or a data migration**, do not skip verification. Say in one line that this one needs full care, and either do it properly or stop and tell the user to re-run without `/mellu:cheap`.
 
 ## If the task is too big for this
 
@@ -51,4 +51,4 @@ If it genuinely needs the expensive model or many steps, say so in one line and 
 
 One line naming what you skipped, e.g. `Skipped: no tests, hardcoded retry limit, no empty-state handling.`
 
-Then one line saying that cheap mode applied to this turn only, and that `/easyclaude:cheap` starts it again. Write both lines in the language the user writes in; keep the command as written. A beginner who writes in Thai was given both lines in English, word for word, because this section asked for them "exactly".
+Then one line saying that cheap mode applied to this turn only, and that `/mellu:cheap` starts it again. Write both lines in the language the user writes in; keep the command as written. A beginner who writes in Thai was given both lines in English, word for word, because this section asked for them "exactly".

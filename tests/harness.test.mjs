@@ -116,13 +116,13 @@ test('harness: a workspace is a full copy that the validator can run', async () 
 // The time budget in scripts/test.mjs. A budget of 0 makes any run go over it.
 test('harness: a run over the time budget warns, on GitHub too, and still passes', async () => {
   const over = await run(join(repoRoot, 'scripts', 'test.mjs'), {
-    cwd: repoRoot, args: ['providers'], env: { EASYCLAUDE_TEST_BUDGET_S: '0', GITHUB_ACTIONS: 'true' },
+    cwd: repoRoot, args: ['providers'], env: { MELLU_TEST_BUDGET_S: '0', GITHUB_ACTIONS: 'true' },
   });
   assert(over.code === 0, `a slow run is a warning, not a failure:\n${over.out}`);
   assertMatch(over.out, /WARN {2}the tests took .* over the 0s budget/, 'the run must say it is over budget.');
   assertMatch(over.out, /::warning title=Slow tests::/, 'on GitHub the warning must reach the pull request.');
   const under = await run(join(repoRoot, 'scripts', 'test.mjs'), {
-    cwd: repoRoot, args: ['providers'], env: { EASYCLAUDE_TEST_BUDGET_S: '600', GITHUB_ACTIONS: '' },
+    cwd: repoRoot, args: ['providers'], env: { MELLU_TEST_BUDGET_S: '600', GITHUB_ACTIONS: '' },
   });
   assert(!/WARN/.test(under.out), `a run within the budget must not warn:\n${under.out}`);
 });

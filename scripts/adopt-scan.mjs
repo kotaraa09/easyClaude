@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Looks at a project that already exists, before kickoff writes anything into it.
 //
-//   node adopt-scan.mjs            what the project has, and where easyClaude's files go
+//   node adopt-scan.mjs            what the project has, and where Mellu.mate's files go
 //   node adopt-scan.mjs --json     the same, for tests
 //
 // kickoff used to write docs/STATE.md, docs/DECISIONS.md and a new CLAUDE.md into every
@@ -92,7 +92,7 @@ export function scan(root) {
 
   const claudeMd = findFile(root, '.', ['CLAUDE.md']);
   const agentsMd = findFile(root, '.', ['AGENTS.md']);
-  // The project's own release notes are for its users. easyClaude's changelog is the
+  // The project's own release notes are for its users. Mellu.mate's changelog is the
   // overflow of the plan's Done list, in the owner's words, and does not belong in them.
   const releaseNotes = findFile(root, '.', ['CHANGELOG.md', 'CHANGES.md', 'HISTORY.md']);
   if (releaseNotes) notes.push(`${releaseNotes} is the project's own release notes. Leave it alone.`);
@@ -107,7 +107,7 @@ export function report(r) {
   const out = [];
   if (r.site) {
     out.push(`docs/ is published by ${r.site}: a Markdown file there becomes a public page. ` +
-      `Put easyClaude's files in ${ELSEWHERE}/ instead, and write nothing new into docs/.`);
+      `Put Mellu.mate's files in ${ELSEWHERE}/ instead, and write nothing new into docs/.`);
   }
   out.push('Where each file goes:');
   for (const [key, f] of Object.entries(r.files)) {
@@ -126,7 +126,7 @@ export function report(r) {
   }
   if (r.claudeMd) {
     out.push(`${r.claudeMd} exists, and someone wrote it on purpose. Do not rewrite it. Add only the ` +
-      "lines it lacks from kickoff's five, at the end, under a heading \"## easyClaude\".");
+      "lines it lacks from kickoff's five, at the end, under a heading \"## Mellu.mate\".");
   } else if (r.agentsMd) {
     out.push(`${r.agentsMd} holds this project's instructions for coding agents, and Claude Code ` +
       `does not read it on its own. Write CLAUDE.md with "@${r.agentsMd}" as its first line, so ` +

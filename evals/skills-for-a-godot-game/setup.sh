@@ -1,4 +1,4 @@
-# A Godot 4 project, set up for easyClaude, with nothing else in it. The skills command
+# A Godot 4 project, set up for Mellu.mate, with nothing else in it. The skills command
 # must recommend game skills here, not design skills: on 2026-09-30 it told a user building
 # a Godot game that the design skill they had was enough.
 set -euo pipefail

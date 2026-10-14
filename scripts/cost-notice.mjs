@@ -44,7 +44,7 @@ const planTail = (plan) => plan
 export function resumeNotice(payload, plan) {
   if (!['resume', 'fork'].includes(payload.source)) return null;
   if (payload.prompt_cache_likely_expired !== true || !worth(payload)) return null;
-  return `easyClaude: the saved copy of this conversation has expired, so your first message ` +
+  return `Mellu.mate: the saved copy of this conversation has expired, so your first message ` +
     `will send all of it again (${size(payload)}). If you are starting a new task, /clear is ` +
     `cheaper${planTail(plan)}`;
 }
@@ -53,7 +53,7 @@ export function resumeNotice(payload, plan) {
 // re-sends everything on either model, so switching costs nothing extra.
 export function switchNotice(payload, plan) {
   if (payload.prompt_cache_warm !== true || !worth(payload)) return null;
-  return `easyClaude: switching model now sends this whole conversation again (${size(payload)}), ` +
+  return `Mellu.mate: switching model now sends this whole conversation again (${size(payload)}), ` +
     `because each model keeps its own copy. If you are starting a new task, run /clear first and ` +
     `then switch${planTail(plan)}`;
 }

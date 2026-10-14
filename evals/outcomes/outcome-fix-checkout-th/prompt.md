@@ -1,7 +1,7 @@
 ---
 schema_version: "1.1"
 name: outcome-fix-checkout-th
-description: The fix-checkout task, asked in Thai. Same checks, and the reply must be in Thai. Most people easyClaude is for write in Thai, and every other task is in English, so a bug that only shows in Thai would pass unseen.
+description: The fix-checkout task, asked in Thai. Same checks, and the reply must be in Thai. Most people Mellu.mate is for write in Thai, and every other task is in English, so a bug that only shows in Thai would pass unseen.
 tags: [outcome]
 runs: 3
 max_turns: 30

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Validates the easyclaude plugin without needing a live Claude Code session.
+// Validates the mellu plugin without needing a live Claude Code session.
 // Every check here exists because something actually broke while building P0.
 import { readFileSync as readFromDisk, readdirSync, existsSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -117,7 +117,7 @@ if (commandNames.length === 0) err('commands/', 'no commands found');
 
 // --- 1b. output styles ----------------------------------------------------------
 // A setting that names a style Claude Code does not have gives the default style, with no
-// error anywhere. So every "easyclaude:<name>" that a command or skill writes into
+// error anywhere. So every "mellu:<name>" that a command or skill writes into
 // outputStyle must be a style shipped here, and each style must keep the coding
 // instructions: it changes how Claude writes, not how it works.
 const styleNames = new Set();
@@ -136,8 +136,8 @@ if (existsSync(stylesDir)) {
   }
 }
 for (const f of [...walk(join(root, 'commands')), ...walk(join(root, 'skills'))].filter((p) => p.endsWith('.md'))) {
-  for (const m of readFileSync(f, 'utf8').matchAll(/"outputStyle":\s*"easyclaude:([^"]+)"/g)) {
-    if (!styleNames.has(m[1])) err(rel(f), `sets outputStyle "easyclaude:${m[1]}", but output-styles/ has no style named "${m[1]}"`);
+  for (const m of readFileSync(f, 'utf8').matchAll(/"outputStyle":\s*"mellu:([^"]+)"/g)) {
+    if (!styleNames.has(m[1])) err(rel(f), `sets outputStyle "mellu:${m[1]}", but output-styles/ has no style named "${m[1]}"`);
   }
 }
 
@@ -307,7 +307,7 @@ if (market && plugin) {
 // A plugin's hooks.json wraps its events in a top-level "hooks" object. Without it Claude
 // Code rejects the whole file and registers nothing - no gate, no opener - while this
 // check, written against the same wrong shape, printed OK. From the first commit to 0.1.2
-// no installed copy of easyClaude ran either hook, and nothing here could see it.
+// no installed copy of Mellu.mate ran either hook, and nothing here could see it.
 const hooksFile = json['hooks/hooks.json'];
 const hooks = hooksFile?.hooks;
 if (!hooksFile) {
@@ -402,7 +402,7 @@ if (registry) {
 
 // --- 6. docs use namespaced invocations --------------------------------------
 // The P0 shipping bug: every doc said /cheap, which does not exist.
-const ns = plugin?.name ?? 'easyclaude';
+const ns = plugin?.name ?? 'mellu';
 const invocable = [...new Set([...commandNames, ...skillNames])];
 const templateDir = join(root, 'template');
 // Vendored skills are third-party prose; our doc conventions do not apply to them.
@@ -422,7 +422,7 @@ for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
 }
 
 // --- 6b. docs must not claim hooks that do not exist -------------------------
-// /easyclaude:cheap-session once advertised a UserPromptSubmit hook that was never
+// /mellu:cheap-session once advertised a UserPromptSubmit hook that was never
 // implemented, so the command silently did nothing.
 const implemented = new Set(Object.keys(hooks ?? {}));
 for (const f of walk(root).filter((p) => p.endsWith('.md') && isOurs(p))) {
@@ -863,7 +863,7 @@ for (const f of [
 }
 
 // --- 11c. autoship says the same levels everywhere ----------------------------
-// The user picks a level with /easyclaude:autoship, and scripts/autoship.mjs turns it into
+// The user picks a level with /mellu:autoship, and scripts/autoship.mjs turns it into
 // the line every session gets. Until 1.1 the command offered "on" and asked a second
 // question, the levels lived only in prose, and autoship fired only at the end of a feature,
 // so "on" announced itself every session and changed nothing. The command must name every

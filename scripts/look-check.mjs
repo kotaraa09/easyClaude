@@ -22,7 +22,7 @@ import { cheapArmed } from './personal.mjs';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const memoPath = (root, session) =>
-  join(tmpdir(), `easyclaude-look-${sha(`${root}\0${session}`).slice(0, 16)}.json`);
+  join(tmpdir(), `mellu-look-${sha(`${root}\0${session}`).slice(0, 16)}.json`);
 
 // What a page is built from. Test files change no page.
 const PAGE_FILE = /\.(html?|css|scss|sass|less|jsx?|tsx?|mjs|vue|svelte|astro)$/i;
@@ -84,7 +84,7 @@ export function lookBlock(root, payload, { lookSetting } = {}) {
   // not this user's choice; see personal.mjs.
   if (cheapArmed(root)) return null;
   const turn = readTurn(payload.transcript_path);
-  if (!turn || /^\s*\/easyclaude:cheap\b/.test(turn.text)) return null;
+  if (!turn || /^\s*\/mellu:cheap\b/.test(turn.text)) return null;
 
   const changedPage = turn.tools.some((t) => EDIT_TOOLS.has(t.name) &&
     PAGE_FILE.test(t.input?.file_path ?? '') && !TEST_FILE.test(t.input?.file_path ?? ''));
@@ -97,7 +97,7 @@ export function lookBlock(root, payload, { lookSetting } = {}) {
   // The reply to this hold is the last message of the turn, and the one the user reads as
   // the answer. In the typo case on 2026-10-04 it said only how to open the page, three runs
   // of three, so the user was never told which word was fixed. Hence the line about it.
-  return 'easyClaude: the checks pass, but this turn changed what a web page shows and nothing ' +
+  return 'Mellu.mate: the checks pass, but this turn changed what a web page shows and nothing ' +
     'looked at the page. For the user, "done" means they open it and it works. Your reply to ' +
     'this is the last message the user reads, so it must stand on its own: start it with one ' +
     'line on what you changed. If this session ' +

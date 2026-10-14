@@ -6,7 +6,7 @@ export default [
   { name: 'the old name is gone from the page', contains: 'index.html', pattern: /Plant Corner/, absent: true },
   { name: "the project's own tests pass", ownTests: true },
   // A rename needs no new file. A spec, a plan or a changelog here is ceremony. These are
-  // the sample project's files; the no-easyClaude arm has fewer.
+  // the sample project's files; the no-Mellu.mate arm has fewer.
   { name: 'no new files', onlyFiles: [
     '.claude/rules/code-standards.md', '.claude/rules/workflow.md', '.claude/verify.json', '.gitignore',
     'CLAUDE.md', 'docs/ARCHITECTURE.md', 'docs/DECISIONS.md', 'docs/PRD.md', 'docs/STATE.md',

@@ -75,7 +75,7 @@ const CONNECTORS = [
     what: 'a map of your own codebase - find code and trace callers without reading files',
     // Wired as an MCP server and nothing else. `graft init`, which its own README leads
     // with, also installs a statusline, a PostToolUse hook and a .claude/skills/graft/
-    // SKILL.md into the project. All three collide with what easyClaude already owns: the
+    // SKILL.md into the project. All three collide with what Mellu.mate already owns: the
     // hook set in hooks/hooks.json, and a token budget that CI fails on. The MCP server is
     // the part that carries the benefit, and it costs nothing until a tool is called.
     note: [
@@ -135,7 +135,7 @@ const PROVIDERS = GEN.filter((p) => p.key).map((p) => ({
   where: p.where,
 }));
 
-// Keys for a service with no official MCP server. easyClaude wires nothing for these: the
+// Keys for a service with no official MCP server. Mellu.mate wires nothing for these: the
 // form holds the key so the project's own code can read it from .env, and Claude still
 // never sees it. --apply ignores them.
 //
@@ -185,12 +185,12 @@ if (has('list') || args.length === 0) {
 
 if (has('form')) {
   // Printed rather than hand-maintained, so the form and the catalog cannot drift apart.
-  console.log('\n# --- easyClaude connectors -------------------------------------------');
+  console.log('\n# --- Mellu.mate connectors -------------------------------------------');
   console.log('# Fill in only what you have. Anything left blank stays switched off.');
   // This block gets appended to a project's .env.example, and that project has no scripts/
   // directory - the script lives inside the plugin. Naming a path that isn't there sent
   // people looking for a file they don't have, so name the command instead.
-  console.log('# Then run /easyclaude:connect in Claude Code to apply them.');
+  console.log('# Then run /mellu:connect in Claude Code to apply them.');
   for (const c of [...CONNECTORS.filter((x) => x.key), ...PROVIDERS, ...KEY_ONLY]) {
     console.log(`\n# ${c.what}`);
     console.log(`# get one: ${c.where}`);
