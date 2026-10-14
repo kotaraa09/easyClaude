@@ -46,6 +46,7 @@ import { join, dirname, basename, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTCOMES = join(root, 'evals', 'outcomes');
@@ -99,6 +100,22 @@ function runTests(dir, files) {
   });
 }
 
+// True when a loose object in a .git folder holds the text: a blob git stored for a stash,
+// a commit or an add.
+export function inGitObjects(gitDir, text) {
+  const objects = join(gitDir, 'objects');
+  if (!existsSync(objects)) return false;
+  for (const sub of readdirSync(objects)) {
+    if (!/^[0-9a-f]{2}$/.test(sub)) continue;
+    for (const f of readdirSync(join(objects, sub))) {
+      try {
+        if (inflateSync(readFileSync(join(objects, sub, f))).includes(text)) return true;
+      } catch { /* not an object */ }
+    }
+  }
+  return false;
+}
+
 // Grades one workspace against one case's check.mjs. Returns [{ name, passed, why }].
 // The workspace is copied first, without .git: the runner warns that a kept folder is
 // agent-written, and nothing here should run git or load configuration from inside it.
@@ -136,16 +153,23 @@ export async function gradeWorkspace(caseDir, workspace) {
           rmSync(before, { recursive: true, force: true });
         }
       } else if (c.contains) {
-        const hits = files.filter((f) => matchesGlob(f, c.contains))
+        const hits = files.filter((f) => [].concat(c.contains).some((g) => matchesGlob(f, g)))
           .some((f) => c.pattern.test(readFileSync(join(copy, f), 'utf8')));
         results.push({ name: c.name, passed: c.absent ? !hits : hits, why: `${c.pattern} in ${c.contains}` });
+      } else if (c.keptIn) {
+        // Work that must still be recoverable: in a project file, or in git's own store,
+        // where a stash or a backup commit puts it. Git's loose objects are read as files,
+        // inflated here, so nothing runs git inside a folder Claude wrote. A packed store is
+        // not read; nothing in a run packs it.
+        const inFiles = files.some((f) => readFileSync(join(copy, f), 'utf8').includes(c.keptIn));
+        results.push({ name: c.name, passed: inFiles || inGitObjects(join(workspace, '.git'), c.keptIn), why: `"${c.keptIn}" in the files or in git` });
       } else if (c.onlyFiles) {
         // The project only. The runner's own file_exists grader also counts what a shell
         // leaves in the run's home folder, so on Linux every run failed it.
         const extra = files.filter((f) => !c.onlyFiles.includes(f));
         results.push({ name: c.name, passed: !extra.length, why: extra.length ? `new: ${extra.join(', ')}` : 'no new files' });
       } else {
-        throw new Error(`${basename(caseDir)}/check.mjs: "${c.name}" has no hidden, ownTests, catches, contains or onlyFiles`);
+        throw new Error(`${basename(caseDir)}/check.mjs: "${c.name}" has no hidden, ownTests, catches, contains, keptIn or onlyFiles`);
       }
     }
     return results;
@@ -421,6 +445,19 @@ function lastReply(trace) {
   return text;
 }
 
+// Checks on the reply, which a check over files cannot see. A case's check.mjs may export:
+//   mustAsk      the run passes only if it changed nothing and ended on a question
+//   askedAbout   a question that names this pattern passes the task, though nothing was built:
+//                the benchmark sends one message, and a person would have answered it
+export async function replyChecks(caseDir, checks, asked, reply) {
+  const { mustAsk = false, askedAbout = null } = await import(pathToFileURL(join(caseDir, 'check.mjs')).href);
+  if (askedAbout && asked && askedAbout.test(reply)) {
+    return [{ name: 'it asked about what the request left out, before building', passed: true, why: `${askedAbout} in the question` }];
+  }
+  if (mustAsk) return [...checks, { name: 'it asked before changing anything', passed: asked, why: reply.slice(-80) }];
+  return checks;
+}
+
 // One arm: run the eval, then grade every run it kept, then delete what it kept. The
 // trace and the files Claude changed are saved first, under evals/results/, because a
 // failed run with nothing left to read cannot be told apart from a broken check.
@@ -521,9 +558,11 @@ async function runArm(label, pluginDir, opts) {
       // Changed no file and ended on a question: it asked instead of acting. The benchmark
       // sends one message, so a run that asks fails here, though a person could answer it.
       const changed = (run.graders ?? []).find((g) => g.name === 'changed-files')?.passed;
+      const asked = changed === false && /\?/.test(reply.slice(-600));
+      checks = await replyChecks(caseDir, checks, asked, reply);
       runs.push({
         success: checks.every((k) => k.passed), checks, reply, ...replyMeasures(reply),
-        asked: changed === false && /\?/.test(reply.slice(-600)),
+        asked,
         // Saved on the run, so a report can leave it out instead of counting it as a failure.
         limited: isLimited,
         saved: relative(root, saved),

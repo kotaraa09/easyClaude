@@ -552,6 +552,11 @@ breaks('a scaffold outside the case directory', '16',
     (t) => t.replace(/scaffold_script: .*/, 'scaffold_script: ../_fixture/setup.sh')),
   /leaves the case directory/);
 
+// A saved first turn is the one addition it accepts, and only one that exists in the case.
+breaks('a saved first turn that does not exist', '16',
+  (d) => removeFile(d, 'evals/outcomes/outcome-rescue-restore/history.jsonl'),
+  /history_file "history\.jsonl" is missing/);
+
 // The runner defaults min to 1. Every should-not-fire grader here was once written with
 // max: 0 alone, and the first real run failed all of them whatever the model did.
 breaks('a should-not-fire grader that can never pass', '16',
