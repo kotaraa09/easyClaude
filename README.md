@@ -259,14 +259,14 @@ No. A failing check sends Claude back while it keeps changing files. If it chang
 
 Measured with Claude Code in a set-up project whose plan is in English:
 
-<!--measured:1710,934,27,265,484-->**~1,710 tokens per turn**:
+<!--measured:1745,974,25,264,482-->**~1,745 tokens per turn**:
 
 | part | tokens | when |
 |---|---|---|
-| everything the plugin loads when a session starts | ~934 | from install |
-| your plan in `docs/STATE.md`, read back by the opener | ~27 | after setup |
-| the `CLAUDE.md` setup writes | ~265 | after setup |
-| the rules setup copies into `.claude/rules/` | ~484 | after setup |
+| everything the plugin loads when a session starts | ~974 | from install |
+| your plan in `docs/STATE.md`, read back by the opener | ~25 | after setup |
+| the `CLAUDE.md` setup writes | ~264 | after setup |
+| the rules setup copies into `.claude/rules/` | ~482 | after setup |
 
 The plan part grows with your plan; a plan in Thai costs a little more than the same plan in English. Skill bodies and stack recipes load only when they are used.
 

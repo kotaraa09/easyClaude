@@ -325,6 +325,11 @@ breaks('a measured figure in the README that is not the measured one', '10d',
   (d) => bumpNumber(d, 'README.md', /<!--measured:(\d+),/),
   /README\.md: its measured-cost marker says/);
 
+// The marker matched and the table under it did not: the Thai rules row said 514 for weeks.
+breaks('a cost table that disagrees with its own marker', '10d',
+  (d) => editText(d, 'README.th.md', (t) => t.replace(/(\| ราว )(\d+)( \| หลังตั้งค่า \|\n(?!.*\| ราว \d+ \| หลังตั้งค่า))/, (_, a, n, b) => `${a}${Number(n) + 30}${b}`)),
+  /README\.th\.md: the cost table beside its marker does not show/);
+
 breaks('a translation that lost its measured-cost marker', '10d',
   (d) => editText(d, 'README.th.md', (t) => t.replace(/<!--measured:[\d,]+-->/, '')),
   /README\.th\.md: the cost section must carry <!--measured:/);

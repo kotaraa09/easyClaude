@@ -814,6 +814,13 @@ if (cost) {
       } else if (m.slice(1).map(Number).join() !== want.join()) {
         err(r, `its measured-cost marker says ${m.slice(1).join(',')}, but ${COST_FILE} says ` +
           `${want.join(',')}. Update the figures beside it too.`);
+      } else {
+        // The figures a reader sees, in the table below the marker. The marker alone was
+        // checked, and the Thai table kept a rules figure of 514 the marker no longer said.
+        const table = text.slice(m.index, m.index + 1500).split(/\n\s*\n(?!\|)/).slice(0, 2).join('\n');
+        const shown = (n) => new RegExp(`(?<![\\d,])${n.toLocaleString('en-US')}(?![\\d,])`).test(table);
+        const missing = want.filter((n) => !shown(n));
+        if (missing.length) err(r, `the cost table beside its marker does not show ${missing.join(', ')} from ${COST_FILE}`);
       }
       const badge = text.match(/badge\/costs-~([\d.]+)k/);
       if (badge && badge[1] !== k) {

@@ -544,6 +544,23 @@ test('related: {tests} runs the Python tests that import the change, directly or
   }
 });
 
+// Importing shop.other runs shop/__init__.py first, and it imports cart. On itsdangerous,
+// following only import lines missed a test file for five of eight changed modules.
+test('related: {tests} follows the package __init__.py that every import of a module runs', async () => {
+  const p = relatedProject({ related: WRITES_TESTS }, {
+    'src/shop/__init__.py': 'from .cart import total\n',
+    'src/shop/cart.py': 'def total(items):\n    return sum(items)\n',
+    'src/shop/other.py': 'X = 1\n',
+    'tests/test_other.py': 'from shop.other import X\n',
+    'tests/pkg/__init__.py': 'from shop.cart import total\n',
+    'tests/pkg/test_in_pkg.py': 'import os\n',
+  });
+  writeFileSync(join(p.dir, 'src/shop/cart.py'), 'def total(items):\n    return 0\n');
+  const r = await p.stopNow();
+  assert(r.code === ALLOW && p.ran() === 'tests/pkg/test_in_pkg.py tests/test_other.py',
+    `a change to cart.py must reach both tests, ran "${p.ran()}":\n${r.out}`);
+});
+
 test('related: {tests} runs the whole command when it cannot be sure', async () => {
   for (const [what, change] of [
     ['a conftest.py', (p) => writeFileSync(join(p.dir, 'tests', 'conftest.py'), '# changed\n')],

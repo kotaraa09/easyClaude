@@ -67,7 +67,15 @@ export function importsOf(text, file) {
       }
     }
   }
-  return names.filter(Boolean);
+  // Importing a.b.c runs a/__init__.py and a/b/__init__.py first, and a package's
+  // __init__.py often imports every module in it. On itsdangerous, leaving this out missed
+  // a test file for five of eight changed modules.
+  const all = new Set();
+  for (const name of names.filter(Boolean)) {
+    const parts = name.split('.');
+    for (let i = 1; i <= parts.length; i++) all.add(parts.slice(0, i).join('.'));
+  }
+  return [...all];
 }
 
 // The test files that reach the changed files, or null when the narrow run is not safe.
@@ -106,6 +114,13 @@ export function pythonTestsFor(root, changed) {
       if (!reached.has(f)) { reached.add(f); queue.push(f); }
     }
   }
-  const tests = [...reached].filter(isTestFile).sort();
+  // pytest itself imports the __init__.py of each test file's own package, with no import
+  // line to follow.
+  const inReachedPackage = (f) => {
+    const dirs = f.split('/').slice(0, -1);
+    for (let i = dirs.length; i > 0; i--) if (reached.has(`${dirs.slice(0, i).join('/')}/__init__.py`)) return true;
+    return false;
+  };
+  const tests = files.filter((f) => isTestFile(f) && (reached.has(f) || inReachedPackage(f))).sort();
   return tests.length ? tests : null;
 }
