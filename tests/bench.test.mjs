@@ -16,8 +16,22 @@ const caseDir = (name) => join(repoRoot, 'evals', 'outcomes', name);
 
 // The same scaffold the runner uses, in a fresh folder. Asynchronous, so the other tests
 // keep running while bash and git build it.
-function shop(variant = 'base') {
+// Built once per variant, then copied: about 70 gradings each built their own shop with bash,
+// git and a child Node, and the suite took over three minutes.
+const built = new Map();
+const builtDirs = [];
+process.on('exit', () => {
+  for (const d of builtDirs) try { rmSync(d, { recursive: true, force: true }); } catch { /* a leftover temp dir is not a failure */ }
+});
+async function shop(variant = 'base') {
+  if (!built.has(variant)) built.set(variant, buildShop(variant));
   const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchtest-'));
+  cpSync(await built.get(variant), dir, { recursive: true });
+  return dir;
+}
+function buildShop(variant) {
+  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchshop-'));
+  builtDirs.push(dir);
   return new Promise((done, fail) => {
     execFile('bash', [join(repoRoot, 'evals', '_fixture', 'setup.sh'), variant], {
       cwd: dir, encoding: 'utf8',
