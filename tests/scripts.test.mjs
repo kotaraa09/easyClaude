@@ -1285,3 +1285,32 @@ test('planning gate: an answer it cannot read keeps the hold and says how to go 
   assertMatch(r.out, /start building/, 'Claude must be told how the user can go on.');
   assert((await edit(dir, 'Write', { file_path: join(dir, 'app.js') })).code === 2, 'an unread answer must not open the build.');
 });
+
+// --- /easyclaude:what-went-wrong ------------------------------------------------
+// A saved session runs to megabytes. The timeline keeps what explains a wrong turn, numbered,
+// and leaves out what would only cost tokens: reminders, thinking, helpers' own sessions.
+test('session timeline: finds the project folder, lists newest first, and keeps only the steps', async () => {
+  const { projectFolder, sessions, timeline } = await import('../scripts/session-timeline.mjs');
+  const home = projectDir();
+  assert(projectFolder('D:\\WebWork\\easyClaude', home).endsWith(join('.claude', 'projects', 'D--WebWork-easyClaude')),
+    'the folder is the project path with every other character turned into "-".');
+  const folder = projectFolder('/work/shop', home);
+  mkdirSync(folder, { recursive: true });
+  const line = (o) => JSON.stringify(o);
+  writeFileSync(join(folder, 'old.jsonl'), line({ type: 'user', message: { content: 'hi' } }) + '\n');
+  await new Promise((r) => setTimeout(r, 20));
+  writeFileSync(join(folder, 'new.jsonl'), [
+    line({ type: 'user', message: { content: '<system-reminder>be brief</system-reminder>add a sold-out option' } }),
+    line({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'secret plan' },
+      { type: 'text', text: 'I will add it.' }, { type: 'tool_use', name: 'Edit', input: { file_path: 'index.html' } }] } }),
+    line({ type: 'user', message: { content: [{ type: 'tool_result', is_error: true, content: 'old_string not found' }] } }),
+    line({ type: 'user', message: { content: [{ type: 'tool_result', content: 'fine' }] } }),
+    line({ type: 'assistant', isSidechain: true, message: { content: [{ type: 'text', text: 'a helper talking' }] } }),
+    'not json',
+  ].join('\n'));
+  const list = sessions('/work/shop', home);
+  assert(list.map((s) => s.id).join() === 'new,old', `newest first: ${list.map((s) => s.id)}`);
+  const t = timeline(list[0].file);
+  assert(t === '1. user: add a sold-out option\n2. claude: I will add it.\n3.   Edit: index.html\n4.   failed: old_string not found',
+    `the timeline must keep the user's own words, the reply, the call and the failure, and nothing else:\n${t}`);
+});

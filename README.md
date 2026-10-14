@@ -160,6 +160,7 @@ You never need these for the common jobs. They cost nothing until you type them.
 /easyclaude:full               leave cheap mode
 /easyclaude:plain [off]        short answers in plain words
 /easyclaude:autoship pr        stop asking before commit, push and pull request (off, commit, push, pr, merge)
+/easyclaude:what-went-wrong    explain where a past session went wrong, step by step
 ```
 
 </details>

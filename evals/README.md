@@ -1,6 +1,6 @@
 # Evals
 
-Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Nineteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Thirteen more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -36,6 +36,7 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `library-on-a-calendar` | *"add a calendar so shoppers can pick a delivery day"* | `plan-feature` fires, and names a free library before building |
 | `skills-for-a-godot-game` | *"/easyclaude:skills"*, in a Godot project | it works out the project is a game, offers game skills, installs nothing |
 | `kickoff-offers-godot-skills` | setup in a Godot project, answered in one message | the close offers at most two Godot skills, with a cost in tokens |
+| `plan-offers-two-ways` | *"let shoppers save their delivery address so they don't type it every time"* | `plan-feature` fires, and offers two ways to build it in plain words, recommends one, and asks |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
 reply help). Under the default ablation the first is an indicator, not part of the score,
@@ -211,6 +212,11 @@ The five cases the ceiling stopped ran the next day, on the same versions, for $
 | slopmonster-on-sounds-like-ai | 3/3 | 3/3 |
 | quiet-slopmonster-on-write-copy | 3/3 | 3/3 |
 | skills-for-a-godot-game, `--ablation none` | 3/3 | - |
+
+**`plan-offers-two-ways`**, 2026-10-14, Claude Code 2.1.292, three runs per arm: 3/3 with
+easyClaude, 3/3 without, $0.87. Plain Claude also offered keeping the address in the browser
+against saving it on a server, with a pick. The line in `plan-feature` that asks for this stays,
+at about 100 tokens a plan, and the case guards it.
 
 ## The outcome benchmark
 
