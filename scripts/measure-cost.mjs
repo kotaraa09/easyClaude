@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Measures what easyClaude adds to every turn, by asking Claude Code rather than estimating.
+// Measures what Mellu.mate adds to every turn, by asking Claude Code rather than estimating.
 //
 //   node measure-cost.mjs            measure and print the table
 //   node measure-cost.mjs --write    also save the figures to docs/cost.json
@@ -51,7 +51,7 @@ if (!version) {
   console.error('measure-cost: `claude` is not installed.');
   process.exit(1);
 }
-// An installed copy of easyClaude would load in every case, the baseline included, and
+// An installed copy of Mellu.mate would load in every case, the baseline included, and
 // every difference would come out near zero - a result that looks like good news. This used
 // to stop and ask the user to disable it for their whole account. The settings file below
 // switches it off for these runs only instead; tested on 2026-10-04, it took ~940 tokens
@@ -60,7 +60,7 @@ if (!version) {
 let installed = [];
 try { installed = JSON.parse(claude(['plugin', 'list', '--json']).stdout); } catch { /* none */ }
 const installedCopies = (Array.isArray(installed) ? installed : [])
-  .filter((p) => /^easyclaude@/.test(p?.id ?? '') && p.enabled).map((p) => p.id);
+  .filter((p) => /^mellu@/.test(p?.id ?? '') && p.enabled).map((p) => p.id);
 
 const work = mkdtempSync(join(tmpdir(), 'ec-cost-'));
 const settings = join(work, 'settings.json');
@@ -149,7 +149,7 @@ for (const [name, , dir, withPlugin] of CASES) {
     console.error(`measure-cost: the plugin came out at ${tokens.plugin - tokens.baseline} tokens, so ` +
       'the baseline and the plugin case loaded the same plugins' +
       `${installedCopies.length ? ` (installed: ${installedCopies.join(', ')})` : ''}. Nothing was saved. ` +
-      'Disable the installed copy for the run: claude plugin disable easyclaude@easyclaude');
+      'Disable the installed copy for the run: claude plugin disable mellu@mellu-mate');
     rmSync(work, { recursive: true, force: true });
     process.exit(1);
   }

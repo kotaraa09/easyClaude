@@ -36,7 +36,7 @@ export const NEEDS_SHELL = new Set(['ENOENT', 'EINVAL']);
 // value is written into the config file afterwards by an ordinary file write. The CLI
 // still does all the schema work; we only swap one unique token for one value, which
 // means this keeps working if the config layout changes.
-export const placeholder = () => `easyclaude_placeholder_${randomBytes(12).toString('hex')}`;
+export const placeholder = () => `mellu_placeholder_${randomBytes(12).toString('hex')}`;
 
 // Trust the CLI's own report of which file it wrote over guessing at one, but fall back
 // to the documented location for local scope if that wording ever changes.
@@ -78,7 +78,7 @@ export function writeSecret(output, token, secret) {
   // original's own mode is then restored. chmod is a no-op on Windows, where permissions
   // come from the parent directory, and a failure to read the old mode must not stop the
   // write: the private default is the safe end to fail at.
-  const temp = `${file}.easyclaude-${randomBytes(6).toString('hex')}.tmp`;
+  const temp = `${file}.mellu-${randomBytes(6).toString('hex')}.tmp`;
   try {
     writeFileSync(temp, updated, { mode: 0o600 });
     try { chmodSync(temp, statSync(file).mode & 0o777); } catch { /* keep the private default */ }

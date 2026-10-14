@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// The outcome benchmark: does a beginner get working software more often with easyClaude
+// The outcome benchmark: does a beginner get working software more often with Mellu.mate
 // than without it?
 //
 //   node scripts/bench.mjs                   run both arms, print the table, save the result
-//   node scripts/bench.mjs --with-only       run only the easyClaude arm (reuses no baseline)
-//   node scripts/bench.mjs --fresh-baseline  re-run the no-easyClaude arm even if cached
+//   node scripts/bench.mjs --with-only       run only the Mellu.mate arm (reuses no baseline)
+//   node scripts/bench.mjs --fresh-baseline  re-run the no-Mellu.mate arm even if cached
 //   node scripts/bench.mjs --runs 1          quick look while iterating - not for publishing
 //   node scripts/bench.mjs --case 'outcome-fix*' --model claude-opus-5-5 --max-cost-usd 5
 //   node scripts/bench.mjs --prompts expert-spec   the tasks in the words of evals/prompt-levels/
@@ -19,12 +19,12 @@
 //     free and gives the same verdict every time.
 //   - Sonnet by default, not the session's model. Half the price, and the question is the
 //     difference between the arms, which a pinned model keeps fair.
-//   - The no-easyClaude arm does not change when easyClaude does. It is cached under a key
+//   - The no-Mellu.mate arm does not change when Mellu.mate does. It is cached under a key
 //     of the Claude Code version, the model, the run count and the case files, and re-run
 //     only when one of those changes. After the first run, each run costs one arm.
 //   - Small tasks in a small project, a turn cap on each, and a --max-cost-usd ceiling.
 //
-// How the arms differ: the easyClaude arm runs in the sample project as kickoff leaves it,
+// How the arms differ: the Mellu.mate arm runs in the sample project as kickoff leaves it,
 // with the plugin loaded. The other runs the same code and git history with no docs/,
 // no CLAUDE.md and no .claude/, and no plugin. See evals/_fixture/setup.sh.
 //
@@ -33,8 +33,8 @@
 // process. The runner's work folders are deleted once graded.
 //
 // On native Windows the runner refuses to grant a shell, because it has no sandbox there,
-// so neither arm can run commands. easyClaude's verify gate still runs its tests, because
-// it is a hook and not a tool. That favours easyClaude, and the result says so. Run under
+// so neither arm can run commands. Mellu.mate's verify gate still runs its tests, because
+// it is a hook and not a tool. That favours Mellu.mate, and the result says so. Run under
 // Linux or WSL2 with --shell for the fair figure.
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
@@ -121,7 +121,7 @@ export function inGitObjects(gitDir, text) {
 // agent-written, and nothing here should run git or load configuration from inside it.
 export async function gradeWorkspace(caseDir, workspace) {
   const checks = (await import(pathToFileURL(join(caseDir, 'check.mjs')).href)).default;
-  const copy = mkdtempSync(join(tmpdir(), 'easyclaude-grade-'));
+  const copy = mkdtempSync(join(tmpdir(), 'mellu-grade-'));
   try {
     copyWithoutGit(workspace, copy);
     const files = walkFiles(copy);
@@ -143,7 +143,7 @@ export async function gradeWorkspace(caseDir, workspace) {
         // test that covers the bug fails there. Reading test code for the right call shape
         // was tried first and missed ordinary tests, like a call nested inside another.
         const tests = files.filter(isTestFile);
-        const before = mkdtempSync(join(tmpdir(), 'easyclaude-grade-'));
+        const before = mkdtempSync(join(tmpdir(), 'mellu-grade-'));
         try {
           cpSync(copy, before, { recursive: true });
           cpSync(join(root, 'evals', '_fixture', 'project', c.catches), join(before, c.catches));
@@ -259,7 +259,7 @@ function hashTree(dir, h) {
 }
 
 // A task asked in English needs a reply in English. The first full run found a
-// third of easyClaude's replies in Hungarian, Slovak or Spanish, and no check noticed,
+// third of Mellu.mate's replies in Hungarian, Slovak or Spanish, and no check noticed,
 // because every check looked at files. A beginner who cannot read the answer did not get
 // one. Common English words make up a fifth or more of English prose and almost none of
 // those languages; "a" is left out because Hungarian uses it too.
@@ -356,7 +356,7 @@ export function replyMeasures(text) {
   return { length: (prose.match(/[\p{L}\p{M}\p{N}]/gu) ?? []).length, codeTerms: ticks + bare };
 }
 
-// --style <name>: the easyClaude arm with one of its output styles on, as kickoff sets it
+// --style <name>: the Mellu.mate arm with one of its output styles on, as kickoff sets it
 // when the user says yes. An eval run loads no project settings, so an outputStyle written
 // into the sample project was ignored, and the trace said "default". A style that keeps the
 // coding instructions is Claude Code's instructions plus the style's text, so this adds the
@@ -368,7 +368,7 @@ export function stylePlugin(style) {
 
 // --prompts <level>: every task asked in the words of evals/prompt-levels/<level>/<task>.md
 // instead of its own prompt.md, to measure how much the way a request is written changes the
-// result, with easyClaude and without. A task the level does not word is left out of the copy,
+// result, with Mellu.mate and without. A task the level does not word is left out of the copy,
 // so it never runs under the level's name in its usual words.
 export const PROMPT_LEVELS = join(root, 'evals', 'prompt-levels');
 export function levelPrompt(level, name) {
@@ -417,7 +417,7 @@ export function applyVariant(dir, { style = null, prompts = null } = {}) {
 
 // A copy of the plugin with its tasks rewritten, so the case files in the repo are never touched.
 export function variantPlugin(variant) {
-  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-variant-'));
+  const dir = mkdtempSync(join(tmpdir(), 'mellu-variant-'));
   cpSync(root, dir, {
     recursive: true,
     filter: (src) => !/^(\.git|node_modules|evals[\\/]results)([\\/]|$)/.test(relative(root, src)),
@@ -467,7 +467,7 @@ export async function replyChecks(caseDir, checks, asked, reply) {
 // trace and the files Claude changed are saved first, under evals/results/, because a
 // failed run with nothing left to read cannot be told apart from a broken check.
 function runEval(label, pluginDir, tag, caseGlob, opts) {
-  const out = join(mkdtempSync(join(tmpdir(), 'easyclaude-bench-')), 'result.json');
+  const out = join(mkdtempSync(join(tmpdir(), 'mellu-bench-')), 'result.json');
   const args = [
     'plugin', 'eval', pluginDir, '--tag', tag, '--ablation', 'none', '--scaffold', '--keep-temp',
     '--trust-plugin', '--no-publish', '--model', opts.model, '--runs', String(opts.runs),
@@ -553,7 +553,7 @@ async function runArm(label, pluginDir, opts) {
       const traceText = existsSync(trace) ? readFileSync(trace, 'utf8') : '';
       const reply = lastReply(traceText);
       // A run the account's usage limit stopped measured nothing. The first Thai run of
-      // the no-easyClaude arm stopped this way three times, and was cached as 0/3.
+      // the no-Mellu.mate arm stopped this way three times, and was cached as 0/3.
       // A run that never started measured nothing either: no sample project, or no login.
       // Both reached the table as 0/3 on 2026-09-29, one marked as a full result.
       // A run whose record was lost measured nothing about the reply: on 2026-10-11 two runs
@@ -593,9 +593,9 @@ export const USAGE_LIMIT = /you'?ve hit your [\w ]*limit|usage limit reached/i;
 // level never started on 2026-10-11, but were counted as failures.
 export const NOT_STARTED = /scaffold failed|failed to authenticate|oauth [\w ]*expired|path "[^"]+" does not exist/i;
 
-// What a task's no-easyClaude result depends on: the Claude Code version, the run
+// What a task's no-Mellu.mate result depends on: the Claude Code version, the run
 // settings, the task's own files, its day one if it has one, and the shared sample
-// project. Nothing about easyClaude, which that arm never loads.
+// project. Nothing about Mellu.mate, which that arm never loads.
 export function caseKey(name, version, opts) {
   const h = createHash('sha256');
   h.update(JSON.stringify({ version, model: opts.model, runs: opts.runs, shell: Boolean(opts.shell) }));
@@ -619,14 +619,14 @@ function readBaselineCache() {
 
 // A copy of the suite beside an empty plugin: same cases, same fixture, nothing loaded.
 function baselinePlugin(variant = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-baseline-'));
+  const dir = mkdtempSync(join(tmpdir(), 'mellu-baseline-'));
   mkdirSync(join(dir, '.claude-plugin'));
   writeFileSync(join(dir, '.claude-plugin', 'plugin.json'),
     JSON.stringify({ name: 'no-plugin-baseline', version: '0.0.0', description: 'An empty plugin.' }));
   writeFileSync(join(dir, '.bench-baseline'), 'evals/_fixture/setup.sh builds a project nobody set up\n');
   cpSync(OUTCOMES, join(dir, 'evals', 'outcomes'), { recursive: true });
   cpSync(join(root, 'evals', '_fixture'), join(dir, 'evals', '_fixture'), { recursive: true });
-  // The level's words, never a style: the no-easyClaude arm has no easyClaude style to add.
+  // The level's words, never a style: the no-Mellu.mate arm has no Mellu.mate style to add.
   if (variant.prompts) applyVariant(dir, { prompts: variant.prompts });
   return dir;
 }
@@ -660,7 +660,7 @@ async function main() {
     concurrency: Number(arg('-j', 2)),
     case: arg('--case', null),
     shell: flag('--shell'),
-    // --style plain: the easyClaude arm runs with that output style on, as kickoff sets it
+    // --style plain: the Mellu.mate arm runs with that output style on, as kickoff sets it
     // when the user says yes. Compare with a run without it, on the same tasks.
     style: arg('--style', null),
     // --prompts <level>: the tasks in the words of evals/prompt-levels/<level>/, in both arms.
@@ -676,7 +676,7 @@ async function main() {
   let withArm;
   const styled = opts.style || opts.prompts ? variantPlugin({ style: opts.style, prompts: opts.prompts }) : null;
   try {
-    withArm = await runArm('with easyClaude', styled ?? root, opts);
+    withArm = await runArm('with Mellu.mate', styled ?? root, opts);
   } finally {
     if (styled) rmSync(styled, { recursive: true, force: true });
   }
@@ -684,7 +684,7 @@ async function main() {
   let without = null;
   if (!flag('--with-only')) {
     // Cached per task. One key over every task meant that rewording one prompt re-ran the
-    // no-easyClaude arm of all of them, which is most of what a run costs.
+    // no-Mellu.mate arm of all of them, which is most of what a run costs.
     const cache = readBaselineCache();
     const wanted = withArm.cases.map((c) => c.name);
     const keys = Object.fromEntries(wanted.map((n) => [n, caseKey(n, version, opts)]));
@@ -696,7 +696,7 @@ async function main() {
       const dir = baselinePlugin({ prompts: opts.prompts });
       try {
         for (const name of stale) {
-          const arm = await runArm('without easyClaude', dir, { ...opts, case: name });
+          const arm = await runArm('without Mellu.mate', dir, { ...opts, case: name });
           spent += arm.costUsd;
           partial ||= Boolean(arm.partial);
           fresh.push(...arm.cases);
@@ -712,7 +712,7 @@ async function main() {
       }
     }
     const reused = wanted.filter((n) => !stale.includes(n));
-    if (reused.length) console.log(`\nwithout easyClaude: reusing ${reused.join(', ')} (nothing they depend on changed)`);
+    if (reused.length) console.log(`\nwithout Mellu.mate: reusing ${reused.join(', ')} (nothing they depend on changed)`);
     without = {
       costUsd: spent, partial,
       cases: wanted.map((n) => fresh.find((c) => c.name === n) ?? { name: n, runs: cache[n]?.runs ?? [] }),
@@ -726,10 +726,10 @@ async function main() {
   const lines = [
     `Outcome benchmark - ${version}, ${opts.model}, ${opts.runs} run(s) per case` +
       (opts.shell ? ', shell allowed' : ', no shell (see the note below)') +
-      (opts.style ? `, easyClaude with the "${opts.style}" output style` : '') +
+      (opts.style ? `, Mellu.mate with the "${opts.style}" output style` : '') +
       (opts.prompts ? `, tasks worded as "${opts.prompts}"` : ''),
     '',
-    '| task | works, with easyClaude | works, without | cost per run, with | cost per run, without |',
+    '| task | works, with Mellu.mate | works, without | cost per run, with | cost per run, without |',
     '|---|---|---|---|---|',
   ];
   let okW = 0, nW = 0, okWo = 0, nWo = 0;
@@ -747,8 +747,8 @@ async function main() {
     lines.push(`| ${name.replace(/^outcome-/, '')} | ${s.length} | ${s.codeTerms.toFixed(1)} | ${b ? b.length : '-'} | ${b ? b.codeTerms.toFixed(1) : '-'} |`);
   }
   if (!opts.shell) {
-    lines.push('', 'No shell: neither arm could run commands. easyClaude\'s verify gate still ran the ' +
-      'tests, because it is a hook, so this favours easyClaude. Use --shell under Linux or WSL2 for the fair figure.');
+    lines.push('', 'No shell: neither arm could run commands. Mellu.mate\'s verify gate still ran the ' +
+      'tests, because it is a hook, so this favours Mellu.mate. Use --shell under Linux or WSL2 for the fair figure.');
   }
   if (withArm.partial || without?.partial) {
     lines.push('', 'PARTIAL: the cost ceiling or a usage limit stopped a run. Do not publish these figures.');

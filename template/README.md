@@ -1,6 +1,6 @@
 # <PROJECT NAME>
 
-Built with [easyClaude](https://github.com/kotaraa09/easyClaude).
+Built with [Mellu.mate](https://github.com/kotaraa09/mellu-mate).
 
 ## Start
 
@@ -8,11 +8,11 @@ Built with [easyClaude](https://github.com/kotaraa09/easyClaude).
 claude
 ```
 
-That's it. `.claude/settings.json` already pre-registers the easyClaude marketplace and enables the plugin, so Claude Code offers to install it on first run — you just approve the trust prompt.
+That's it. `.claude/settings.json` already pre-registers the Mellu.mate marketplace and enables the plugin, so Claude Code offers to install it on first run — you just approve the trust prompt.
 
 Then say what you want to build. Kickoff runs on its own the first time.
 
-<sub>If it doesn't offer, install manually: `/plugin marketplace add kotaraa09/easyClaude` then `/plugin install easyclaude@easyclaude`.</sub>
+<sub>If it doesn't offer, install manually: `/plugin marketplace add kotaraa09/mellu-mate` then `/plugin install mellu@mellu-mate`.</sub>
 
 ## Where things are
 

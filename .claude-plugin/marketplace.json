@@ -1,25 +1,25 @@
 {
-  "name": "easyclaude",
+  "name": "mellu-mate",
   "owner": { "name": "DegonCore" },
   "metadata": {
-    "description": "easyClaude - a stack-agnostic harness for building real projects with Claude Code.",
+    "description": "Mellu.mate - a stack-agnostic harness for building real projects with Claude Code.",
     "version": "1.3.0"
   },
   "plugins": [
     {
-      "name": "easyclaude",
+      "name": "mellu",
       "source": "./",
       "description": "Persistent project state, an enforced verify gate, safety guardrails, stack recipes, and a one-shot cheap mode."
     },
     {
       "name": "filetree",
       "source": "./plugins/filetree",
-      "description": "A file tree beside the conversation, coloured by git, that shows which files Claude reads and changes. By Kurt Buhler (MIT), a companion to easyClaude."
+      "description": "A file tree beside the conversation, coloured by git, that shows which files Claude reads and changes. By Kurt Buhler (MIT), a companion to Mellu.mate."
     },
     {
       "name": "blast-radius",
       "source": "./plugins/blast-radius",
-      "description": "Holds a risky command, such as rm -rf or git reset --hard, and shows what it would delete before you press Proceed or Cancel. From Anthropic's playground (Apache-2.0), adapted for Windows; a companion to easyClaude."
+      "description": "Holds a risky command, such as rm -rf or git reset --hard, and shows what it would delete before you press Proceed or Cancel. From Anthropic's playground (Apache-2.0), adapted for Windows; a companion to Mellu.mate."
     }
   ]
 }

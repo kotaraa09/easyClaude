@@ -999,7 +999,7 @@ export const register: Register = (on, options) => {
   })
 
   on('command.run', { command: 'filetree' }, async ($, e) => {
-    // easyClaude: the desktop app places the pane beside the conversation whatever the
+    // Mellu.mate: the desktop app places the pane beside the conversation whatever the
     // terminal's layout, so the two terminal checks are for a terminal alone.
     const onDesktop = (await $.session.surfaces()).includes('desktop')
     if (!onDesktop && !e.presentation.isFullscreen) return { text: 'filetree shows in the sidebar, which needs the fullscreen layout. Run /tui fullscreen, then /filetree.' }

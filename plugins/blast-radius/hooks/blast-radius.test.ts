@@ -1,7 +1,7 @@
-// Run with `claude plugin test plugins/blast-radius`. These cover what easyClaude changed
+// Run with `claude plugin test plugins/blast-radius`. These cover what Mellu.mate changed
 // (PROVENANCE.md): PowerShell commands, measuring through $.fs on a Windows path, and no
 // hold when nobody is at the screen. `claude plugin test .` at the repository root runs this
-// file too, with easyClaude as the plugin under test; there the hold test steps aside.
+// file too, with Mellu.mate as the plugin under test; there the hold test steps aside.
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
@@ -38,7 +38,7 @@ const pane = {
   props: { title: 'Blast Radius', isFocused: true, bodyColumns: 80, placement: 'dock' as const, scroll: { offset: 0, bodyRows: 20 }, view: {} } as any,
 }
 
-// Sends a command and waits for its hold's pane. Null under easyClaude (the repository
+// Sends a command and waits for its hold's pane. Null under Mellu.mate (the repository
 // root's run), where Blast Radius is not the plugin under test: nothing holds it there.
 const held = async ($: any, ran: string[], tool: string, command: string) => {
   const call = $.tool.call({ tool, command })

@@ -1,6 +1,6 @@
 # Provenance
 
-This skill is **vendored third-party prose**, not written for easyClaude.
+This skill is **vendored third-party prose**, not written for Mellu.mate.
 
 | | |
 |---|---|
@@ -33,7 +33,7 @@ the `.claude-plugin/` and `.cursor-plugin/` manifests. The skill refers to none 
 ## Why it replaced slopmonster
 
 slopmonster sat here from 2026-09-19 to 2026-10-11, kept by request against the registry bar:
-it needed Python, which nothing else in easyClaude uses, and its cleanse step sent the draft
+it needed Python, which nothing else in Mellu.mate uses, and its cleanse step sent the draft
 to a second model provider and billed for it. humanizer does the same job, rewriting text so
 it does not read as AI-written, as instructions alone. It needs no runtime, sends nothing
 anywhere, and passes the bar on every line. The owner asked for the swap.

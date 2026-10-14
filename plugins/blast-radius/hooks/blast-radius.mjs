@@ -12,7 +12,7 @@
 // free. So the hold loop waits on a short `$.process.run` (see pause) until a
 // button's onPress sets the decision.
 //
-// Changed for easyClaude (see PROVENANCE.md): it holds PowerShell commands too, and it
+// Changed for Mellu.mate (see PROVENANCE.md): it holds PowerShell commands too, and it
 // measures with `$.fs` instead of bash and waits with Node instead of `sleep`. On
 // Windows there is no `sleep`, and `bash` there can be WSL's, which sees other paths,
 // so the original refused every risky command with an error.
@@ -138,7 +138,7 @@ export function register(on) {
   });
 }
 
-// Waits POLL_MS inside a `$` call. Node, not `sleep`: Windows has none, and easyClaude
+// Waits POLL_MS inside a `$` call. Node, not `sleep`: Windows has none, and Mellu.mate
 // needs Node anyway.
 async function pause($) {
   await $.process.run(["node", "-e", `setTimeout(() => {}, ${POLL_MS})`], { timeoutMs: 5000 });

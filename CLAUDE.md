@@ -1,4 +1,4 @@
-# easyClaude (plugin source)
+# Mellu.mate (plugin source)
 
 Contributor rules live in CONTRIBUTING.md. Two of them apply to every commit and release:
 

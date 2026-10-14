@@ -9,7 +9,7 @@ Arguments: `$ARGUMENTS`
 
 Set `outputStyle` in `.claude/settings.local.json`, and keep every other key in that file:
 
-- no argument, or `on`: `"outputStyle": "easyclaude:plain"`
+- no argument, or `on`: `"outputStyle": "mellu:plain"`
 - `off`: remove the `outputStyle` key. If that leaves the file as `{}`, delete the file.
 
 Create the file if it does not exist. It is this person's own choice, so make sure

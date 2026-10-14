@@ -12,7 +12,7 @@
 //
 // Claude Code takes one hook per event from a plugin, so session.start, prompt.submit and
 // turn.complete are hooked in panels.tsx, and turn.step in savvy-progress/, which call the
-// functions below. This file hooks only the events nothing else in easyClaude does.
+// functions below. This file hooks only the events nothing else in Mellu.mate does.
 import type { Register } from 'claude-code'
 
 // History, in tokens, beyond what a fresh conversation carries. Same figure as
@@ -30,11 +30,11 @@ export function holdText(history: number, plan: string | null, message: string):
   const thai = THAI.test(message)
   const k = `${Math.round(history / 1000)}k`
   if (thai) {
-    return `easyClaude: บทสนทนานี้ยาวแล้ว มีประวัติประมาณ ${k} โทเคน และทุกขั้นตอนจะอ่านประวัติทั้งหมดซ้ำ ` +
+    return `Mellu.mate: บทสนทนานี้ยาวแล้ว มีประวัติประมาณ ${k} โทเคน และทุกขั้นตอนจะอ่านประวัติทั้งหมดซ้ำ ` +
       `ถ้านี่เป็นงานใหม่ ให้พิมพ์ /clear ก่อน${plan ? ` แผนของคุณยังอยู่ใน ${plan}` : ''} และทุกขั้นตอนจะถูกลง ` +
       'ถ้าจะทำต่อในบทสนทนานี้ ให้ส่งข้อความเดิมอีกครั้ง'
   }
-  return `easyClaude: this conversation holds about ${k} tokens of history, and every step re-reads all of it. ` +
+  return `Mellu.mate: this conversation holds about ${k} tokens of history, and every step re-reads all of it. ` +
     `If this is a new task, type /clear first${plan ? `: your plan stays in ${plan}` : ''}, and every step costs less. ` +
     'To go on here, send your message again.'
 }

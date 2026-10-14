@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: Set up a project for easyClaude with a short interview, then write its state file, checks and rules. Use when the session opener says to, or when the user asks to set up easyClaude or start a new project.
+description: Set up a project for Mellu.mate with a short interview, then write its state file, checks and rules. Use when the session opener says to, or when the user asks to set up Mellu.mate or start a new project.
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
@@ -30,7 +30,7 @@ what this computer is missing. If it sent none, the opener never ran, which almo
 Node.js is not installed. Then run `node --version` and `git --version`. For each that fails, tell
 the user in plain words what they lose and the fix, in their language:
 
-- Node.js runs easyClaude's memory between sessions and its checks after each change. Without it,
+- Node.js runs Mellu.mate's memory between sessions and its checks after each change. Without it,
   neither happens. The fix: install the LTS version from https://nodejs.org, then reopen Claude.
 - Git keeps the saved versions that "go back to yesterday" needs. The fix: https://git-scm.com.
 
@@ -51,7 +51,7 @@ Do not ask about architecture, testing philosophy, or deployment. Decide those a
 
 **The first form also asks about plain answers:** should your answers be short and in plain
 words, without file names or code terms? Options "Yes" (recommended) and "No", with "Yes"
-first. They can switch it later with `/easyclaude:plain`. Plain answers are on unless they pick
+first. They can switch it later with `/mellu:plain`. Plain answers are on unless they pick
 "No": most people here do not read code. Write the setting as soon as they answer, as step 6
 says, so the rest of setup is already in plain words. It works from the next message. A
 user who tested 1.1.2 went through all of setup in technical words: the offer was one easy
@@ -74,7 +74,7 @@ that Claude Code will then ask a few times to save settings files, which hold th
 rules, the safety blocks and the list of checks, and that yes is safe.
 
 You never decide that the questions are over. The user does, with that first option. Until
-then easyClaude holds every change outside `docs/` and `.claude/`, and every command that
+then Mellu.mate holds every change outside `docs/` and `.claude/`, and every command that
 creates or installs a project. When they pick "not yet" or write their own answer, take what
 they said, and show a new form with what is still open and the ready question again. A user in
 testing answered for three rounds and more, still thought the plan was unclear, and Claude
@@ -116,8 +116,8 @@ Every project needs one command per check that exits non-zero on failure. Write 
 Rules:
 - **Run every step once before writing the file.** A verify contract that has never passed is worse than none — it teaches the gate to be ignored.
 - **Time each step while you run it, and set `"tier": "full"` on anything slower than about 30 seconds.** Untagged steps are `fast` and run at the end of every turn; `full` steps run when a task is finished and when shipping. You have just measured these commands, so tier them on what you observed rather than on what you assume — a two-second typecheck belongs in the per-turn gate and a four-minute browser suite does not. If everything is quick, tag nothing; a single-tier contract is the stricter arrangement and there is no reason to give that up.
-- **A Vitest or Jest test step gets a `"related"` command**, which runs after each change in place of `"cmd"`, on only the tests that use the changed files. The whole `"cmd"` still runs when a task is finished and at ship, and after any change easyClaude cannot narrow safely, such as a config file or `package.json`. Vitest: `"related": "npx vitest related --run --passWithNoTests {files}"`. Jest: `"related": "npx jest --findRelatedTests --passWithNoTests {files}"`. pytest cannot find related tests itself, so easyClaude follows the imports and puts the test files in `{tests}`: `"related": "python -m pytest -q {tests}"`, with the interpreter the project already uses. With it, the test step stays `fast` however many tests the project grows; tier `full` only what cannot be narrowed: a build, a browser test. On a 200-feature sample, the wait after a one-file change fell from 49 seconds to 8 with Vitest, and from 45 to under 2 with pytest. Run the related command once on one source file before writing it, as for every step; for pytest, run it on one test file.
-- **Approve the contract once it is written.** Tell the user in one line which commands will run after each change, then run `node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs --trust`. easyClaude runs no command from this file until it is approved on this computer, because a repository can ship one. They said yes to setup and you chose these commands, so approve the ones you wrote; a contract that came with the code waits for the user's own yes.
+- **A Vitest or Jest test step gets a `"related"` command**, which runs after each change in place of `"cmd"`, on only the tests that use the changed files. The whole `"cmd"` still runs when a task is finished and at ship, and after any change Mellu.mate cannot narrow safely, such as a config file or `package.json`. Vitest: `"related": "npx vitest related --run --passWithNoTests {files}"`. Jest: `"related": "npx jest --findRelatedTests --passWithNoTests {files}"`. pytest cannot find related tests itself, so Mellu.mate follows the imports and puts the test files in `{tests}`: `"related": "python -m pytest -q {tests}"`, with the interpreter the project already uses. With it, the test step stays `fast` however many tests the project grows; tier `full` only what cannot be narrowed: a build, a browser test. On a 200-feature sample, the wait after a one-file change fell from 49 seconds to 8 with Vitest, and from 45 to under 2 with pytest. Run the related command once on one source file before writing it, as for every step; for pytest, run it on one test file.
+- **Approve the contract once it is written.** Tell the user in one line which commands will run after each change, then run `node ${CLAUDE_PLUGIN_ROOT}/scripts/verify.mjs --trust`. Mellu.mate runs no command from this file until it is approved on this computer, because a repository can ship one. They said yes to setup and you chose these commands, so approve the ones you wrote; a contract that came with the code waits for the user's own yes.
 - If a step can't run because the toolchain is missing, say so plainly, tell the user exactly what to install, and omit that step. Do not invent a step you couldn't execute.
 - **Be honest about weak verification.** GUI-centric stacks (Unity, Unreal, Android Studio, iOS) often can't be verified headlessly. If so, write what you can (a compile step at minimum), and tell the user in one line: *"On this stack I can verify it compiles, but not that it works — you'll need to run it yourself."* Never imply a guarantee you can't deliver.
 
@@ -129,7 +129,7 @@ same commands twice, and slow gates are the ones people delete.
 
 Say in one line what the gate now covers, and be exact about it. A contract that is only a
 typecheck catches type errors and nothing else; it does not prove the thing works. That gap is
-the honest argument for `/easyclaude:write-tests`, which widens the contract — not a promise the
+the honest argument for `/mellu:write-tests`, which widens the contract — not a promise the
 gate already keeps. Mention it once and don't push it.
 
 Add the guardrails from `${CLAUDE_PLUGIN_ROOT}/rules/permissions.json` into `permissions.deny`.
@@ -159,7 +159,7 @@ Copy `${CLAUDE_PLUGIN_ROOT}/rules/*.md` into `.claude/rules/`, then create:
 - `docs/DECISIONS.md` — seed with the choices you made for them, each with a one-line reason.
 - `docs/STATE.md` — from the template below.
 - `design/tokens.md` — colors, type scale, spacing, radii. Only if the project has a UI.
-- `.claude/settings.local.json` with `{ "outputStyle": "easyclaude:plain" }` — unless they said
+- `.claude/settings.local.json` with `{ "outputStyle": "mellu:plain" }` — unless they said
   no to plain answers, and right after the first form rather than here. Keep any other key the
   file has. Add `.claude/settings.local.json` to `.gitignore`: it is one person's choice.
 
@@ -200,9 +200,9 @@ Keep those three comments. The first is what keeps the opener readable to the pe
 
 Three lines: what you set up, what the verify command is, and the single next action. Then stop — do not start building unless asked.
 
-If the project obviously wants a browser or live library docs, mention in **one line** that `/easyclaude:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.
+If the project obviously wants a browser or live library docs, mention in **one line** that `/mellu:connect` wires those up from an API-key form — then drop it. It is an advanced option, not part of setup, and a project works fine with none.
 
-easyClaude ships no design skill, no game skill, and no deep security or testing skill,
+Mellu.mate ships no design skill, no game skill, and no deep security or testing skill,
 because bundling one picks it for every project that installs it. You know what this project
 is now, so pick for the user instead of sending them to a list. Read
 `reference/skills-catalogue.md` under `${CLAUDE_PLUGIN_ROOT}`, and choose **at most two** entries

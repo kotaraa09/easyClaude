@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Installs easyClaude the two ways users get it, and fails when Claude Code will not load it:
+// Installs Mellu.mate the two ways users get it, and fails when Claude Code will not load it:
 //
 //   1. a fresh install of this working tree
-//   2. the last released version, then `claude plugin update` to this working tree
+//   2. the last released version, then `claude plugin update` to this working tree. When the
+//      plugin or its marketplace was renamed since that release, an update cannot reach it, so
+//      this does what a user must do instead: install the new name beside the old one, remove
+//      the old one, and check the new one loads.
 //
 //   node update-check.mjs              warns and passes when `claude` is not installed
 //   node update-check.mjs --require    fails instead - what CI runs
@@ -24,9 +27,13 @@ import { fileURLToPath } from 'node:url';
 
 const REQUIRE = process.argv.includes('--require');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const manifest = (dir) => JSON.parse(readFileSync(join(dir, '.claude-plugin', 'plugin.json'), 'utf8'));
-const { name, version } = manifest(root);
-const id = `${name}@${name}`;
+const readJson = (dir, file) => JSON.parse(readFileSync(join(dir, '.claude-plugin', file), 'utf8'));
+// The install id is <plugin>@<marketplace>. The two names differ since the rename to Mellu.mate:
+// mellu@mellu-mate.
+const pluginId = (dir) => `${readJson(dir, 'plugin.json').name}@${readJson(dir, 'marketplace.json').name}`;
+const { version } = readJson(root, 'plugin.json');
+const id = pluginId(root);
+const marketName = readJson(root, 'marketplace.json').name;
 
 const git = (...args) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 // shell on Windows, where npm puts `claude` on PATH as a .cmd shim. Every argument is a plain
@@ -59,12 +66,12 @@ const failures = [];
 
 // The marketplace is a plain folder, so `marketplace update` re-reads it after it is refilled.
 const market = join(work, 'market');
-const fill = (from, files) => {
-  rmSync(market, { recursive: true, force: true });
+const fill = (from, files, to = market) => {
+  rmSync(to, { recursive: true, force: true });
   for (const f of files) {
     if (!existsSync(join(from, f))) continue; // deleted in the working tree, not yet committed
-    mkdirSync(dirname(join(market, f)), { recursive: true });
-    cpSync(join(from, f), join(market, f));
+    mkdirSync(dirname(join(to, f)), { recursive: true });
+    cpSync(join(from, f), join(to, f));
   }
 };
 const lines = (s) => s.split(/\r?\n/).filter(Boolean);
@@ -111,10 +118,20 @@ if (!previous) {
   } else {
     try {
       fill(old, lines(git('ls-tree', '-r', '--name-only', previous).stdout));
-      if (step(cfg, label, 'plugin', 'marketplace', 'add', market) && step(cfg, label, 'plugin', 'install', id)) {
-        fill(root, current);
-        if (step(cfg, label, 'plugin', 'marketplace', 'update', name) && step(cfg, label, 'plugin', 'update', id)) {
-          loads(cfg, label);
+      const oldId = pluginId(old);
+      if (step(cfg, label, 'plugin', 'marketplace', 'add', market) && step(cfg, label, 'plugin', 'install', oldId)) {
+        if (oldId === id) {
+          fill(root, current);
+          if (step(cfg, label, 'plugin', 'marketplace', 'update', marketName) && step(cfg, label, 'plugin', 'update', id)) {
+            loads(cfg, label);
+          }
+        } else {
+          const renamed = join(work, 'market-renamed');
+          fill(root, current, renamed);
+          if (step(cfg, label, 'plugin', 'marketplace', 'add', renamed) && step(cfg, label, 'plugin', 'install', id) &&
+              step(cfg, label, 'plugin', 'uninstall', oldId)) {
+            loads(cfg, `${label}, renamed from ${oldId}`);
+          }
         }
       }
     } finally {

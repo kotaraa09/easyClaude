@@ -4,7 +4,7 @@
      copied to .claude/rules/ and loaded on EVERY turn of EVERY session. This contract
      applies to a minority of turns in a minority of projects, so 191 tokens per turn
      bought nothing on the rest - a file about saving tokens, spending them constantly.
-     /easyclaude:cheap-session copies it to .claude/cheap-contract.md when a user opts
+     /mellu:cheap-session copies it to .claude/cheap-contract.md when a user opts
      in, and the SessionStart hook reads it from there. It costs nothing until armed. -->
 
 The user is low on credits. Optimise for fewest turns, not shortest prose.
@@ -18,4 +18,4 @@ The user is low on credits. Optimise for fewest turns, not shortest prose.
 - **Except** on auth, payments, or migrations — those need full care, not a cheap pass. Say so instead.
 - Name what you skipped in one closing line.
 
-Clear this mode with `/easyclaude:full`. When this conversation grows long, the prompt hook asks for `/clear` or `/compact` before the next request.
+Clear this mode with `/mellu:full`. When this conversation grows long, the prompt hook asks for `/clear` or `/compact` before the next request.

@@ -1,21 +1,21 @@
 # Roadmap
 
-What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
+What comes next for Mellu.mate, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
 nothing to learn first. Last reviewed on 2026-10-14, at 1.3.0.
 
 **What a prompt is worth, measured 2026-10-11.** The four outcome tasks were each asked four
 ways: two beginner wordings, and two expert wordings that add only general good practice.
-Without easyClaude, the expert wordings passed 40 of 40 and the beginner wordings 31 of 40.
-With easyClaude, the beginners passed 40 of 40 and the experts 39 of 40. The whole gap came
+Without Mellu.mate, the expert wordings passed 40 of 40 and the beginner wordings 31 of 40.
+With Mellu.mate, the beginners passed 40 of 40 and the experts 39 of 40. The whole gap came
 from one task, `fix-checkout`: the experts asked for a regression test, and the beginners
 got one only from the `debug` skill. The other three tasks passed every time at every
 wording, so they cannot show a gap. Items 1, 2 and 9 aim at the tasks that can. Item 2's
 task, on 2026-10-14, also passed every time in both arms; item 9's `sold-out` showed a
-prompt gap (beginners 7 of 12, experts 12 of 12), and no clear share for easyClaude.
+prompt gap (beginners 7 of 12, experts 12 of 12), and no clear share for Mellu.mate.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
-that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
+that answer: beginner tasks, hidden tests, with and without Mellu.mate. An item that
 cannot be measured there says what stands in for it. Twice so far, an instruction inside
 a skill or a rule file did not change what Claude did, and a line sent with the message
 did. So every behaviour item below is checked in the benchmark, not by reading
@@ -27,7 +27,7 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 
 Each item here is a few days at most, and costs a few dollars of runs or none.
 
-### Test speed of easyClaude itself
+### Test speed of Mellu.mate itself
 
 Since #108 each test area runs in its own process: the full run fell from 306 to about 120
 seconds, and warns over 5 minutes. By 2026-10-14 it took 415 seconds on the Windows laptop.
@@ -40,7 +40,7 @@ and remove tests that check the same thing twice (half a day each review).
 
 Each item here needs a larger sample project, which takes 2-3 days to build, or more than
 about $8 of runs. Three tasks on the four-file plant shop (items 2 and 7, and the prompt
-measurement) passed every time without easyClaude: one search shows the whole project. So
+measurement) passed every time without Mellu.mate: one search shows the whole project. So
 items 2, 6, 8 and 10 can share one larger sample, built once.
 
 - **A larger sample project.** Many features in many files, so one search does not show
@@ -61,14 +61,14 @@ line, because a rule inside a skill did not change behaviour in earlier tests.
 with it than without, and the added cost per task is stated. If it does not, it is not
 shipped. **Effort:** 2 days, including the measurement.
 
-**Waits for a task that shows a gap.** Item 2's task passed 3/3 without easyClaude, because
+**Waits for a task that shows a gap.** Item 2's task passed 3/3 without Mellu.mate, because
 plain Claude already looked at what the shared code touched. Item 8 cannot pass more often
 than that. It waits for a version of item 2's task in a larger project.
 
 ### 6. Trigger cases that show a difference
 
 **Why.** On `plan-feature`, `ship`, `debug` and the typo fix, plain Claude passes the same
-grader as easyClaude. Those cases prove the skill fires, not that it helps. And four skills
+grader as Mellu.mate. Those cases prove the skill fires, not that it helps. And four skills
 that fire on their own have no sentence that should not reach them.
 
 **What.** Sharper outcome criteria for those four cases. A should-not-fire case each for
@@ -93,14 +93,14 @@ with them on. **Effort:** 3-5 days.
 **Can start.** Claude Code's sandbox is not available on native Windows. Item 1 gave the
 test machine Ubuntu under WSL2, where the setup check and the benchmark run can both be tested.
 
-- **Prompt wordings in Thai.** Most easyClaude users write in Thai. A beginner and a terse
+- **Prompt wordings in Thai.** Most Mellu.mate users write in Thai. A beginner and a terse
   beginner wording in Thai for the four outcome tasks, both arms. About $8 of runs.
 - **Expert wordings written by people.** Claude wrote the expert prompts of the 2026-10-11
   measurement. One or two people who write prompts for a living would make the expert side
   a real one.
 - **More runs only where it is close.** Five runs per wording is enough at 100% against
   78%. Ten only for a task whose two sides fall within each other's range. First: `sold-out`
-  (item 9), two more runs a wording, about $5, to see whether easyClaude helps a beginner there.
+  (item 9), two more runs a wording, about $5, to see whether Mellu.mate helps a beginner there.
 - **Larger samples.** Three runs per task moves by one or two between days. Five runs on
   the tasks that differ between arms, once the figures are used to decide something.
 - **Claude Code's own memory.** Eval runs start without it. A run with it on would show
@@ -120,7 +120,7 @@ test machine Ubuntu under WSL2, where the setup check and the benchmark run can 
   only browses, so 0.2.6 installs by pasting a prompt. Nobody has tried that prompt on a
   computer with nothing installed. `template/` should offer the install when the folder is
   trusted; in the desktop app that offer did not appear.
-- **The skills offer, end to end.** At the end of setup, easyClaude offers at most two skills.
+- **The skills offer, end to end.** At the end of setup, Mellu.mate offers at most two skills.
   In the eval, Claude Code refused every write into `.claude/`, so no run installed one.
   A run that allows it would show the install works, and the cost it quotes is right.
 - **Planning that waits for a yes, measured.** `plan-feature` stops and asks before it
@@ -137,11 +137,11 @@ test machine Ubuntu under WSL2, where the setup check and the benchmark run can 
 ### 1. A test machine that can run commands - done
 
 **Why.** On native Windows the eval runner grants no shell, because it has no sandbox
-there. Neither arm can run a command, but easyClaude's verify gate still runs the tests,
-because it is a hook. Every figure in `evals/README.md` leans toward easyClaude for that
+there. Neither arm can run a command, but Mellu.mate's verify gate still runs the tests,
+because it is a hook. Every figure in `evals/README.md` leans toward Mellu.mate for that
 reason, and the tasks in items 2 and 3 cannot be tested fairly at all.
 
-**What.** Run the benchmark under WSL2 or Linux with `--shell`, and re-run the no-easyClaude
+**What.** Run the benchmark under WSL2 or Linux with `--shell`, and re-run the no-Mellu.mate
 arm with `--fresh-baseline`. Say in `evals/README.md` which figures are the fair ones.
 Optional later: a manually triggered GitHub Actions job, which needs an API key secret
 and bills real money rather than plan usage.
@@ -155,7 +155,7 @@ a day, plus about $5 of runs.
 It also gives the prompt measurement its fair figure: with a shell, plain Claude can run
 the tests an expert's request asks it to run.
 
-**Done, 2026-10-14.** The full `--shell` run is in `evals/README.md`: 19/21 with easyClaude,
+**Done, 2026-10-14.** The full `--shell` run is in `evals/README.md`: 19/21 with Mellu.mate,
 15/21 without, against 20/21 and 14/21 without a shell. The gap is in `fix-checkout` and
 `two-sessions`. The run found and fixed three faults in the benchmark on Linux. It cost
 about $14.50 in all, most of it on finding those faults.
@@ -173,7 +173,7 @@ An expert asks "keep everything else working"; a beginner does not. **Effort:** 
 
 **Done, 2026-10-14: no gap.** `outcome-cart-badge`: the cart badge and the receipt share one
 price format, and the request asks for whole dollars on the badge only. Under WSL2 with a
-shell, three runs each: 3/3 with easyClaude and 3/3 without, at the beginner and the
+shell, three runs each: 3/3 with Mellu.mate and 3/3 without, at the beginner and the
 `expert-checklist` wording. No run broke the receipt. Plain Claude ran the tests
 itself, and at the expert wording it also listed what else used the format before it edited.
 In a project of four source files, one search shows everything a change touches, so the trap
@@ -195,12 +195,12 @@ reply asked before overwriting.
 **Done, 2026-10-14.** Two tasks, three runs each arm, under WSL2 with a shell. `rescue-asks`,
 the first turn: 3/3 in both arms; everyone asked first. `rescue-restore` starts from a saved
 first turn (`context.history_file`, now accepted by `validate.mjs`) and sends the yes: 3/3
-with easyClaude, 2/3 without. The miss threw today's unsaved edits away for good and said
+with Mellu.mate, 2/3 without. The miss threw today's unsaved edits away for good and said
 git could bring them back. Spent: $1.45.
 
 ### 9. Benchmark: a request that hides a requirement
 
-**Why.** A short request leaves things out, and a beginner leaves out the most. easyClaude
+**Why.** A short request leaves things out, and a beginner leaves out the most. Mellu.mate
 asks when a request can mean two things, but no outcome task needs a question to pass. On
 the four tasks of the prompt measurement, a beginner's wording already passed at 100%.
 
@@ -211,15 +211,15 @@ must be able to pass: a second turn from a saved conversation (`context.history_
 answers it.
 
 **Done when.** The task runs at all four wordings, both arms, 5 runs each, and the gap
-between beginner and expert is stated with and without easyClaude. **Effort:** 1-2 days,
+between beginner and expert is stated with and without Mellu.mate. **Effort:** 1-2 days,
 plus about $10 of runs.
 
-**Done at three runs, 2026-10-14: the wording matters, easyClaude's share is unclear.**
+**Done at three runs, 2026-10-14: the wording matters, Mellu.mate's share is unclear.**
 `sold-out`, three runs each arm, at all four wordings. A run passes if the cart or the
 checkout refuses a sold-out plant, or if it asks about buying one before it builds; a fixed
 second turn could not answer whatever was asked, so the question counts instead.
 
-| wording | with easyClaude | without |
+| wording | with Mellu.mate | without |
 |---|---|---|
 | `beginner` | 2/3 | 0/3 |
 | `beginner-terse` | 2/3 | 3/3 |
@@ -227,7 +227,7 @@ second turn could not answer whatever was asked, so the question counts instead.
 | `expert-spec` | 3/3 | 3/3 |
 
 Beginners passed 7 of 12 and experts 12 of 12, so the hidden requirement is a real prompt
-gap. With easyClaude the beginner side passed 4 of 6, against 3 of 6 without: one run, which
+gap. With Mellu.mate the beginner side passed 4 of 6, against 3 of 6 without: one run, which
 three runs a wording cannot tell from chance. A miss in either arm was a "sold out" label on
 the page that a shopper could still buy past. Spent: $7.30. Two more runs a wording, about $5,
 is under "Waits for budget".
@@ -240,7 +240,7 @@ passes with it. No task yet shows that it catches a bug a beginner would see.
 
 **What.** A task with a visible bug, such as a button with no handler, where the hidden
 tests pass before and after. Graded on the button working. The eval has no browser, so
-with easyClaude the expected reply says how to see it; with a browser tool, a later run
+with Mellu.mate the expected reply says how to see it; with a browser tool, a later run
 shows whether Claude looks.
 
 **Done when.** The task runs in both arms. **Effort:** 1-2 days.
@@ -248,12 +248,12 @@ shows whether Claude looks.
 **Done, 2026-10-14: no gap in the fix.** `outcome-dead-button`: the page code looks for a
 button id the page does not have, and every project test passes. The hidden test builds a
 stand-in page from the real `index.html` and clicks Pay. Under WSL2 with a shell, three runs
-each: 3/3 with easyClaude, 3/3 without. The difference was in the reply: with easyClaude all
+each: 3/3 with Mellu.mate, 3/3 without. The difference was in the reply: with Mellu.mate all
 three told the user how to open the page and what to click; without, none did. Spent: $0.89.
 
 ### 10. Checks that stay fast as a project grows
 
-**Why.** easyClaude runs the project's checks after each change. In a small project that
+**Why.** Mellu.mate runs the project's checks after each change. In a small project that
 takes seconds. A project with a test for every feature, a build and a browser test can take
 minutes, and then every change waits for it. The gate already has two tiers (fast after
 each change, full at the end of a task and at ship), runs only the checks of the app a
@@ -298,9 +298,9 @@ behaviour where a rule in a skill did not. A feature request: say what else in t
 must change, and build those too, or ask. A bug report: run the new test once before the fix
 and see it fail.
 
-**Done, 2026-10-14.** `sold-out` with easyClaude: 3/3 at both beginner wordings (was 2/3 and
+**Done, 2026-10-14.** `sold-out` with Mellu.mate: 3/3 at both beginner wordings (was 2/3 and
 2/3), about $0.08 more a run. `fix-checkout`: 3/3, and every run ran the tests before the
-fix; without easyClaude, 0/3 did. Spent: $5.36. Not adopted from them: a review by helper
+fix; without Mellu.mate, 0/3 did. Spent: $5.36. Not adopted from them: a review by helper
 agents after each task (item 7 found no task it helped), explorer agents on every feature, and
 a fresh helper per task, all of which cost far more per task.
 
@@ -308,7 +308,7 @@ a fresh helper per task, all of which cost far more per task.
 differ in what the user gets, each in plain words with its time and what it makes harder
 later (Feature Dev's design step, cut to two). The new case `plan-offers-two-ways` passed 3/3
 in both arms, so plain Claude already does it; the line stays as a guard at about 100 tokens a
-plan. `/easyclaude:what-went-wrong` reads a past session from its saved record and says where
+plan. `/mellu:what-went-wrong` reads a past session from its saved record and says where
 it went off track, with the step and a quote (Superpowers' diagnosing skill). A helper,
 `scripts/session-timeline.mjs`, cuts a record to numbered steps: a 5 MB session came to 60 KB.
 It loads only when typed, so it adds nothing to a normal turn. Spent: $0.87.
@@ -321,7 +321,7 @@ It loads only when typed, so it adds nothing to a normal turn. Spent: $0.87.
 weeks later, gets no second reader at all. ECC (everything-claude-code) reviews every
 change; that is the expense this plugin exists to avoid, so this reviews once a task.
 
-**What.** When `build-task` finishes a task, the `easyclaude-diff-reviewer` reads that
+**What.** When `build-task` finishes a task, the `mellu-diff-reviewer` reads that
 task's diff once, on a small model, with the same four questions it asks at `ship`.
 Findings it is sure of are fixed before the task is called done; the rest go under
 `## Debt`. No review per edit, and none for a change to notes or the plan.
@@ -368,20 +368,20 @@ the code hides, before a second attempt. Spent: $2.55.
   across compaction, cost notices before a resume or a model switch.
 - **0.1.10** - The outcome benchmark. English replies stay English; a bug fix gets a test.
 - **0.1.11** - Work left for later survives to the next session, and "finish the rest"
-  finishes it. Two-session task: 3/3 with easyClaude, 0/3 without.
+  finishes it. Two-session task: 3/3 with Mellu.mate, 0/3 without.
 - **0.2.0** - Two tasks in Thai. They found English notes between steps for a
-  Thai user in the bug-fix task, now fixed: 3/3 with easyClaude, 1/3 without.
+  Thai user in the bug-fix task, now fixed: 3/3 with Mellu.mate, 1/3 without.
 - **0.2.1** - Plain answers: an output style kickoff offers, and
-  `/easyclaude:plain` turns on. Every task still works; code terms in replies fell from 42.6
+  `/mellu:plain` turns on. Every task still works; code terms in replies fell from 42.6
   to 5.6, and replies are 11% shorter.
-- **0.2.2** - Start from nothing installed. Before setup, easyClaude says in plain words
+- **0.2.2** - Start from nothing installed. Before setup, Mellu.mate says in plain words
   that git, or a git name and email, is missing, and how to fix it; kickoff checks for
   Node.js when the opener never ran, and starts a git history. The README lists what to
   install and has a desktop-app path. Tests with git off the PATH stand in for the
   benchmark, which always starts on a complete machine.
 - **0.2.3** - "How do I ship this?" gets an answer, not a release. A new case found `ship`
   firing on the question 3/3, stopped only by the missing shell; now 0/3, and "ship it"
-  still 3/3. A case for setup in an empty folder: 3/3 with easyClaude, 0/3 without. The
+  still 3/3. A case for setup in an empty folder: 3/3 with Mellu.mate, 0/3 without. The
   per-turn cost is re-measured: ~1,575 tokens.
 - **0.2.4** - A web page that changed must be looked at. When the checks pass and a turn
   changed a page nobody looked at, the gate holds it once: look with a browser tool, or tell
@@ -391,19 +391,19 @@ the code hides, before a second attempt. Spent: $2.55.
 - **0.2.5** - Fixes from the first real use, in the desktop app: plans ask more when the request
   is short, name a free library before hand-building a calendar or a map, the `/clear` advice
   comes back after each `/clear`, and the skill catalogue covers games. The calendar case:
-  3/3 with easyClaude, 2/3 without.
-- **0.2.7** - Every message easyClaude sends Claude goes through one language step. The
+  3/3 with Mellu.mate, 2/3 without.
+- **0.2.7** - Every message Mellu.mate sends Claude goes through one language step. The
   0.2.6 benchmark, both arms fresh, found the Thai tasks at 2/6, after the page check's English
-  hold; now 6/6. All tasks: 20/21 with easyClaude, 14/21 without.
+  hold; now 6/6. All tasks: 20/21 with Mellu.mate, 14/21 without.
 - **0.2.6** - Skills that fit the project, offered at the end of setup with a cost in tokens,
-  and `/easyclaude:skills` works out the project with no category. A shorter README, in both
-  languages, that installs by pasting a prompt and compares plain Claude Code with easyClaude
+  and `/mellu:skills` works out the project with no category. A shorter README, in both
+  languages, that installs by pasting a prompt and compares plain Claude Code with Mellu.mate
   on the same requests, ties included.
 - **1.0.0** - The first stable release, after a review for bugs and security holes. A
   project's checks run only after the user approves the commands on their computer, and a
   repository's own autoship or cheap-mode file arms nothing. Claude asks when a request can
   mean two things: on "sort the plants" it asked first in 9 of 9 runs, over two wordings of
-  the rule, against 4 of 6 without easyClaude; the final wording also named its pick, 3/3.
+  the rule, against 4 of 6 without Mellu.mate; the final wording also named its pick, 3/3.
   The message hook stops reading helper reports as the user, the page check's last reply
   says what changed (typo case 0/3 to 3/3), and the unsupported Postgres connector is gone.
   Measured cost: ~1,710 tokens per turn in a set-up project.
@@ -433,12 +433,12 @@ the code hides, before a second attempt. Spent: $2.55.
 - **1.2.0** - The progress panel becomes a bar above the prompt (Savvy Progress, adapted),
   with a panel of the helpers Claude starts. A file tree beside the conversation, and Blast
   Radius, which holds a risky delete with Proceed and Cancel and works on Windows and in
-  PowerShell; both are plugins of their own that install with easyClaude. The /clear
+  PowerShell; both are plugins of their own that install with Mellu.mate. The /clear
   reminder holds the first message of a long stretch with a note, as Cache Tax does,
   instead of asking Claude to say it. Every control panel button says what it does. #92.
-- **1.2.1** - easyClaude loads after an update from 1.1.x. 1.2.0 listed the file tree and
+- **1.2.1** - Mellu.mate loads after an update from 1.1.x. 1.2.0 listed the file tree and
   Blast Radius as dependencies, an update did not install them, and Claude Code then loaded
-  none of easyClaude. They are companions now: the first session says once which one is
+  none of Mellu.mate. They are companions now: the first session says once which one is
   missing, with its install command, and the README installs all three. A release check in
   CI installs fresh and updates the last release, and fails when either does not load. #94.
 - **1.2.2** - The helpers panel becomes the progress panel, in Savvy's style: the request's

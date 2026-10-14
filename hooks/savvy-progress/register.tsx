@@ -1,4 +1,4 @@
-// Savvy Progress, adapted for easyClaude: a progress bar above the prompt for the request in
+// Savvy Progress, adapted for Mellu.mate: a progress bar above the prompt for the request in
 // progress, and a panel of the helpers (subagents) Claude starts.
 //
 // Vendored from johnnyvizz/claude-kit (MIT); see PROVENANCE.md beside this file for the
@@ -12,20 +12,20 @@ import type { AgentRun, Panel, Request, Step } from '../../types'
 import { clearOnStep } from '../clear-reminder'
 
 // Written by hooks/panels.tsx; read here.
-const request = atom({ plugin: 'easyclaude', key: 'request' } as const, null)
-const usage = atom({ plugin: 'easyclaude', key: 'usage' } as const, {
+const request = atom({ plugin: 'mellu', key: 'request' } as const, null)
+const usage = atom({ plugin: 'mellu', key: 'usage' } as const, {
   costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null,
 })
-const agents = atom({ plugin: 'easyclaude', key: 'agents' } as const, [])
-const panel = atom({ plugin: 'easyclaude', key: 'agentsPanel' } as const, {
+const agents = atom({ plugin: 'mellu', key: 'agents' } as const, [])
+const panel = atom({ plugin: 'mellu', key: 'agentsPanel' } as const, {
   isCompact: false,
   isDoneCollapsed: false,
   isAutoOpened: false,
   dismissedAt: 0,
 })
-const now = atom({ plugin: 'easyclaude', key: 'agentsNow' } as const, 0)
+const now = atom({ plugin: 'mellu', key: 'agentsNow' } as const, 0)
 
-const PANE = 'easyclaude-helpers'
+const PANE = 'mellu-helpers'
 const ACCENT = '#8f8cf4'
 const DONE = '#5fbf8f'
 
@@ -44,7 +44,7 @@ export type Flow = {
 }
 
 const s = {
-  pane: 'easyClaude: progress',
+  pane: 'Mellu.mate: progress',
   cost: 'Cost',
   tokens: 'Tokens',
   time: 'Time',
@@ -644,7 +644,7 @@ async function togglePane($: EngineInterface): Promise<boolean> {
   return true
 }
 
-// The session's first helper opens the pane once; after that only /easyclaude-helpers does.
+// The session's first helper opens the pane once; after that only /mellu-helpers does.
 async function autoOpen($: EngineInterface): Promise<void> {
   const p = await read($, panel)
   if (p.isAutoOpened) return
@@ -657,7 +657,7 @@ async function autoOpen($: EngineInterface): Promise<void> {
 // --- used by panels.tsx, which owns session.start and turn.complete ----------------------
 // Claude Code takes one hook per event from a plugin, and follows `$` only within one file,
 // so panels.tsx makes the calls and these give it the values.
-// /easyclaude-helpers, registered in panels.tsx and answered here.
+// /mellu-helpers, registered in panels.tsx and answered here.
 export const HELPERS_DESCRIPTION =
   'Show or hide the progress panel: the steps of your request, what Claude did, and the helpers it started'
 
@@ -690,7 +690,7 @@ export const helperEnded = (
   })
 
 export const register: Register = on => {
-  on('command.run', { command: 'easyclaude-helpers' }, async $ => {
+  on('command.run', { command: 'mellu-helpers' }, async $ => {
     const isOpen = await togglePane($)
     return { text: isOpen ? tr().opened : tr().closed }
   })
@@ -963,12 +963,12 @@ export const register: Register = on => {
     // Opens the progress pane: the steps and actions behind the bar, and the helpers. Always
     // there, so what a request did is one click away; it counts the helpers once there are some.
     const crewButton = (
-      <Button key="easyclaude-helpers" label={list.length > 0 ? `${s.details} ×${list.length}` : s.details} plain onPress={() => void togglePane($)} />
+      <Button key="mellu-helpers" label={list.length > 0 ? `${s.details} ×${list.length}` : s.details} plain onPress={() => void togglePane($)} />
     )
     const figure = side(f)
     const dismiss = (
       <Button
-        key="easyclaude-dismiss"
+        key="mellu-dismiss"
         label="✕"
         plain
         role="dismiss"

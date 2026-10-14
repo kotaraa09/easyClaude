@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A past session, cut down to the steps that matter, for /easyclaude:what-went-wrong.
+// A past session, cut down to the steps that matter, for /mellu:what-went-wrong.
 //
 //   node session-timeline.mjs --list         this project's sessions, newest first
 //   node session-timeline.mjs <n or id>      one session as numbered steps (1 = newest)

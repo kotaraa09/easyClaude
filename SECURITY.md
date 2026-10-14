@@ -1,6 +1,6 @@
 # Security
 
-easyClaude runs commands on your computer: your project's checks, and the hooks that guard
+Mellu.mate runs commands on your computer: your project's checks, and the hooks that guard
 them. A flaw here can matter, so please report one in private.
 
 ## How to report
@@ -24,4 +24,4 @@ to be named.
 
 ## Supported versions
 
-Only the latest release gets fixes. Update easyClaude from the `/plugin` menu.
+Only the latest release gets fixes. Update Mellu.mate from the `/plugin` menu.

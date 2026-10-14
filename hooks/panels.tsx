@@ -1,4 +1,4 @@
-// easyClaude's control panel, a button for each easyClaude feature, and the record of the
+// Mellu.mate's control panel, a button for each Mellu.mate feature, and the record of the
 // request in progress: its steps, its recent actions and its cost.
 //
 // A beginner could not see how far a request had got, or what it cost, without asking -
@@ -8,7 +8,7 @@
 //
 // This is a Claude Code hooks module (early access). Where installed plugins may not load
 // one - an older Claude Code, or an account the feature has not reached - nothing here
-// runs, and everything else in easyClaude works as before.
+// runs, and everything else in Mellu.mate works as before.
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
@@ -16,17 +16,17 @@ import type { Request, Step, Usage, Waiting } from '../types'
 import { clearHeld, clearHistory, clearOnStart, clearOnTurnEnd, holdText } from './clear-reminder'
 import { HELPERS_DESCRIPTION, helperEnded } from './savvy-progress/register'
 
-const CONTROLS = 'easyclaude-controls'
+const CONTROLS = 'mellu-controls'
 
-const request = atom({ plugin: 'easyclaude', key: 'request' } as const, null)
-const usage = atom({ plugin: 'easyclaude', key: 'usage' } as const, {
+const request = atom({ plugin: 'mellu', key: 'request' } as const, null)
+const usage = atom({ plugin: 'mellu', key: 'usage' } as const, {
   costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null,
 })
 // The helpers panel's list and clock (savvy-progress/), written here when a helper's turn ends.
-const helpers = atom({ plugin: 'easyclaude', key: 'agents' } as const, [])
-const helpersNow = atom({ plugin: 'easyclaude', key: 'agentsNow' } as const, 0)
+const helpers = atom({ plugin: 'mellu', key: 'agents' } as const, [])
+const helpersNow = atom({ plugin: 'mellu', key: 'agentsNow' } as const, 0)
 // Whether the control panel explains each control. Off: the panel is short.
-const controlsHelp = atom({ plugin: 'easyclaude', key: 'controlsHelp' } as const, false)
+const controlsHelp = atom({ plugin: 'mellu', key: 'controlsHelp' } as const, false)
 
 export const LEVELS = ['off', 'commit', 'push', 'pr', 'merge'] as const
 
@@ -176,7 +176,7 @@ export function settingsFrom(files: { autoship: string | null; cheap: string | n
     autoship = (LEVELS as readonly string[]).includes(level) ? level : 'off'
   } catch { /* a broken file arms nothing; the command reports it */ }
   let plain = false
-  try { plain = JSON.parse(files.local ?? 'null')?.outputStyle === 'easyclaude:plain' } catch { /* not plain */ }
+  try { plain = JSON.parse(files.local ?? 'null')?.outputStyle === 'mellu:plain' } catch { /* not plain */ }
   return { autoship, cheap: files.cheap !== null, plain, setUp: files.state !== null && !files.state.includes('easyclaude:not-kicked-off'), git: files.git ?? true }
 }
 
@@ -308,10 +308,10 @@ const refresh = async ($: any, atStart: boolean) => {
   const spent = u.costUsd !== null && r.costAtStart !== null ? u.costUsd - r.costAtStart : null
   const waiting = r.waiting?.length ?? 0
   $.ui.status(r.endedAt === null
-    ? `easyClaude: ${stepLine(r.steps) ?? r.recent?.[r.recent.length - 1] ?? `${r.tools} actions`} · ${money(spent)}`
+    ? `Mellu.mate: ${stepLine(r.steps) ?? r.recent?.[r.recent.length - 1] ?? `${r.tools} actions`} · ${money(spent)}`
     : waiting
-      ? `easyClaude: waiting for ${waiting === 1 ? r.waiting?.[0]?.label : `${waiting} background tasks`} · ${money(spent)}`
-      : `easyClaude: last request ${money(spent)}, ${duration(r.endedAt - r.startedAt)}`)
+      ? `Mellu.mate: waiting for ${waiting === 1 ? r.waiting?.[0]?.label : `${waiting} background tasks`} · ${money(spent)}`
+      : `Mellu.mate: last request ${money(spent)}, ${duration(r.endedAt - r.startedAt)}`)
 }
 
 // The request's title: the person's own words. The desktop app wraps pasted text in
@@ -334,7 +334,7 @@ const startRequest = async ($: any, said: string) => {
     startedAt: now, endedAt: null, steps: [], recent: [], tools: 0, costAtStart: null, waiting: [],
   }
   await update($, request, () => r)
-  $.ui.status('easyClaude: working')
+  $.ui.status('Mellu.mate: working')
   refreshLater($, true)
 }
 
@@ -365,7 +365,7 @@ const resumeRequest = async ($: any) => {
   // What it waited on has reported, or Claude would not be carrying on; the next Stop lists
   // whatever is still running.
   await update($, request, (r) => (r ? { ...r, endedAt: null, waiting: [] } : r))
-  $.ui.status('easyClaude: working')
+  $.ui.status('Mellu.mate: working')
   refreshLater($, false)
 }
 
@@ -378,7 +378,7 @@ const endRequest = async ($: any, aborted = false) => {
 }
 
 const openControls = async ($: any) => {
-  void $.ui.open({ id: CONTROLS, title: 'easyClaude: controls' })
+  void $.ui.open({ id: CONTROLS, title: 'Mellu.mate: controls' })
 }
 
 // Claude Code takes one hook per event from a plugin, so the three events the other parts
@@ -387,7 +387,7 @@ const openControls = async ($: any) => {
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     clearOnStart(e.isInteractive !== false)
-    await $.command.register({ name: 'easyclaude-helpers', description: HELPERS_DESCRIPTION })
+    await $.command.register({ name: 'mellu-helpers', description: HELPERS_DESCRIPTION })
     // Ticks the running helpers' clocks in their panel; quiet when none runs.
     $.clock.every(1000, () => {
       void (async () => {
@@ -396,7 +396,7 @@ export const register: Register = (on) => {
         await update($, helpersNow, () => at)
       })()
     })
-    await $.command.register({ name: 'easyclaude-panels', description: 'Open the easyClaude control panel' })
+    await $.command.register({ name: 'mellu-panels', description: 'Open the Mellu.mate control panel' })
     await update($, usage, () => ({ costUsd: null, contextTokens: null, contextWindow: null, contextPercent: null }))
     // A resumed or reloaded session starts with no request in progress.
     await update($, request, () => null)
@@ -404,9 +404,9 @@ export const register: Register = (on) => {
     return next(e)
   })
 
-  on('command.run', { command: 'easyclaude-panels' }, async ($) => {
+  on('command.run', { command: 'mellu-panels' }, async ($) => {
     await openControls($)
-    return { text: 'easyClaude control panel opened.' }
+    return { text: 'Mellu.mate control panel opened.' }
   })
 
   // Nothing here is awaited before the request goes on: awaiting the figures held every
@@ -519,17 +519,17 @@ export const register: Register = (on) => {
     const level = !s.git
       ? <Button key="create-repo" label="Turn on versions" onPress={() => createRepo($)} />
       : Select
-        ? <Select key="autoship" options={LEVEL_OPTIONS} value={s.autoship} onSelect={(v: string) => run($, 'easyclaude:autoship', v)} />
+        ? <Select key="autoship" options={LEVEL_OPTIONS} value={s.autoship} onSelect={(v: string) => run($, 'mellu:autoship', v)} />
         : <Box gap={1}>{LEVELS.map((l) => (
-            <Button key={`autoship-${l}`} label={LEVEL_LABELS[l] ?? l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'easyclaude:autoship', l)} />
+            <Button key={`autoship-${l}`} label={LEVEL_LABELS[l] ?? l} variant={l === s.autoship ? 'primary' : 'secondary'} onPress={() => run($, 'mellu:autoship', l)} />
           ))}</Box>
     return (
       <Box flexDirection="column" paddingX={1} gap={1}>
         {!s.setUp && (
           <Box flexDirection="column" borderStyle="round" borderColor="suggestion" paddingX={1}>
             <Text bold>Set up this project</Text>
-            <Text color="subtle" wrap="wrap">easyClaude then remembers it between sessions and runs its checks after each change.</Text>
-            <Box><Button key="setup" variant="primary" label="Set up" onPress={() => run($, 'easyclaude:start')} /></Box>
+            <Text color="subtle" wrap="wrap">Mellu.mate then remembers it between sessions and runs its checks after each change.</Text>
+            <Box><Button key="setup" variant="primary" label="Set up" onPress={() => run($, 'mellu:start')} /></Box>
           </Box>
         )}
         {group([
@@ -544,19 +544,19 @@ export const register: Register = (on) => {
           {row('autoship-row', AUTOSHIP_NAME, !s.git ? NO_GIT_NOTE : help ? AUTOSHIP_HELP : null, level)}
           {help && !s.git && <Text color="subtle" wrap="wrap">{NO_GIT_HELP}</Text>}
           {row('cheap-row', 'Cheap mode', help ? `${CHEAP_NOTE}. ${CHEAP_HELP}` : null, toggle(s.cheap, 'cheap-on', 'cheap-off',
-            () => run($, 'easyclaude:cheap-session'), () => run($, 'easyclaude:full')))}
+            () => run($, 'mellu:cheap-session'), () => run($, 'mellu:full')))}
           {row('plain-row', 'Plain answers', help ? `${PLAIN_NOTE}. ${PLAIN_HELP}` : null, toggle(s.plain, 'plain', 'plain',
-            () => run($, 'easyclaude:plain', 'on'), () => run($, 'easyclaude:plain', 'off')))}
+            () => run($, 'mellu:plain', 'on'), () => run($, 'mellu:plain', 'off')))}
         </Box>
         {group([
           { key: 'filetree', label: 'Project files', note: 'A list of your files beside the chat. Changes nothing', onPress: () => run($, 'filetree') },
           { key: 'helpers', label: 'Progress', note: 'Each step of your request, what Claude did, and its helpers. Changes nothing',
-            onPress: () => run($, 'easyclaude-helpers') },
+            onPress: () => run($, 'mellu-helpers') },
           { key: 'security', label: 'Check security', note: 'Looks for leaked passwords and keys. Changes nothing',
-            onPress: () => run($, 'easyclaude:security-check') },
-          { key: 'skills', label: 'Find skills', note: 'Suggests add-ons. Installs only the ones you pick', onPress: () => run($, 'easyclaude:skills') },
+            onPress: () => run($, 'mellu:security-check') },
+          { key: 'skills', label: 'Find skills', note: 'Suggests add-ons. Installs only the ones you pick', onPress: () => run($, 'mellu:skills') },
           { key: 'connect', label: 'Connect services', note: 'Advanced: links outside services with an API key',
-            onPress: () => run($, 'easyclaude:connect') },
+            onPress: () => run($, 'mellu:connect') },
         ])}
         <Text color="promptBorder" wrap="truncate">{RULE}</Text>
         <Box justifyContent="space-between" alignItems="center" gap={1}>

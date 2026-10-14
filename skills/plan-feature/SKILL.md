@@ -62,7 +62,7 @@ not invent a second. This is Feature Dev's design step, cut to two options a beg
 **Every form ends with the ready question**, header exactly `Ready?` in English: is the plan
 clear enough to start building? First option "yes, start", second "not yet, I have more to
 say", in the user's language. Only the user ends the questions, with that first option. On any
-other answer easyClaude holds every change outside `docs/` and `.claude/`; take what they said
+other answer Mellu.mate holds every change outside `docs/` and `.claude/`; take what they said
 and show a new form with what is still open. If the form cannot be shown, ask in chat and end
 with the same question in words.
 

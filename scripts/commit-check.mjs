@@ -12,7 +12,7 @@
 // Only the strong patterns from security-check, the ones a real key has and a test value
 // almost never does. The loose "password = '...'" pattern cried wolf there, and a check
 // that blocks working commits gets switched off. A line that carries the words
-// "easyclaude: not a secret" is skipped, for a test value the user has confirmed.
+// "mellu: not a secret" is skipped, for a test value the user has confirmed.
 //
 // Fails open: if git cannot answer, the commit goes ahead. This is a net, not a gate.
 //
@@ -37,7 +37,7 @@ export const SECRETS = [
 
 // Files that hold secrets by their nature, whatever is in them.
 const SECRET_FILE = /(^|\/)(\.env(\.(?!example$|sample$|template$|dist$)[^/]+)?|id_rsa|id_ed25519|[^/]+\.(pem|key|p12|pfx)|credentials\.json|service[-_]?account[^/]*\.json)$/i;
-const ALLOWED = /easyclaude: not a secret/i;
+const ALLOWED = /mellu: not a secret/i;
 
 // A commit, in any form Claude writes one: "git commit", "git -c x=y commit", or after
 // "git add -A &&" in the same command.
@@ -105,7 +105,7 @@ export function scan(root, cmd) {
   return findSecrets(lines, [...new Set(files)]);
 }
 
-export const message = (hits) => 'easyClaude stopped this commit. It would save what looks like a ' +
+export const message = (hits) => 'Mellu.mate stopped this commit. It would save what looks like a ' +
   'secret, and a saved version keeps it for good: anyone who gets a copy of the project can ' +
   'read it, and deleting it later does not remove it from history.\n\n' +
   hits.map((h) => `- ${h}`).join('\n') + '\n\n' +
@@ -113,7 +113,7 @@ export const message = (hits) => 'easyClaude stopped this commit. It would save 
   'in and why it must stay out of saved versions. Move the value into .env, which .gitignore ' +
   'keeps out, read it from there, and unstage any secret file (git restore --staged <file>). ' +
   'Then commit again. If the user says it is not a real secret - a test value or an example ' +
-  '- add the comment "easyclaude: not a secret" on that line, and only after they say so. ' +
+  '- add the comment "mellu: not a secret" on that line, and only after they say so. ' +
   'If it was already pushed anywhere, tell them to revoke the key with its provider.';
 
 if (process.argv[1]?.endsWith('commit-check.mjs')) {

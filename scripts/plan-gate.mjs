@@ -40,7 +40,7 @@ const key = (root) => {
   const r = resolve(String(root)).replace(/[\\/]+$/, '');
   return process.platform === 'win32' ? r.toLowerCase() : r;
 };
-const memoPath = (root) => join(tmpdir(), `easyclaude-plan-${sha(key(root)).slice(0, 16)}.json`);
+const memoPath = (root) => join(tmpdir(), `mellu-plan-${sha(key(root)).slice(0, 16)}.json`);
 
 // The memo as written, or null when there is none or it is too old.
 const memo = (root, now) => {
@@ -117,7 +117,7 @@ export function readyAnswer(payload) {
 const GO = /^\s*((ok(ay)?|yes|sure)[,!.]?\s+)*(please\s+)?(start building|start now|go ahead|build it|let['’]?s (start )?(build|building|go|start)|just build( it)?|เริ่มสร้าง|เริ่มได้|เริ่มเลย|ลุยเลย|สร้างเลย|ทำเลย)(\s*(now|please|it|เลย|ครับ|ครับผม|ค่ะ|คะ|นะ))*[.!]*\s*$/i;
 export const isGo = (text) => GO.test(String(text ?? '')) && String(text).trim().split(/\s+/).length <= 6;
 
-// Paths a plan may write while the gate is open: easyClaude's notes and settings.
+// Paths a plan may write while the gate is open: Mellu.mate's notes and settings.
 export function isPlanningPath(root, file) {
   if (!file) return true;
   const abs = resolve(root, String(file));
@@ -140,10 +140,10 @@ const BUILD_COMMAND = new RegExp([
   /\b(cargo\s+(new|init|add)|go\s+mod\s+init|pip3?\s+install|uv\s+(init|add)|poetry\s+(new|init|add)|dotnet\s+new|flutter\s+create|rails\s+new|django-admin\s+startproject|composer\s+(create-project|require))\b/.source,
 ].join('|'), 'i');
 // The gate's own file, so a command cannot clear it.
-const TOUCHES_GATE = /easyclaude-plan/i;
+const TOUCHES_GATE = /mellu-plan/i;
 export const isBuildCommand = (cmd) => BUILD_COMMAND.test(String(cmd ?? '')) || TOUCHES_GATE.test(String(cmd ?? ''));
 
-export const HOLD = 'easyClaude held this: the user has not said to start building yet. You are ' +
+export const HOLD = 'Mellu.mate held this: the user has not said to start building yet. You are ' +
   'still planning with them, and only they decide when the questions are over. Do not try ' +
   'another way to make this change. Ask what is still open with the AskUserQuestion form. ' +
   `End the form with a question whose header is exactly "${READY_HEADER}": ask whether the plan ` +
@@ -152,11 +152,11 @@ export const HOLD = 'easyClaude held this: the user has not said to start buildi
   'shown, ask in chat: a short reply such as "start building" from the user opens the build. ' +
   'Planning notes under docs/ and .claude/ can still be written.';
 
-export const SETUP_GO = 'easyClaude: the user said to start. Finish setup before you build: ' +
+export const SETUP_GO = 'Mellu.mate: the user said to start. Finish setup before you build: ' +
   'if no form in this setup asked about skills and kickoff step 7 finds one that fits, ask that ' +
   'one question in the form now. Then set the project up, and build what they asked.';
 
-const UNREAD = 'easyClaude could not read the answer to the Ready? question, so the build is ' +
+const UNREAD = 'Mellu.mate could not read the answer to the Ready? question, so the build is ' +
   'still held. If the user picked "start", tell them in one plain line to type "start building".';
 
 function readPayload() {

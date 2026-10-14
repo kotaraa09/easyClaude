@@ -82,7 +82,7 @@ breaks('a command using disallowed-tools, which is a CLI flag and not a key', '1
 // A style name that matches nothing gives the default style, and nothing else reports it.
 breaks('kickoff naming a style that does not ship', '1b',
   (d) => editText(d, 'output-styles/plain.md', (t) => t.replace(/^name: plain$/m, 'name: plain-words')),
-  /sets outputStyle "easyclaude:plain", but output-styles\/ has no style named "plain"/);
+  /sets outputStyle "mellu:plain", but output-styles\/ has no style named "plain"/);
 
 breaks('a style that drops the coding instructions', '1b',
   (d) => editText(d, 'output-styles/plain.md', (t) => t.replace(/^keep-coding-instructions: true\n/m, '')),
@@ -102,7 +102,7 @@ breaks('a skill directory with no SKILL.md', '2',
 // frontmatter lists, so a reviewer holding Edit can rewrite the diff it was dispatched to
 // judge - after the verify gate in ship step 1 has already run. Nothing else in the tree
 // would notice, which is exactly the shape of failure this suite exists for.
-const AGENT = 'agents/easyclaude-diff-reviewer.md';
+const AGENT = 'agents/mellu-diff-reviewer.md';
 
 breaks('a shipped agent that can write', '2b',
   (d) => replaceOnce(d, AGENT, 'tools: Read, Glob, Grep', 'tools: Read, Glob, Grep, Edit'),
@@ -121,7 +121,7 @@ breaks('an agent that does not pin a model', '2b',
   /missing required "model"/);
 
 breaks('an agent whose name does not match its file', '2b',
-  (d) => replaceOnce(d, AGENT, 'name: easyclaude-diff-reviewer', 'name: diff-reviewer'),
+  (d) => replaceOnce(d, AGENT, 'name: mellu-diff-reviewer', 'name: diff-reviewer'),
   /does not match the file name/);
 
 // --- 3. every JSON file parses ----------------------------------------------
@@ -294,7 +294,7 @@ test('10: a shipped agent is counted against the budget', async () => {
   };
 
   const before = measured((await runValidate(dir)).out);
-  removeFile(dir, 'agents/easyclaude-diff-reviewer.md');
+  removeFile(dir, 'agents/mellu-diff-reviewer.md');
   const after = measured((await runValidate(dir)).out);
 
   assert(after < before,

@@ -34,7 +34,7 @@ export function treeFingerprint(root) {
 }
 
 // One small file per project, outside it, so nothing lands in the user's repository.
-const memoPath = (root) => join(tmpdir(), `easyclaude-gate-${sha(root).slice(0, 16)}.json`);
+const memoPath = (root) => join(tmpdir(), `mellu-gate-${sha(root).slice(0, 16)}.json`);
 
 // { session, tree, failed } - failed is the step names that failed at that check, or [].
 export function lastSeen(root) {

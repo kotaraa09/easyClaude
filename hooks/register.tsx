@@ -1,4 +1,4 @@
-// easyClaude's hooks module. Claude Code loads one per plugin, and one hook per event from
+// Mellu.mate's hooks module. Claude Code loads one per plugin, and one hook per event from
 // it, so this starts each part and panels.tsx hooks the events they share:
 //
 //   panels.tsx          the control panel, and the record of the request in progress
@@ -7,12 +7,12 @@
 //
 // Savvy Progress is vendored and adapted; its PROVENANCE.md says from where, and what
 // changed. The file tree and Blast Radius are plugins of their own in plugins/, installed
-// beside easyClaude from the same marketplace. They are not listed as dependencies: an
-// update that did not bring them along made Claude Code refuse all of easyClaude, so the
+// beside Mellu.mate from the same marketplace. They are not listed as dependencies: an
+// update that did not bring them along made Claude Code refuse all of Mellu.mate, so the
 // session opener says when one is missing instead (scripts/companions.mjs).
 //
 // Where installed plugins may not load a hooks module - an older Claude Code, or an account
-// the feature has not reached - none of this runs, and everything else in easyClaude works
+// the feature has not reached - none of this runs, and everything else in Mellu.mate works
 // as before.
 import type { Register } from 'claude-code'
 

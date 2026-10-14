@@ -25,12 +25,12 @@ process.on('exit', () => {
 });
 async function shop(variant = 'base') {
   if (!built.has(variant)) built.set(variant, buildShop(variant));
-  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchtest-'));
+  const dir = mkdtempSync(join(tmpdir(), 'mellu-benchtest-'));
   cpSync(await built.get(variant), dir, { recursive: true });
   return dir;
 }
 function buildShop(variant) {
-  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchshop-'));
+  const dir = mkdtempSync(join(tmpdir(), 'mellu-benchshop-'));
   builtDirs.push(dir);
   return new Promise((done, fail) => {
     execFile('bash', [join(repoRoot, 'evals', '_fixture', 'setup.sh'), variant], {
@@ -349,7 +349,7 @@ test('bench: --prompts words the tasks in a copy, drops the tasks it does not wo
   assert(/no evals\/prompt-levels/.test(refused), `a level that does not exist must be refused: ${refused}`);
 });
 
-test('prompt-gap: pools the two levels of each side, and reports the gap with and without easyClaude', async () => {
+test('prompt-gap: pools the two levels of each side, and reports the gap with and without Mellu.mate', async () => {
   const { report, wilson } = await import('../scripts/prompt-gap.mjs');
   const [lo, hi] = wilson(6, 12);
   assert(lo > 0.2 && lo < 0.3 && hi > 0.7 && hi < 0.8, `the Wilson range of 6/12 is about 25-75%: ${lo}-${hi}`);
@@ -362,7 +362,7 @@ test('prompt-gap: pools the two levels of each side, and reports the gap with an
   });
   assert(r.beginner.with.ok === 5 && r.beginner.with.n === 6 && r.beginner.with.asked === 1, 'the beginner side pools both beginner levels');
   assert(Math.abs(r.gapWith - 1 / 6) < 1e-9 && Math.abs(r.gapWithout - 4 / 6) < 1e-9, `the gaps: ${r.gapWith}, ${r.gapWithout}`);
-  assert(/Gap, expert minus beginner: \+17 points with easyClaude, \+67 points without/.test(r.text), r.text);
+  assert(/Gap, expert minus beginner: \+17 points with Mellu.mate, \+67 points without/.test(r.text), r.text);
 
   const { levelPrompt } = await import('../scripts/bench.mjs');
   const sent = (prompt) => ({ beginner: { version: 'v', opts: {}, with: { cases: [{ name: 'outcome-fix-checkout', prompt, runs: runs(1, 1) }] }, without: { cases: [] } } });
@@ -456,7 +456,7 @@ test('bench: two-sessions fails on day one done, passes all five, names what is 
 
 // Day two runs in parallel, and each run must start from its own day one.
 test('bench: each day-two run claims a different day-one project, and a spare run fails loudly', async () => {
-  const plugin = mkdtempSync(join(tmpdir(), 'easyclaude-seedtest-'));
+  const plugin = mkdtempSync(join(tmpdir(), 'mellu-seedtest-'));
   try {
     const setup = join(plugin, 'evals', 'outcomes', 'outcome-two-sessions', 'setup.sh');
     const seeds = join(plugin, 'evals', 'results', 'seeds', 'outcome-two-sessions');
@@ -467,7 +467,7 @@ test('bench: each day-two run claims a different day-one project, and a spare ru
     mkdirSync(dirname(setup), { recursive: true });
     writeFileSync(setup, readFileSync(join(caseDir('outcome-two-sessions'), 'setup.sh')));
     const claim = () => {
-      const cwd = mkdtempSync(join(tmpdir(), 'easyclaude-dayt-'));
+      const cwd = mkdtempSync(join(tmpdir(), 'mellu-dayt-'));
       const r = spawnSync('bash', [setup], { cwd, encoding: 'utf8' });
       const got = existsSync(join(cwd, 'day-one.txt')) ? readFileSync(join(cwd, 'day-one.txt'), 'utf8') : null;
       rmSync(cwd, { recursive: true, force: true });
@@ -489,8 +489,8 @@ test('bench: each day-two run claims a different day-one project, and a spare ru
 // on day two to ask for that approval, with nobody there to answer.
 test('bench: a day-two project starts with its checks approved, as on day one', async () => {
   const { isTrusted } = await import('../scripts/trust.mjs');
-  const plugin = mkdtempSync(join(tmpdir(), 'easyclaude-seedtest-'));
-  const cwd = mkdtempSync(join(tmpdir(), 'easyclaude-dayt-'));
+  const plugin = mkdtempSync(join(tmpdir(), 'mellu-seedtest-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'mellu-dayt-'));
   try {
     const setup = join(plugin, 'evals', 'outcomes', 'outcome-two-sessions', 'setup.sh');
     const seed = join(plugin, 'evals', 'results', 'seeds', 'outcome-two-sessions', '1');
@@ -516,7 +516,7 @@ test('bench: --case picks two-session tasks by the same glob the runner uses', a
   assert(globToRegex('outcome-two-sessions').test('outcome-two-sessions'), 'an exact name');
 });
 
-// One key over every task re-ran the whole no-easyClaude arm when one prompt changed.
+// One key over every task re-ran the whole no-Mellu.mate arm when one prompt changed.
 test('bench: each task has its own cache key, and the run settings are part of it', async () => {
   const { caseKey } = await import('../scripts/bench.mjs');
   const opts = { model: 'claude-sonnet-5', runs: 3, shell: false };
@@ -530,7 +530,7 @@ test('bench: each task has its own cache key, and the run settings are part of i
 // --- setup in a project someone else started --------------------------------------------
 // Its own scaffold, not the shop: a published docs site, an ADR folder, the team's CLAUDE.md.
 function adopted(change) {
-  const dir = mkdtempSync(join(tmpdir(), 'easyclaude-benchtest-'));
+  const dir = mkdtempSync(join(tmpdir(), 'mellu-benchtest-'));
   const r = spawnSync('bash', [join(caseDir('outcome-adopt-existing'), 'setup.sh')], {
     cwd: dir, encoding: 'utf8',
     env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
@@ -550,7 +550,7 @@ test('bench: adopt-existing fails untouched, passes a careful setup, fails the o
   allPass('a setup that adds to what is there', await gradeAdopt((dir) => {
     put(dir, 'planning/STATE.md', '# State\n\n## Now\n(nothing)\n\n## Next\n- [ ] post a recipe\n');
     put(dir, 'doc/adr/0003-keep-plans-in-planning.md', '# 3. Keep plans in planning/\n');
-    edit(dir, 'CLAUDE.md', (t) => `${t}\n## easyClaude\nThe user writes in English.\n`);
+    edit(dir, 'CLAUDE.md', (t) => `${t}\n## Mellu.mate\nThe user writes in English.\n`);
   }));
   for (const [label, change] of [
     ['the plan on the site', (dir) => put(dir, 'docs/STATE.md', '# State\n\n## Next\n- [ ] x\n')],
@@ -580,14 +580,14 @@ test('bench: a check path takes "dir/**", "**/" and "*", and is exact otherwise'
 // kept folder turns read-only. The first Linux run found no project there and graded
 // nothing, then stopped on the clean-up.
 test('bench: a kept run is found and removed, sealed or not', async () => {
-  const plain = mkdtempSync(join(tmpdir(), 'easyclaude-kept-'));
+  const plain = mkdtempSync(join(tmpdir(), 'mellu-kept-'));
   mkdirSync(join(plain, 'home', 'cwd'), { recursive: true });
   assert(openKept(plain) === join(plain, 'home', 'cwd'), `an unsealed run: ${openKept(plain)}`);
   removeKept(plain);
   assert(!existsSync(plain), 'an unsealed run should be removed');
   if (process.platform === 'win32') return;
 
-  const kept = mkdtempSync(join(tmpdir(), 'easyclaude-kept-'));
+  const kept = mkdtempSync(join(tmpdir(), 'mellu-kept-'));
   mkdirSync(join(kept, 'sealed', 'home', 'cwd', 'src'), { recursive: true });
   writeFileSync(join(kept, 'sealed', 'home', 'cwd', 'src', 'a.js'), 'x');
   chmodSync(join(kept, 'sealed', 'home', 'cwd', 'src'), 0o500);

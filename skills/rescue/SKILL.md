@@ -61,7 +61,7 @@ Then say what you are about to run, what it will change, and **what it will dest
 | Merge or rebase went wrong | `git merge --abort` / `git rebase --abort`; afterwards, `git reset --keep ORIG_HEAD` |
 | On the wrong branch with good work | `git stash`, switch, `git stash pop` |
 
-**Always prefer the additive option.** `git revert` adds a commit; `git reset --hard` deletes work with no undo. easyClaude denies `reset --hard`, `clean -fdx` and force-push in `permissions.deny` for exactly this reason — they are the commands that turn a recoverable situation into a permanent loss. If one is genuinely the only route, explain precisely what will be destroyed and let the user run it themselves.
+**Always prefer the additive option.** `git revert` adds a commit; `git reset --hard` deletes work with no undo. Mellu.mate denies `reset --hard`, `clean -fdx` and force-push in `permissions.deny` for exactly this reason — they are the commands that turn a recoverable situation into a permanent loss. If one is genuinely the only route, explain precisely what will be destroyed and let the user run it themselves.
 
 ## 6. When it isn't in git at all
 
@@ -83,6 +83,6 @@ Then, immediately: `git init` and commit. Say plainly that this was recoverable 
 
 ## Prevention, said once and briefly
 
-Commit before anything risky. A commit takes seconds and makes every situation in the table above trivial. `/easyclaude:ship` branches automatically; the danger is long stretches of uncommitted work on `main`.
+Commit before anything risky. A commit takes seconds and makes every situation in the table above trivial. `/mellu:ship` branches automatically; the danger is long stretches of uncommitted work on `main`.
 
 Say this once, after the rescue. Nobody wants a lecture mid-panic.

@@ -1,9 +1,9 @@
-// The file tree and Blast Radius: plugins of their own, from easyClaude's marketplace.
+// The file tree and Blast Radius: plugins of their own, from Mellu.mate's marketplace.
 //
 // 1.2.0 listed them under "dependencies" in plugin.json. A fresh install brought them along,
 // but `claude plugin update` from 1.1.x did not, and Claude Code then refuses to load a
 // plugin whose dependency is missing: no skills, no hooks, no panels, and nothing on screen
-// to say so. Now easyClaude loads without them, and this says once which ones are missing
+// to say so. Now Mellu.mate loads without them, and this says once which ones are missing
 // and how to add them.
 //
 // The note is a systemMessage: the user sees it and Claude does not, so it costs no tokens.
@@ -14,8 +14,8 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 export const COMPANIONS = [
-  { id: 'filetree@easyclaude', name: 'the file tree' },
-  { id: 'blast-radius@easyclaude', name: 'Blast Radius' },
+  { id: 'filetree@mellu-mate', name: 'the file tree' },
+  { id: 'blast-radius@mellu-mate', name: 'Blast Radius' },
 ];
 
 // The companions with no install record, in any scope. An unreadable record says nothing:
@@ -45,7 +45,7 @@ export function companionsNotice(payload, { configDir, dataDir = process.env.CLA
 
   const names = missing.map((c) => c.name).join(' and ');
   const verb = missing.length > 1 ? 'are' : 'is';
-  return `easyClaude: ${names} ${verb} not installed. To add ${missing.length > 1 ? 'them' : 'it'}, ` +
+  return `Mellu.mate: ${names} ${verb} not installed. To add ${missing.length > 1 ? 'them' : 'it'}, ` +
     'run this in a terminal, then start a new session:\n' +
     missing.map((c) => `claude plugin install ${c.id}`).join('\n');
 }

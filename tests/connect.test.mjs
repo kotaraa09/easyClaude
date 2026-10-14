@@ -26,7 +26,7 @@ function configWith(token) {
   return { dir, file, said: `Added server context7\nFile modified: ${file}` };
 }
 
-const tempsIn = (dir) => readdirSync(dir).filter((f) => f.includes('.easyclaude-'));
+const tempsIn = (dir) => readdirSync(dir).filter((f) => f.includes('.mellu-'));
 
 // --- the swap ------------------------------------------------------------------
 test('connect: the placeholder is replaced with the real value', () => {
@@ -254,7 +254,7 @@ test('connect: each placeholder is unique and cannot collide with real config te
   const seen = new Set(Array.from({ length: 200 }, () => placeholder()));
   assert(seen.size === 200, 'placeholders repeated. One run could then overwrite another\'s value.');
   for (const p of seen) {
-    assertMatch(p, /^easyclaude_placeholder_[0-9a-f]{24}$/,
+    assertMatch(p, /^mellu_placeholder_[0-9a-f]{24}$/,
       'the placeholder must be long, random and recognisable, or it can match real text.');
     break;
   }

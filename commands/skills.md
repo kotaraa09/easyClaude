@@ -7,7 +7,7 @@ allowed-tools: Read, Bash, Glob
 
 Requested: `$ARGUMENTS`
 
-easyClaude ships one skill from outside: humanizer, which rewrites text that reads as
+Mellu.mate ships one skill from outside: humanizer, which rewrites text that reads as
 AI-written, and is built in and always on. It ships no design skill, no marketing skill, and no deep security or
 testing skill. That is deliberate. Bundling one picks it for everybody and charges every
 session for the pick. This command shows what exists, states what each one costs, scans it,
@@ -63,7 +63,7 @@ gh api "search/repositories?q=<engine or stack>+claude+skill&sort=stars&per_page
 
 With no `gh`, use a web search for "<engine or stack> Claude Code skill". Show at most three:
 an open licence, pushed in the last six months, and the number of skills each one installs.
-Mark each one **not in the catalogue, not checked by easyClaude**. Step 5 applies to them as to
+Mark each one **not in the catalogue, not checked by Mellu.mate**. Step 5 applies to them as to
 anything else.
 
 ## 3. State the cost before the choice, not after
@@ -148,7 +148,7 @@ the list.
 `hooks/hooks.json` owns `SessionStart`, `UserPromptSubmit` and `Stop`. If something installs
 a hook on any of them, say so plainly and let the user decide which wins. Do not edit their hooks to make room.
 
-If the new skill overlaps one easyClaude already ships - the catalogue names which ones do
+If the new skill overlaps one Mellu.mate already ships - the catalogue names which ones do
 - say which is stricter and let both stand, or let the user drop ours. Do not quietly
 assume the new one replaces it.
 
@@ -157,6 +157,6 @@ assume the new one replaces it.
 One line naming what is installed, one line saying it goes live on the next session start,
 and stop. Do not start using a newly installed skill in the same turn.
 
-Design references are a separate thing and are not installed here: `/easyclaude:connect`
+Design references are a separate thing and are not installed here: `/mellu:connect`
 offers the **inspo** MCP server, which searches real production sites for examples, and
 **playwright**, which drives a real browser.

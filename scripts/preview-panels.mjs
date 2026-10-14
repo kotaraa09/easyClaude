@@ -6,9 +6,9 @@
 //
 // <folder> is a dev-mods folder Claude Code watches: the plugin-authoring skill names it
 // (~/.claude/dev-mods/<session id>), and the session asks once to turn hot reloading on.
-// The copy is called easyclaude-preview, with its own pane ids, state and commands
-// (/easyclaude-preview, /easyclaude-preview-helpers), so it runs beside an installed
-// easyClaude without clashing. Its buttons run the installed plugin's commands. The file tree
+// The copy is called mellu-preview, with its own pane ids, state and commands
+// (/mellu-preview, /mellu-preview-helpers), so it runs beside an installed
+// Mellu.mate without clashing. Its buttons run the installed plugin's commands. The file tree
 // and Blast Radius are copied as they are, as the plugins filetree and blast-radius.
 //
 // Why: the panel tests read the drawn tree, not the pixels. 1.1.0 and 1.1.1 both went out
@@ -26,22 +26,22 @@ if (!target) {
   console.error('Usage: node scripts/preview-panels.mjs <dev-mods folder>');
   process.exit(1);
 }
-const NAME = 'easyclaude-preview';
+const NAME = 'mellu-preview';
 const mod = join(target, NAME);
 
-// easyClaude's hooks module: the entry and the files it starts.
+// Mellu.mate's hooks module: the entry and the files it starts.
 const FILES = ['register.tsx', 'panels.tsx', 'clear-reminder.ts', 'savvy-progress/register.tsx'];
 const swaps = [
-  [/plugin: 'easyclaude'/g, `plugin: '${NAME}'`],
-  [/'easyclaude-controls'/g, `'${NAME}-controls'`],
-  [/'easyclaude-helpers'/g, `'${NAME}-helpers'`],
-  [/'easyclaude-panels'/g, `'${NAME}'`],
-  [/'easyClaude: controls'/g, `'Preview: controls'`],
-  [/'easyClaude: progress'/g, `'Preview: progress'`],
+  [/plugin: 'mellu'/g, `plugin: '${NAME}'`],
+  [/'mellu-controls'/g, `'${NAME}-controls'`],
+  [/'mellu-helpers'/g, `'${NAME}-helpers'`],
+  [/'mellu-panels'/g, `'${NAME}'`],
+  [/'Mellu.mate: controls'/g, `'Preview: controls'`],
+  [/'Mellu.mate: progress'/g, `'Preview: progress'`],
 ];
 const sources = Object.fromEntries(FILES.map((f) => [f, readFileSync(join(root, 'hooks', f), 'utf8')]));
 // Every swap must hit somewhere: one that missed would leave the real plugin's state, pane ids
-// or commands in the copy, and the preview would clash with the installed easyClaude.
+// or commands in the copy, and the preview would clash with the installed Mellu.mate.
 for (const [from, to] of swaps) {
   if (!FILES.some((f) => { from.lastIndex = 0; return from.test(sources[f]); })) {
     throw new Error(`hooks/ no longer contains ${from} - update the swaps in this script`);
@@ -49,9 +49,9 @@ for (const [from, to] of swaps) {
   for (const f of FILES) { from.lastIndex = 0; sources[f] = sources[f].replace(from, to); }
 }
 let source = sources['panels.tsx'];
-// Preview only: /easyclaude-preview-demo fills the progress bar with a sample request, so
+// Preview only: /mellu-preview-demo fills the progress bar with a sample request, so
 // the step bar and the step marks can be looked at in a session where Claude keeps no step
-// list. `/easyclaude-preview-demo waiting` shows the same request after its turn ended, with a
+// list. `/mellu-preview-demo waiting` shows the same request after its turn ended, with a
 // test run still going in the background. The released plugin never has this command.
 const REGISTER = `await $.command.register({ name: '${NAME}', `;
 if (!source.includes(REGISTER)) throw new Error('hooks/panels.tsx: no command.register line to add the demo beside');
@@ -76,11 +76,11 @@ const DEMO = `
       ],
     }))
     await update($, usage, () => u)
-    // \`/easyclaude-preview-demo helpers\` adds one helper in each uniform, half still at work.
+    // \`/mellu-preview-demo helpers\` adds one helper in each uniform, half still at work.
     if (/helpers/.test(String(e.args ?? ''))) {
       const jobs = [
         ['general-purpose', 'Fix the checkout bug'], ['general-purpose', 'Make the shop page look better'],
-        ['easyclaude:easyclaude-diff-reviewer', 'Review the branch diff'], ['Plan', 'Plan the delivery calendar'],
+        ['mellu:mellu-diff-reviewer', 'Review the branch diff'], ['Plan', 'Plan the delivery calendar'],
         ['general-purpose', 'Write the README for the shop'], ['Explore', 'Find where discounts are checked'],
         ['general-purpose', 'Find out what the weather API returns'],
       ]
@@ -97,22 +97,22 @@ const DEMO = `
 const end = source.lastIndexOf('}');
 source = source.slice(0, end) + DEMO.trimStart().replace(/^/, '') + source.slice(end + 1);
 
-let types = readFileSync(join(root, 'types', 'index.d.ts'), 'utf8').replace(/^(\s*)easyclaude: \{/m, `$1'${NAME}': {`);
-if (!types.includes(`'${NAME}': {`)) throw new Error('types/index.d.ts: no "easyclaude: {" entry to rename');
+let types = readFileSync(join(root, 'types', 'index.d.ts'), 'utf8').replace(/^(\s*)mellu: \{/m, `$1'${NAME}': {`);
+if (!types.includes(`'${NAME}': {`)) throw new Error('types/index.d.ts: no "mellu: {" entry to rename');
 
 const write = (rel, text) => {
   mkdirSync(dirname(join(mod, rel)), { recursive: true });
   writeFileSync(join(mod, rel), text);
 };
 write('.claude-plugin/plugin.json', JSON.stringify({
-  name: NAME, version: '0.0.0', description: 'A preview of the easyClaude panels', types: './types/index.d.ts',
+  name: NAME, version: '0.0.0', description: 'A preview of the Mellu.mate panels', types: './types/index.d.ts',
 }, null, 2) + '\n');
 write('hooks/hooks.json', JSON.stringify({ modules: ['./register.tsx'] }, null, 2) + '\n');
 sources['panels.tsx'] = source;
 for (const f of FILES) write(`hooks/${f}`, sources[f]);
 write('types/index.d.ts', types);
 // The file tree and Blast Radius are plugins of their own. Blast Radius loads under its own
-// name. The file tree installs with easyClaude since 1.2.1, so its copy is renamed the way the
+// name. The file tree installs with Mellu.mate since 1.2.1, so its copy is renamed the way the
 // panels are: under the same name the installed one answers, and the preview shows nothing new.
 const copyPlugin = (plugin, to) => cpSync(join(root, 'plugins', plugin), join(target, to), {
   recursive: true,

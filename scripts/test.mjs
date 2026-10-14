@@ -84,7 +84,7 @@ console.log(failed.length
 // change, and a run that grows slow one test at a time is never noticed until people stop
 // running it. A warning, not a failure: CI machines and laptops differ, and a slow run is
 // a reason to look, not a broken build. On GitHub it shows on the pull request.
-const BUDGET_S = Number(process.env.EASYCLAUDE_TEST_BUDGET_S || 300);
+const BUDGET_S = Number(process.env.MELLU_TEST_BUDGET_S || 300);
 if (Number(secs) > BUDGET_S) {
   const message = `the tests took ${secs}s, over the ${BUDGET_S}s budget. The slowest are listed above: ` +
     'speed them up, or split them, before adding more.';

@@ -1,6 +1,6 @@
 # Stack recipes
 
-Recipes are **data, not scaffolding**. easyClaude doesn't ship project templates — it adapts to whatever stack it lands in. A recipe tells `kickoff` three things: how to recognise the stack, how to verify it, and what usually goes wrong.
+Recipes are **data, not scaffolding**. Mellu.mate doesn't ship project templates — it adapts to whatever stack it lands in. A recipe tells `kickoff` three things: how to recognise the stack, how to verify it, and what usually goes wrong.
 
 ## Writing a new one
 

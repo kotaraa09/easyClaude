@@ -1,7 +1,7 @@
 ---
 schema_version: "1.1"
 name: outcome-adopt-existing
-description: "Setup in a project someone else started: docs/ is a published MkDocs site, decisions live in doc/adr/, the team wrote its own CLAUDE.md, and a front end and a back end sit side by side. Graded on what setup leaves on disk. Needs easyClaude: run with --with-only."
+description: "Setup in a project someone else started: docs/ is a published MkDocs site, decisions live in doc/adr/, the team wrote its own CLAUDE.md, and a front end and a back end sit side by side. Graded on what setup leaves on disk. Needs Mellu.mate: run with --with-only."
 tags: [outcome]
 runs: 3
 max_turns: 30

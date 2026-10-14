@@ -49,7 +49,7 @@ export function cleanup() {
 
 function pristine() {
   if (pristineDir) return pristineDir;
-  pristineDir = join(tempDir('easyclaude-pristine-'), 'plugin');
+  pristineDir = join(tempDir('mellu-pristine-'), 'plugin');
   cpSync(repoRoot, pristineDir, {
     recursive: true,
     filter: (src) => {
@@ -65,7 +65,7 @@ function pristine() {
 // on Windows fs.promises.cp took twice as long (0.9s against 0.5s), and since each suite
 // runs in its own process, a blocking copy holds up only its own suite.
 export async function workspace() {
-  const dir = join(tempDir('easyclaude-work-'), 'plugin');
+  const dir = join(tempDir('mellu-work-'), 'plugin');
   cpSync(pristine(), dir, { recursive: true });
   return dir;
 }
@@ -73,13 +73,13 @@ export async function workspace() {
 // The gate runs a contract only once a person approved it (scripts/trust.mjs). Every child
 // process inherits this, so the suite records approvals in a temp file and never in the
 // real home of whoever runs it.
-process.env.EASYCLAUDE_TRUST_FILE = join(tempDir('easyclaude-trust-'), 'trusted-checks.json');
+process.env.MELLU_TRUST_FILE = join(tempDir('mellu-trust-'), 'trusted-checks.json');
 
 // A bare project directory with a verify contract, for exercising the gate. Not the plugin.
 // The contract comes approved, as kickoff leaves it; pass { approved: false } to test the
 // gate meeting one nobody approved.
 export function projectDir(verifyJson, { approved = true } = {}) {
-  const dir = tempDir('easyclaude-project-');
+  const dir = tempDir('mellu-project-');
   if (verifyJson !== undefined) {
     mkdirSync(join(dir, '.claude'), { recursive: true });
     writeFileSync(join(dir, '.claude', 'verify.json'), JSON.stringify(verifyJson, null, 2) + '\n');
@@ -170,7 +170,7 @@ export const runVerify = (projectPath, args = [], env = {}) =>
   run(join(repoRoot, 'scripts', 'verify.mjs'), {
     cwd: projectPath,
     args,
-    env: { CLAUDE_PROJECT_DIR: projectPath, EASYCLAUDE_SKIP_VERIFY: '', ...env },
+    env: { CLAUDE_PROJECT_DIR: projectPath, MELLU_SKIP_VERIFY: '', ...env },
     input: '{}',
   });
 
@@ -203,7 +203,7 @@ const indent = (t) => t.split('\n').map((l) => `    | ${l}`).join('\n');
 // Cases run concurrently because most of the wall time is node startup: the validator
 // spawns `node --check` once per script, so a sequential run is dominated by process
 // spawn. The pool leaves one core free, so a laptop stays usable while it runs.
-const POOL = Number(process.env.EASYCLAUDE_TEST_POOL || Math.max(2, availableParallelism() - 1));
+const POOL = Number(process.env.MELLU_TEST_POOL || Math.max(2, availableParallelism() - 1));
 
 export async function runAll() {
   const started = Date.now();
