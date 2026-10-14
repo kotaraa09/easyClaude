@@ -231,6 +231,15 @@ seconds, and the full tier at ship still catches a bug the fast tier missed. **E
   the scripts that generate assets or connect servers. It would also show a key form to
   every user at install. Decided against on 2026-09-25. Keys stay in the user's own
   Claude Code config, readable only by them.
+- **Cheap mode that hands the work to a Haiku helper.** For users who stay on Opus and never
+  run `/model sonnet`. Measured on 2026-10-14 under WSL2 with a shell, four outcome tasks,
+  three runs each: Opus 5.5 with a Haiku 5.5 helper cost 13% less than cheap mode on Opus
+  ($0.47 against $0.54 for the four tasks), from 5% on the rename to 37% on shipping. A new
+  conversation costs about $0.10 on Opus before any work, and a helper cannot remove that.
+  The payment task stayed on Opus and cost 25% more. Cheap mode on Sonnet 5.5 cost less than
+  either, $0.31 for the four. Every arm fixed every task. Decided against: under the 50%
+  that would pay for the risk of Haiku failing a harder task. **Revisit** if a measurement
+  of larger tasks shows more than 40%.
 
 ## Done
 
