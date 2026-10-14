@@ -20,7 +20,7 @@ Do this:
 Cheap session armed. Three things to do yourself:
 
   1. Run: /clear                   ← start short; your plan stays in docs/STATE.md
-  2. Run: /model sonnet            ← about half the price per token; I can't do this for you
+  2. Run: /model sonnet            ← about a third less per task; I can't do this for you
   3. Run: /easyclaude:full         ← when you're done, to clear the contract
 
 Your model is shown in the UI, so you can't lose track of it.
@@ -28,8 +28,11 @@ Your model is shown in the UI, so you can't lose track of it.
 
 6. Say nothing else.
 
-<!-- "about half": Opus 5.5 is $4 / $20 per million tokens, Sonnet 5 is $2 / $10. This
-     line said "5x" from an older price list. The switch is worth making once for a whole
+<!-- "about a third less": Opus 5.5 is $4 / $20 per million tokens, Sonnet 5.5 is $2 / $10,
+     but re-reading the conversation from the cache costs $0.20 per million on both, so
+     "half" overstated it. Measured on 2026-10-14, cheap mode on four small tasks cost $0.31
+     on Sonnet 5.5 against $0.54 on Opus 5.5: 30% to 50% less per task. This line said "5x"
+     from an older price list, then "about half". The switch is worth making once for a whole
      stretch, as here. Switching for a single turn is a different trade: a cache belongs to
      one model, so the new model re-reads the whole conversation at the cache-write price. -->
 

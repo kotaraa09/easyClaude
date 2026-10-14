@@ -10,8 +10,8 @@ Budget mode, **this turn only**. The user is low on credits and wants a working 
 
 <!-- This command does not switch model. It used to set "model: sonnet", but a cache
      belongs to one model, so a one-turn switch made the new model re-read the whole
-     conversation at the cache-write price - and Sonnet 5 is half the price of Opus 5.5 per
-     token, not a fifth. Measured on one task, staying on the session's model with these
+     conversation at the cache-write price - and Sonnet 5.5 is half the price of Opus 5.5 for
+     new text only, not a fifth; reading the cached conversation costs the same on both. Measured on one task, staying on the session's model with these
      rules saved about a third, run after run. For a longer stretch, /easyclaude:cheap-session
      suggests /model sonnet once, and the saving then holds. The largest saving of all is a
      short conversation: scripts/prompt-check.mjs holds this command back when the
