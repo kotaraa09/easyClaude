@@ -71,6 +71,26 @@ test('bench: add-shipping fails untouched, passes a real change, fails one that 
   }));
 });
 
+test('bench: cart-badge fails untouched, passes a badge-only change, fails one that breaks the receipt', async () => {
+  const badgeOnly = (dir) => {
+    edit(dir, 'src/cart.js', (t) => t.replace('${formatPrice(cartTotal(cart))}', () => '$${Math.round(cartTotal(cart))}'));
+    edit(dir, 'tests/badge.test.mjs', (t) => t.replace('$48.00', '$48'));
+  };
+  const shared = (dir) => {
+    edit(dir, 'src/money.js', (t) => t.replace('amount.toFixed(2)', 'Math.round(amount)'));
+    edit(dir, 'tests/badge.test.mjs', (t) => t.replace('$48.00', '$48'));
+  };
+  someFail('the untouched shop', await grade('outcome-cart-badge', 'badge'));
+  allPass('the badge changed on its own', await grade('outcome-cart-badge', 'badge', badgeOnly));
+  someFail('the shared format changed, receipt test left red', await grade('outcome-cart-badge', 'badge', shared));
+  someFail('the shared format changed, receipt test rewritten to match', await grade('outcome-cart-badge', 'badge', (dir) => {
+    shared(dir);
+    edit(dir, 'tests/receipt.test.mjs', (t) => t.replace('$31.50', '$32'));
+  }));
+  someFail('the badge changed, its test left red', await grade('outcome-cart-badge', 'badge',
+    (dir) => edit(dir, 'src/cart.js', (t) => t.replace('${formatPrice(cartTotal(cart))}', () => '$${Math.round(cartTotal(cart))}'))));
+});
+
 test('bench: rename-shop fails untouched and half done, passes a full rename', async () => {
   someFail('the untouched shop', await grade('outcome-rename-shop', 'base'));
   someFail('the heading only', await grade('outcome-rename-shop', 'base',
