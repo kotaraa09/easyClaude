@@ -6,11 +6,11 @@
 // three ways, against the sample project the real run starts from: untouched, fixed the
 // way a good answer would fix it, and fixed the wrong way. The first and last must fail.
 import { test, assert, repoRoot } from './harness.mjs';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync, chmodSync, cpSync } from 'node:fs';
 import { spawnSync, execFile } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { gradeWorkspace } from '../scripts/bench.mjs';
+import { gradeWorkspace, openKept, removeKept } from '../scripts/bench.mjs';
 
 const caseDir = (name) => join(repoRoot, 'evals', 'outcomes', name);
 
@@ -75,10 +75,12 @@ test('bench: rename-shop fails untouched and half done, passes a full rename', a
   someFail('the untouched shop', await grade('outcome-rename-shop', 'base'));
   someFail('the heading only', await grade('outcome-rename-shop', 'base',
     (dir) => edit(dir, 'index.html', (t) => t.replace('<h1>Plant Corner', '<h1>Green Corner'))));
-  // Only the hidden checks: the runner's no-new-files grader is added by bench.mjs from
-  // the run's own result, and there is no run here.
-  allPass('a full rename', await grade('outcome-rename-shop', 'base',
-    (dir) => edit(dir, 'index.html', (t) => t.replaceAll('Plant Corner', 'Green Corner'))));
+  const rename = (dir) => edit(dir, 'index.html', (t) => t.replaceAll('Plant Corner', 'Green Corner'));
+  allPass('a full rename', await grade('outcome-rename-shop', 'base', rename));
+  someFail('a full rename with a spec beside it', await grade('outcome-rename-shop', 'base', (dir) => {
+    rename(dir);
+    writeFileSync(join(dir, 'docs', 'rename-spec.md'), '# Rename\n');
+  }));
 });
 
 test('bench: honest-test-fix fails untouched, passes a code fix, fails a weakened test', async () => {
@@ -304,6 +306,31 @@ test('bench: each day-two run claims a different day-one project, and a spare ru
   }
 });
 
+// Day two is the same person on the same computer, so the checks approved on day one stay
+// approved. Each run has a new home and folder, and with a shell, the first Linux run stopped
+// on day two to ask for that approval, with nobody there to answer.
+test('bench: a day-two project starts with its checks approved, as on day one', async () => {
+  const { isTrusted } = await import('../scripts/trust.mjs');
+  const plugin = mkdtempSync(join(tmpdir(), 'easyclaude-seedtest-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'easyclaude-dayt-'));
+  try {
+    const setup = join(plugin, 'evals', 'outcomes', 'outcome-two-sessions', 'setup.sh');
+    const seed = join(plugin, 'evals', 'results', 'seeds', 'outcome-two-sessions', '1');
+    const steps = [{ name: 'test', cmd: 'node --test' }];
+    mkdirSync(join(seed, '.claude'), { recursive: true });
+    writeFileSync(join(seed, '.claude', 'verify.json'), JSON.stringify({ steps }));
+    mkdirSync(dirname(setup), { recursive: true });
+    writeFileSync(setup, readFileSync(join(caseDir('outcome-two-sessions'), 'setup.sh')));
+    cpSync(join(repoRoot, 'scripts'), join(plugin, 'scripts'), { recursive: true });
+    const r = spawnSync('bash', [setup], { cwd, encoding: 'utf8' });
+    assert(r.status === 0, `setup.sh failed: ${r.stderr}`);
+    assert(isTrusted(cwd, steps), 'the copied project should have its checks approved');
+  } finally {
+    rmSync(plugin, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test('bench: --case picks two-session tasks by the same glob the runner uses', async () => {
   const { globToRegex } = await import('../scripts/bench.mjs');
   assert(globToRegex('outcome-two*').test('outcome-two-sessions'), 'a prefix glob');
@@ -369,4 +396,28 @@ test('bench: a check path takes "dir/**", "**/" and "*", and is exact otherwise'
     ['planning/DECISIONS.md', '**/DECISIONS.md', true], ['doc/adr/0003-x.md', 'doc/adr/0003-*.md', true],
     ['doc/adr/0003-a/b.md', 'doc/adr/0003-*.md', false], ['indexXhtml', 'index.html', false],
   ]) assert(m(file, glob) === want, `${file} against ${glob} should be ${want}`);
+});
+
+// On Linux the runner seals a kept run: home/ moves into sealed/ with mode 000, and the
+// kept folder turns read-only. The first Linux run found no project there and graded
+// nothing, then stopped on the clean-up.
+test('bench: a kept run is found and removed, sealed or not', async () => {
+  const plain = mkdtempSync(join(tmpdir(), 'easyclaude-kept-'));
+  mkdirSync(join(plain, 'home', 'cwd'), { recursive: true });
+  assert(openKept(plain) === join(plain, 'home', 'cwd'), `an unsealed run: ${openKept(plain)}`);
+  removeKept(plain);
+  assert(!existsSync(plain), 'an unsealed run should be removed');
+  if (process.platform === 'win32') return;
+
+  const kept = mkdtempSync(join(tmpdir(), 'easyclaude-kept-'));
+  mkdirSync(join(kept, 'sealed', 'home', 'cwd', 'src'), { recursive: true });
+  writeFileSync(join(kept, 'sealed', 'home', 'cwd', 'src', 'a.js'), 'x');
+  chmodSync(join(kept, 'sealed', 'home', 'cwd', 'src'), 0o500);
+  chmodSync(join(kept, 'sealed'), 0o000);
+  chmodSync(kept, 0o500);
+  const workspace = openKept(kept);
+  assert(workspace === join(kept, 'sealed', 'home', 'cwd'), `a sealed run: ${workspace}`);
+  assert(readFileSync(join(workspace, 'src', 'a.js'), 'utf8') === 'x', 'the sealed project should be readable');
+  removeKept(kept);
+  assert(!existsSync(kept), 'a sealed run should be removed, read-only folders and all');
 });

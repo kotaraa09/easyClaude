@@ -259,6 +259,44 @@ the run count, the sample project or that task changes. After that, a full run i
 $3.50, most of it the two-day task, and one small task is about $0.60. There is no judge
 model: every check is a test or a pattern, so grading is free.
 
+**Fair results, with a shell, on 1.3.0.** 2026-10-12 to 10-14, Ubuntu under WSL2, Claude Code
+2.1.296, Sonnet 5, three runs per task, `--shell --fresh-baseline`. Both arms could run
+commands, so these are the fair figures. The ones below, without a shell, favour easyClaude.
+
+| task | works, with | works, without | cost, with | cost, without |
+|---|---|---|---|---|
+| `add-shipping` | 3/3 | 3/3 | $0.35 | $0.16 |
+| `fix-checkout` | 3/3 | 2/3 | $0.28 | $0.15 |
+| `fix-checkout-th` | 2/3 | 1/3 | $0.30 | $0.10 |
+| `honest-test-fix` | 3/3 | 3/3 | $0.19 | $0.13 |
+| `rename-shop` | 3/3 | 3/3 | $0.15 | $0.11 |
+| `rename-shop-th` | 3/3 | 3/3 | $0.18 | $0.12 |
+| `two-sessions` | 2/3 | 0/3 | $0.96 | $0.28 |
+| **all** | **19/21** | **15/21** | | |
+
+With a shell, plain Claude can run the tests itself, and the gap shrank from 6 runs to 4.
+It stays where easyClaude adds something a beginner does not ask for. In `fix-checkout`,
+plain Claude fixed the bug but twice wrote no test that catches it coming back. In
+`two-sessions`, plain Claude did one change of five on day two, in all three runs. Both
+easyClaude misses were work done only in part: in Thai, an empty discount code still broke
+the checkout; on day two, a discount counted one cart line instead of all, and the limit of
+10 of one plant was left out.
+
+The first Linux run found three faults in the benchmark, not in easyClaude, now fixed:
+
+- On Linux the runner seals each kept run: what the plugin wrote moves into `sealed/` with
+  mode 000. `bench.mjs` found no project, graded nothing, and stopped on the clean-up. It
+  now opens the folder as the runner's own note says, and grades a copy, as before.
+- The rename tasks' runner check for new files also counted files the shell leaves in the
+  run's home folder, so every run failed it, in both arms. It is now a `check.mjs` check
+  over the project's own files.
+- Day two of `two-sessions` starts in a new folder with a new home, so the approval of the
+  project's checks was gone. With a shell, easyClaude asked for it, as it should, and two
+  runs of three stopped with nobody there to answer. A real user on the same computer keeps
+  that approval, so day two's `setup.sh` now gives it again. The `two-sessions` row with
+  easyClaude is the rerun after this fix; the no-easyClaude arm has no checks, and kept
+  its first result.
+
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.
 
@@ -422,7 +460,8 @@ and getting yesterday's version back. Both need a shell to be fair, see below.
 **No shell on Windows.** The runner grants no shell on native Windows, because it has no
 sandbox there, so neither arm can run commands. easyClaude's verify gate still runs the
 tests, because it is a hook and not a tool. That favours easyClaude. Under Linux or WSL2,
-`node scripts/bench.mjs --shell --fresh-baseline` gives the fair figure.
+`node scripts/bench.mjs --shell --fresh-baseline` gives the fair figure: see "Fair results,
+with a shell" above. Linux also needs `bubblewrap` and `socat` for the runner's sandbox.
 
 ## Lessons from the first runs
 

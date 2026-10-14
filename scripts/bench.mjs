@@ -38,7 +38,7 @@
 //
 // No dependencies: node: builtins only, same rule as validate.mjs.
 import {
-  readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync,
+  readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync, chmodSync,
 } from 'node:fs';
 import { spawnSync, execFile } from 'node:child_process';
 import { join, dirname, basename, relative, sep } from 'node:path';
@@ -138,8 +138,13 @@ export async function gradeWorkspace(caseDir, workspace) {
         const hits = files.filter((f) => matchesGlob(f, c.contains))
           .some((f) => c.pattern.test(readFileSync(join(copy, f), 'utf8')));
         results.push({ name: c.name, passed: c.absent ? !hits : hits, why: `${c.pattern} in ${c.contains}` });
+      } else if (c.onlyFiles) {
+        // The project only. The runner's own file_exists grader also counts what a shell
+        // leaves in the run's home folder, so on Linux every run failed it.
+        const extra = files.filter((f) => !c.onlyFiles.includes(f));
+        results.push({ name: c.name, passed: !extra.length, why: extra.length ? `new: ${extra.join(', ')}` : 'no new files' });
       } else {
-        throw new Error(`${basename(caseDir)}/check.mjs: "${c.name}" has no hidden, ownTests, catches or contains`);
+        throw new Error(`${basename(caseDir)}/check.mjs: "${c.name}" has no hidden, ownTests, catches, contains or onlyFiles`);
       }
     }
     return results;
@@ -149,6 +154,34 @@ export async function gradeWorkspace(caseDir, workspace) {
 }
 
 // --- running --------------------------------------------------------------------------
+
+// Where a kept run left the project. On Linux the runner seals what the plugin wrote:
+// home/ and tmp/ move into <kept>/sealed with mode 000, and the kept folder turns
+// read-only. Its own note says to chmod 700 both to look inside, and that is all this
+// does. Nothing runs from the folder: grading copies it without .git first. Before this,
+// a Linux run found no project, graded nothing, and stopped on the clean-up.
+export function openKept(kept) {
+  if (process.platform !== 'win32') {
+    for (const dir of [kept, join(kept, 'sealed')]) {
+      try { chmodSync(dir, 0o700); } catch { /* not sealed */ }
+    }
+  }
+  const sealed = join(kept, 'sealed', 'home', 'cwd');
+  return existsSync(sealed) ? sealed : join(kept, 'home', 'cwd');
+}
+
+// Deletes a kept run. A sealed one has folders nobody may write, so they are opened first,
+// without following links out of the folder.
+export function removeKept(kept) {
+  const open = (dir) => {
+    try {
+      chmodSync(dir, 0o700);
+      for (const e of readdirSync(dir, { withFileTypes: true })) if (e.isDirectory()) open(join(dir, e.name));
+    } catch { /* rmSync reports what is left */ }
+  };
+  if (process.platform !== 'win32' && existsSync(kept)) open(kept);
+  rmSync(kept, { recursive: true, force: true });
+}
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(name);
@@ -380,7 +413,7 @@ async function runSeeds(label, pluginDir, seedsRoot, opts) {
     runs.forEach((run, i) => {
       const kept = run.tracePath ? dirname(dirname(run.tracePath)) : null;
       try {
-        const workspace = kept && join(kept, 'home', 'cwd');
+        const workspace = kept && openKept(kept);
         if (workspace && existsSync(workspace)) cpSync(workspace, join(seedsRoot, name, String(i + 1)), { recursive: true });
         const saved = join(opts.saveDir, `${label.replace(/\W+/g, '-')}-${name}-day1-${i + 1}`);
         if (run.tracePath && existsSync(run.tracePath)) {
@@ -388,7 +421,7 @@ async function runSeeds(label, pluginDir, seedsRoot, opts) {
           cpSync(run.tracePath, join(saved, 'trace.jsonl'));
         }
       } finally {
-        if (kept) rmSync(kept, { recursive: true, force: true });
+        if (kept) removeKept(kept);
       }
     });
   }
@@ -413,7 +446,7 @@ async function runArm(label, pluginDir, opts) {
     const runs = [];
     for (const run of c.arms?.with ?? []) {
       const kept = run.tracePath ? dirname(dirname(run.tracePath)) : null;
-      const workspace = kept && join(kept, 'home', 'cwd');
+      const workspace = kept && openKept(kept);
       let checks;
       const saved = join(opts.saveDir, `${label.replace(/\W+/g, '-')}-${c.name}-${runs.length + 1}`);
       try {
@@ -423,7 +456,7 @@ async function runArm(label, pluginDir, opts) {
           ? await gradeWorkspace(caseDir, workspace)
           : [{ name: 'the run left a workspace', passed: false, why: run.error ?? 'none kept' }];
       } finally {
-        if (kept) rmSync(kept, { recursive: true, force: true });
+        if (kept) removeKept(kept);
       }
       for (const g of run.graders ?? []) {
         if (g.name !== 'changed-files') checks.push({ name: g.name, passed: g.passed, why: g.explanation });

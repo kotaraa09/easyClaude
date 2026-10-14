@@ -24,7 +24,7 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 
 ## Now
 
-### 1. A test machine that can run commands
+### 1. A test machine that can run commands - done
 
 **Why.** On native Windows the eval runner grants no shell, because it has no sandbox
 there. Neither arm can run a command, but easyClaude's verify gate still runs the tests,
@@ -44,6 +44,11 @@ a day, plus about $5 of runs.
 
 It also gives the prompt measurement its fair figure: with a shell, plain Claude can run
 the tests an expert's request asks it to run.
+
+**Done, 2026-10-14.** The full `--shell` run is in `evals/README.md`: 19/21 with easyClaude,
+15/21 without, against 20/21 and 14/21 without a shell. The gap is in `fix-checkout` and
+`two-sessions`. The run found and fixed three faults in the benchmark on Linux. It cost
+about $14.50 in all, most of it on finding those faults.
 
 ### 2. Benchmark: a change that breaks something nobody mentioned
 

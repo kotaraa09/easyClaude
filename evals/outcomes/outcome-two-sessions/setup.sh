@@ -19,6 +19,13 @@ for seed in "$seeds"/*; do
   [ -d "$seed" ] || continue
   if mkdir "$seed.claimed" 2>/dev/null; then
     cp -R "$seed/." .
+    # Day two is the same person on the same computer, so their approval of the checks
+    # (scripts/trust.mjs) still holds. Each run has a new home and a new folder, so it is
+    # given again, as the sample project's setup.sh does. Without it, a run with a shell
+    # stopped to ask for the approval, with nobody there to answer.
+    if [ -f .claude/verify.json ]; then
+      CLAUDE_PROJECT_DIR="$PWD" node "$plugin/scripts/verify.mjs" --trust >/dev/null
+    fi
     exit 0
   fi
 done
