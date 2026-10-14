@@ -160,6 +160,7 @@ claude plugin install blast-radius@easyclaude
 /easyclaude:full               ออกจากโหมดประหยัด
 /easyclaude:plain [off]        คำตอบสั้นภาษาง่าย
 /easyclaude:autoship pr        เลิกถามก่อน commit push และเปิด pull request (off, commit, push, pr, merge)
+/easyclaude:what-went-wrong    อธิบายว่าเซสชันก่อนหน้าผิดพลาดตรงไหน ทีละขั้น
 ```
 
 </details>

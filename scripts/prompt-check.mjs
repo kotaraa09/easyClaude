@@ -94,9 +94,33 @@ export const looksLikeBug = (prompt) => {
   const words = userWords(prompt);
   return !/^\s*\//.test(words) && BUG_REPORT.test(words.replace(ASKS_FOR_ERROR, ' '));
 };
+// "Run it once before the fix" is Superpowers' red step: a test written after the fix can
+// pass with or without it, and then it protects nothing.
 const BUG_NUDGE = 'easyClaude: this reads like a bug report. Use the debug skill: find the ' +
-  'cause before you edit, and add a test that fails without the fix. A one-line fix gets ' +
-  'its test too.';
+  'cause before you edit, and add a test that fails without the fix. Run that test once ' +
+  'before you fix the code, and see it fail. A one-line fix gets its test too.';
+
+// A new feature. A beginner's request leaves out what they take for granted: in the
+// benchmark's sold-out task, "add a way to mark a plant as sold out" got a label on the
+// page in every plain run at the beginner wording, and a shopper could still buy the plant.
+// Expert wordings, which ask what else the feature should change, passed every run. This
+// is that question, from Feature Dev's clarifying phase, sent with the message: a rule in
+// a skill did not change behaviour in earlier tests, and a line here did.
+const FEATURE = new RegExp([
+  /(?<![a-z])(add|adding|build|create|implement|support|allow|enable|let (me|users?|shoppers?|customers?|people|visitors?)|i (want|need|would like|'d like)|we need|can you make|could you make)(?![a-z])/.source,
+  'เพิ่ม', 'อยากให้มี', 'อยากได้', 'ทำระบบ', 'สร้าง',
+].join('|'), 'i');
+// "Add a test" or "add a comment" is not a feature with consequences elsewhere.
+const NOT_A_FEATURE = /(?<![a-z])(add|write|create)\s+(a |an |some |more )?(tests?|comments?|docs?|documentation|logging|logs?|types?)(?![a-z])/i;
+export const asksForFeature = (prompt) => {
+  const words = userWords(prompt);
+  return !/^\s*\//.test(words) && !/\?\s*$/.test(words) && FEATURE.test(words) &&
+    !NOT_A_FEATURE.test(words) && !looksLikeBug(words);
+};
+const FEATURE_NUDGE = 'easyClaude: this asks for a feature. Before you build it, say in one ' +
+  'or two lines what else in the project it must change for the user to get what they mean: ' +
+  'where the new thing must also be checked, refused, saved or shown. Build those too, or ' +
+  'ask if one is unclear.';
 
 // Work left for later. The next session sees only the project, so anything not written to
 // docs/STATE.md is gone. In the two-session benchmark a beginner asked for five changes
@@ -189,6 +213,8 @@ function main() {
   const nudges = [
     go,
     !cheap && looksLikeBug(prompt) ? BUG_NUDGE : null,
+    // Not in cheap mode either: it asks for the smallest change that works.
+    !cheap && asksForFeature(prompt) ? FEATURE_NUDGE : null,
     // Only where there is a state file to write to. In cheap mode too: forgetting the rest
     // of the request is not a saving.
     later ? laterNudge(new Date().toLocaleDateString('en-CA'), plan) : null,
