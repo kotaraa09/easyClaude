@@ -139,9 +139,12 @@ expect. Then four tasks with an input the request does not mention - the same pl
 twice, a $5 code on a $3 order, a quantity left out, broken gift card codes - were run on
 1.2.2 with Sonnet 5, and every run handled the input with no reviewer. A second reader
 adds a step to every change; without a task it improves, that is the cost this plugin
-exists to avoid. The work and the four cases wait on the branch `short-review-after-task`.
-Try again with a change across several files, or an error the code hides, before a
-second attempt. Spent: $2.55.
+exists to avoid. The branch was removed on 2026-10-14; rebuild from this note. It had
+`scripts/review-check.mjs`, which `verify.mjs` called when a turn changed code and the
+checks passed, to ask the diff reviewer for one read of that task's diff; and the four
+cases, `outcome-plant-limit`, `outcome-fixed-code`, `outcome-merge-lines` and
+`outcome-gift-card`, each a `prompt.md` plus a hidden test. Try again with a change across several files, or an error
+the code hides, before a second attempt. Spent: $2.55.
 
 ### 8. Look before you edit, measured first
 
@@ -191,6 +194,20 @@ the full tier. Kickoff sorts a slow build or browser test into the full tier, an
 **Done when.** On the large sample, the wait after a one-file change stays under 30
 seconds, and the full tier at ship still catches a bug the fast tier missed. **Effort:**
 3-4 days, plus about $5 of runs.
+
+**Built for JavaScript, 2026-10-11, waits for a release (#107).** A step's `"related"`
+command runs after each change on the changed source files; kickoff adds it for Vitest and
+Jest. On a 200-feature Vitest sample the wait after a one-file change fell from 49 seconds
+to 7-8, and 15 for a helper 40 features use. A bug in the changed feature still blocked the
+turn, and a test that reads a file without importing it, which the narrow run cannot see,
+failed at the end of the task. Measured with the test tools directly, not in benchmark runs
+with Claude, so no money was spent. **Left:** `pytest` (about 1 day).
+
+### Test speed of easyClaude itself
+
+Since #108 each test area runs in its own process: the full run fell from 306 to about 120
+seconds, and warns over 5 minutes. When it warns, run only the areas a change uses (about
+1 day), and remove tests that check the same thing twice (half a day each review).
 
 ## Later
 
