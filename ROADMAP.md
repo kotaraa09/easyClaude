@@ -27,19 +27,6 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 
 Each item here is a few days at most, and costs a few dollars of runs or none.
 
-### 4. Benchmark: a button that does nothing
-
-**Why.** 0.2.4 released the page check: when a turn changed a web page and nothing looked
-at it, the gate holds the turn once. The free tests pin the hold, and `fix-checkout` still
-passes with it. No task yet shows that it catches a bug a beginner would see.
-
-**What.** A task with a visible bug, such as a button with no handler, where the hidden
-tests pass before and after. Graded on the button working. The eval has no browser, so
-with easyClaude the expected reply says how to see it; with a browser tool, a later run
-shows whether Claude looks.
-
-**Done when.** The task runs in both arms. **Effort:** 1-2 days.
-
 ### 10. Checks that stay fast as a project grows
 
 **Why.** easyClaude runs the project's checks after each change. In a small project that
@@ -271,6 +258,25 @@ gap. With easyClaude the beginner side passed 4 of 6, against 3 of 6 without: on
 three runs a wording cannot tell from chance. A miss in either arm was a "sold out" label on
 the page that a shopper could still buy past. Spent: $7.30. Two more runs a wording, about $5,
 is under "Waits for budget".
+
+### 4. Benchmark: a button that does nothing
+
+**Why.** 0.2.4 released the page check: when a turn changed a web page and nothing looked
+at it, the gate holds the turn once. The free tests pin the hold, and `fix-checkout` still
+passes with it. No task yet shows that it catches a bug a beginner would see.
+
+**What.** A task with a visible bug, such as a button with no handler, where the hidden
+tests pass before and after. Graded on the button working. The eval has no browser, so
+with easyClaude the expected reply says how to see it; with a browser tool, a later run
+shows whether Claude looks.
+
+**Done when.** The task runs in both arms. **Effort:** 1-2 days.
+
+**Done, 2026-10-14: no gap in the fix.** `outcome-dead-button`: the page code looks for a
+button id the page does not have, and every project test passes. The hidden test builds a
+stand-in page from the real `index.html` and clicks Pay. Under WSL2 with a shell, three runs
+each: 3/3 with easyClaude, 3/3 without. The difference was in the reply: with easyClaude all
+three told the user how to open the page and what to click; without, none did. Spent: $0.89.
 
 ## Stopped
 

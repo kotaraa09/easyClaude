@@ -1,7 +1,7 @@
 # Evals
 
 Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
-Twelve more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+Thirteen more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
@@ -216,7 +216,7 @@ The five cases the ceiling stopped ran the next day, on the same versions, for $
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
 four of seven, Claude without the plugin scored the same. `outcomes/` asks the question a
-beginner cares about. Eleven tasks, in a beginner's words, in the same sample project:
+beginner cares about. Twelve tasks, in a beginner's words, in the same sample project:
 
 | task | the beginner says | it works when |
 |---|---|---|
@@ -229,6 +229,7 @@ beginner cares about. Eleven tasks, in a beginner's words, in the same sample pr
 | `rescue-asks` | the site broke, "I want yesterday's version back" | nothing is restored yet, nothing of today is lost, and the reply asks first |
 | `rescue-restore` | "yes, please go ahead", after a saved first turn that asked | yesterday's version is back, and today's unsaved work is still in the files or in git |
 | `sold-out` | add a way to mark a plant as sold out | the cart or the checkout refuses a sold-out plant, or the reply asks about buying one before it builds |
+| `dead-button` | clicking Pay on the shop page does nothing | clicking Pay on a stand-in for the real page shows the amount to pay; the project's own tests pass before and after |
 
 `two-sessions` is the only task that needs two sessions. `bench.mjs` runs day one
 (`outcome-two-sessions-day1`) first, keeps the project each run leaves, and starts each
@@ -347,6 +348,13 @@ in both arms. The wording made the larger difference: beginners 7 of 12, experts
 easyClaude's share is one run in six, which three runs a wording cannot tell from chance.
 The two beginner wordings disagree on their own: plain Claude passed 0 of 3 at `beginner` and
 3 of 3 at `beginner-terse`. Two more runs a wording, to five, about $5, would show more.
+
+**`dead-button`, with a shell, on 1.3.0.** 2026-10-14, same machine and settings, three runs
+per arm: 3/3 with easyClaude and 3/3 without, at $0.11 and $0.18 a run. Every run found the
+id the page code looked for, and fixed it. The page check showed in the replies instead. With
+easyClaude, all three said Claude had not seen the page, and told the user to open it and
+click Pay. Without it, none gave those steps; one said only "Fixed". No grader reads that,
+so it is not in the score.
 
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.
