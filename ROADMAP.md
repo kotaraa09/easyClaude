@@ -139,9 +139,12 @@ expect. Then four tasks with an input the request does not mention - the same pl
 twice, a $5 code on a $3 order, a quantity left out, broken gift card codes - were run on
 1.2.2 with Sonnet 5, and every run handled the input with no reviewer. A second reader
 adds a step to every change; without a task it improves, that is the cost this plugin
-exists to avoid. The work and the four cases wait on the branch `short-review-after-task`.
-Try again with a change across several files, or an error the code hides, before a
-second attempt. Spent: $2.55.
+exists to avoid. The branch was removed on 2026-10-14; rebuild from this note. It had
+`scripts/review-check.mjs`, which `verify.mjs` called when a turn changed code and the
+checks passed, to ask the diff reviewer for one read of that task's diff; and the four
+cases, `outcome-plant-limit`, `outcome-fixed-code`, `outcome-merge-lines` and
+`outcome-gift-card`, each a `prompt.md` plus a hidden test. Try again with a change across several files, or an error
+the code hides, before a second attempt. Spent: $2.55.
 
 ### 8. Look before you edit, measured first
 
