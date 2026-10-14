@@ -11,8 +11,8 @@ With easyClaude, the beginners passed 40 of 40 and the experts 39 of 40. The who
 from one task, `fix-checkout`: the experts asked for a regression test, and the beginners
 got one only from the `debug` skill. The other three tasks passed every time at every
 wording, so they cannot show a gap. Items 1, 2 and 9 aim at the tasks that can. Item 2's
-task, on 2026-10-14, also passed every time in both arms; item 9's `sold-out` was the first to
-show a gap at the beginner wording.
+task, on 2026-10-14, also passed every time in both arms; item 9's `sold-out` showed a
+prompt gap (beginners 7 of 12, experts 12 of 12), and no clear share for easyClaude.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -26,32 +26,6 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 ## Now: small and cheap
 
 Each item here is a few days at most, and costs a few dollars of runs or none.
-
-### 9. Benchmark: a request that hides a requirement
-
-**Why.** A short request leaves things out, and a beginner leaves out the most. easyClaude
-asks when a request can mean two things, but no outcome task needs a question to pass. On
-the four tasks of the prompt measurement, a beginner's wording already passed at 100%.
-
-**What.** A task where the hidden tests expect something the request does not say. Example:
-"add a sold-out option", where a sold-out plant must also be refused at checkout. Asked at
-the four wordings of `evals/prompt-levels/`, in both arms. A run that asks a good question
-must be able to pass: a second turn from a saved conversation (`context.history_file`)
-answers it.
-
-**Done when.** The task runs at all four wordings, both arms, 5 runs each, and the gap
-between beginner and expert is stated with and without easyClaude. **Effort:** 1-2 days,
-plus about $10 of runs.
-
-**First result, 2026-10-14: the first gap from a hidden requirement.** `sold-out`, three runs
-each arm, at two wordings. A run passes if the cart or the checkout refuses a sold-out plant,
-or if it asks about buying one before it builds; a fixed second turn could not answer
-whatever was asked, so the question counts instead. Beginner: 2/3 with easyClaude, 0/3
-without; plain Claude added only a label to the page each time. `expert-checklist`: 3/3 with,
-3/3 without (2/3 before a "let me know" counted as asking). So easyClaude narrows the gap, and
-does not close it: one beginner run with it also added only the label. Spent: $3.41.
-**Left:** `beginner-terse` and `expert-spec`, about $3.50, and 5 runs a wording only if the
-figures are used to decide something.
 
 ### 4. Benchmark: a button that does nothing
 
@@ -162,7 +136,8 @@ test machine Ubuntu under WSL2, where the setup check and the benchmark run can 
   measurement. One or two people who write prompts for a living would make the expert side
   a real one.
 - **More runs only where it is close.** Five runs per wording is enough at 100% against
-  78%. Ten only for a task whose two sides fall within each other's range.
+  78%. Ten only for a task whose two sides fall within each other's range. First: `sold-out`
+  (item 9), two more runs a wording, about $5, to see whether easyClaude helps a beginner there.
 - **Larger samples.** Three runs per task moves by one or two between days. Five runs on
   the tasks that differ between arms, once the figures are used to decide something.
 - **Claude Code's own memory.** Eval runs start without it. A run with it on would show
@@ -259,6 +234,40 @@ the first turn: 3/3 in both arms; everyone asked first. `rescue-restore` starts 
 first turn (`context.history_file`, now accepted by `validate.mjs`) and sends the yes: 3/3
 with easyClaude, 2/3 without. The miss threw today's unsaved edits away for good and said
 git could bring them back. Spent: $1.45.
+
+### 9. Benchmark: a request that hides a requirement
+
+**Why.** A short request leaves things out, and a beginner leaves out the most. easyClaude
+asks when a request can mean two things, but no outcome task needs a question to pass. On
+the four tasks of the prompt measurement, a beginner's wording already passed at 100%.
+
+**What.** A task where the hidden tests expect something the request does not say. Example:
+"add a sold-out option", where a sold-out plant must also be refused at checkout. Asked at
+the four wordings of `evals/prompt-levels/`, in both arms. A run that asks a good question
+must be able to pass: a second turn from a saved conversation (`context.history_file`)
+answers it.
+
+**Done when.** The task runs at all four wordings, both arms, 5 runs each, and the gap
+between beginner and expert is stated with and without easyClaude. **Effort:** 1-2 days,
+plus about $10 of runs.
+
+**Done at three runs, 2026-10-14: the wording matters, easyClaude's share is unclear.**
+`sold-out`, three runs each arm, at all four wordings. A run passes if the cart or the
+checkout refuses a sold-out plant, or if it asks about buying one before it builds; a fixed
+second turn could not answer whatever was asked, so the question counts instead.
+
+| wording | with easyClaude | without |
+|---|---|---|
+| `beginner` | 2/3 | 0/3 |
+| `beginner-terse` | 2/3 | 3/3 |
+| `expert-checklist` | 3/3 | 3/3 (2/3 before "let me know" counted as asking) |
+| `expert-spec` | 3/3 | 3/3 |
+
+Beginners passed 7 of 12 and experts 12 of 12, so the hidden requirement is a real prompt
+gap. With easyClaude the beginner side passed 4 of 6, against 3 of 6 without: one run, which
+three runs a wording cannot tell from chance. A miss in either arm was a "sold out" label on
+the page that a shopper could still buy past. Spent: $7.30. Two more runs a wording, about $5,
+is under "Waits for budget".
 
 ## Stopped
 
