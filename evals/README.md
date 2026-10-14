@@ -324,6 +324,8 @@ machine and settings, three runs per arm.
 | `rescue-restore` | beginner | 3/3 | 2/3 | $0.14 | $0.09 |
 | `sold-out` | beginner | 2/3 | 0/3 | $0.42 | $0.16 |
 | `sold-out` | `expert-checklist` | 3/3 | 2/3, then 3/3 | $0.40 | $0.15 |
+| `sold-out` | `beginner-terse` | 2/3 | 3/3 | $0.40 | $0.20 |
+| `sold-out` | `expert-spec` | 3/3 | 3/3 | $0.49 | $0.22 |
 
 `rescue-restore` is the first task that starts from a saved conversation
 (`context.history_file`): the first turn asked, and the run is the turn after the yes. Both
@@ -338,6 +340,13 @@ cart; the third added only the label. At the expert wording, which asks what els
 plant should change, both arms found it. The "then 3/3" is one run that named the requirement
 and ended "Let me know, or I'll proceed with B", with no question mark. The rule for a question
 counted it as no question; it now counts "let me know" and its like.
+
+All four wordings of `sold-out`, pooled two per side as `evals/prompt-levels/` does: the
+beginner side passed 4 of 6 with easyClaude and 3 of 6 without; the expert side passed 6 of 6
+in both arms. The wording made the larger difference: beginners 7 of 12, experts 12 of 12.
+easyClaude's share is one run in six, which three runs a wording cannot tell from chance.
+The two beginner wordings disagree on their own: plain Claude passed 0 of 3 at `beginner` and
+3 of 3 at `beginner-terse`. Two more runs a wording, to five, about $5, would show more.
 
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.
