@@ -287,6 +287,23 @@ fell from 45 seconds to under 2 (0.35s to find the tests), and 15 for the helper
 changed feature still failed. The sample's tests wait 40 ms each to stand for real work. No
 money spent. Waits for a release.
 
+### Two ideas from Superpowers and Feature Dev - done
+
+**Why.** Item 9 showed beginners getting a feature that looks done and is not: a "sold out"
+label a shopper could still buy past. Feature Dev asks what else a feature changes before it
+builds; Superpowers sees a test fail before the fix.
+
+**What.** Two lines that `prompt-check.mjs` sends with the message, since a line there changed
+behaviour where a rule in a skill did not. A feature request: say what else in the project it
+must change, and build those too, or ask. A bug report: run the new test once before the fix
+and see it fail.
+
+**Done, 2026-10-14.** `sold-out` with easyClaude: 3/3 at both beginner wordings (was 2/3 and
+2/3), about $0.08 more a run. `fix-checkout`: 3/3, and every run ran the tests before the
+fix; without easyClaude, 0/3 did. Spent: $5.36. Not adopted from them: a review by helper
+agents after each task (item 7 found no task it helped), explorer agents on every feature, and
+a fresh helper per task, all of which cost far more per task.
+
 ## Stopped
 
 ### 7. A short review when a task is finished

@@ -356,6 +356,23 @@ easyClaude, all three said Claude had not seen the page, and told the user to op
 click Pay. Without it, none gave those steps; one said only "Fixed". No grader reads that,
 so it is not in the score.
 
+**Two lines from Superpowers and Feature Dev, with a shell, 2026-10-14.** Same machine and
+settings, three runs per arm; both arms ran fresh.
+
+| task | wording | with, before | with, after | without | cost per run, with: before / after |
+|---|---|---|---|---|---|
+| `sold-out` | beginner | 2/3 | 3/3 | 1/3 | $0.42 / $0.49 |
+| `sold-out` | `beginner-terse` | 2/3 | 3/3 | 3/3 | $0.40 / $0.49 |
+| `fix-checkout` | beginner | 3/3 | 3/3 | 0/3 | $0.28 / $0.26 |
+
+A feature request now gets one line: say what else the feature must change, where the new
+thing must also be checked, refused, saved or shown, and build those too, or ask. That is
+Feature Dev's clarifying phase. Every beginner run then stopped a sold-out plant in the cart
+or the checkout, for about $0.08 more a run. The bug-report line now asks to run the new test
+once before the fix and see it fail, Superpowers' red step. With easyClaude all three runs ran
+the tests before the fix; without, all three changed the code first. The no-easyClaude arm
+moved between days again: `fix-checkout` 2/3 on 2026-10-12, 0/3 here.
+
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.
 
