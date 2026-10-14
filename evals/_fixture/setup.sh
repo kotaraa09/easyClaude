@@ -15,6 +15,7 @@
 #   bash setup.sh broken     plus a commit from today that breaks the cart, so a test fails
 #   bash setup.sh thai       the base shop, set up for an owner who writes in Thai
 #   bash setup.sh badge      plus a cart badge and a receipt line that share one price format
+#   bash setup.sh button     plus page code whose Pay button does nothing, with every test green
 #
 # The outcome benchmark (scripts/bench.mjs) also runs every case without easyClaude. Its
 # copy of the suite carries a .bench-baseline file at the plugin root, and then the shop is
@@ -217,6 +218,33 @@ JS
     fi
     git add -A
     commit 600 "Cart badge and receipt line"
+    ;;
+  button)
+    # A bug a shopper sees and no test does: the page code looks for a button id the page
+    # does not have, and the ?. hides the miss. Clicking Pay does nothing, and every test
+    # still passes, because none of them loads the page.
+    cat > src/page.js <<'JS'
+import { createCart, addItem } from './cart.js';
+import { amountToPay } from './checkout.js';
+
+// Wires the checkout section of the page. The cart holds one fern until the plant list
+// gets its own buttons.
+export function setupPage(doc) {
+  const cart = addItem(createCart(), { id: 'fern', price: 18 });
+  const code = doc.getElementById('code');
+  const total = doc.getElementById('total');
+  const pay = doc.getElementById('pay-button');
+  pay?.addEventListener('click', () => {
+    total.textContent = `You pay $${amountToPay(cart, { code: code.value })}`;
+  });
+}
+JS
+    sed -i.bak 's#      <button id="pay">Pay</button>#&\n      <p id="total"></p>#' index.html
+    sed -i.bak 's#  <script type="module" src="src/checkout.js"></script>#  <script type="module">\n    import { setupPage } from '"'"'./src/page.js'"'"';\n    setupPage(document);\n  </script>#' index.html
+    rm -f index.html.bak
+    grep -q 'setupPage(document)' index.html || { echo "setup.sh: page script not added" >&2; exit 2; }
+    git add -A
+    commit 600 "Show the amount to pay when Pay is clicked"
     ;;
   *) echo "unknown variant: $variant" >&2; exit 2 ;;
 esac
