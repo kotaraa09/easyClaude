@@ -14,6 +14,7 @@
 #   bash setup.sh rescue     plus a commit from today and uncommitted edits that break it
 #   bash setup.sh broken     plus a commit from today that breaks the cart, so a test fails
 #   bash setup.sh thai       the base shop, set up for an owner who writes in Thai
+#   bash setup.sh badge      plus a cart badge and a receipt line that share one price format
 #
 # The outcome benchmark (scripts/bench.mjs) also runs every case without easyClaude. Its
 # copy of the suite carries a .bench-baseline file at the plugin root, and then the shop is
@@ -150,6 +151,72 @@ JS
     rm -f src/cart.js.bak
     git add -A
     commit 5 "Tidy up the cart"
+    ;;
+  badge)
+    # Two features built on one helper. The request is about the badge; the obvious edit is
+    # the helper, and that breaks the receipt, which has its own test and nobody mentions.
+    cat > src/money.js <<'JS'
+// How the shop writes an amount of money: a dollar sign and two decimals.
+export function formatPrice(amount) {
+  return `$${amount.toFixed(2)}`;
+}
+JS
+    cat >> src/cart.js <<'JS'
+
+// The badge at the top of the page: how many plants are in the cart, and what they cost.
+export function cartBadge(cart) {
+  const count = cart.items.reduce((n, item) => n + item.qty, 0);
+  return `${count} ${count === 1 ? 'plant' : 'plants'} - ${formatPrice(cartTotal(cart))}`;
+}
+JS
+    sed -i.bak '1i import { formatPrice } from '"'"'./money.js'"'"';\n' src/cart.js
+    cat > src/receipt.js <<'JS'
+import { amountToPay } from './checkout.js';
+import { formatPrice } from './money.js';
+
+// The line on the receipt a shopper sees after paying.
+export function receiptLine(cart, discount) {
+  return `You paid ${formatPrice(amountToPay(cart, discount))}`;
+}
+JS
+    cat > tests/badge.test.mjs <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createCart, addItem, cartBadge } from '../src/cart.js';
+
+test('the badge counts the plants and shows their total', () => {
+  const cart = addItem(createCart(), { id: 'fern', price: 18, qty: 2 });
+  addItem(cart, { id: 'pothos', price: 12 });
+  assert.equal(cartBadge(cart), '3 plants - $48.00');
+});
+JS
+    cat > tests/receipt.test.mjs <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createCart, addItem } from '../src/cart.js';
+import { receiptLine } from '../src/receipt.js';
+
+test('the receipt shows the exact amount paid, cents included', () => {
+  const cart = addItem(createCart(), { id: 'monstera', price: 35 });
+  assert.equal(receiptLine(cart, { code: 'spring10' }), 'You paid $31.50');
+});
+JS
+    sed -i.bak 's#<header><h1>Plant Corner</h1></header>#<header><h1>Plant Corner</h1> <span id="cart-badge"></span></header>#' index.html
+    sed -i.bak 's#  <script type="module" src="src/checkout.js"></script>#  <script type="module">\n    import { createCart, cartBadge } from '"'"'./src/cart.js'"'"';\n    document.getElementById('"'"'cart-badge'"'"').textContent = cartBadge(createCart());\n  </script>\n&#' index.html
+    rm -f src/cart.js.bak index.html.bak
+    if [ -f docs/STATE.md ]; then
+      node -e '
+        const fs = require("fs");
+        const s = fs.readFileSync("docs/STATE.md", "utf8");
+        const done = "- [x] Shoppers can pay on a checkout page, with an optional discount code\n";
+        if (!s.includes(done)) { console.error("setup.sh: Done list not found in docs/STATE.md"); process.exit(2); }
+        fs.writeFileSync("docs/STATE.md", s.replace(done,
+          "- [x] Shoppers see what they paid, to the cent, after they pay - src/receipt.js\n" +
+          "- [x] A badge at the top shows how many plants are in the cart and what they cost - src/cart.js\n" + done));
+      '
+    fi
+    git add -A
+    commit 600 "Cart badge and receipt line"
     ;;
   *) echo "unknown variant: $variant" >&2; exit 2 ;;
 esac

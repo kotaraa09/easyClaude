@@ -1204,8 +1204,9 @@ const caseDirs = existsSync(evalsDir) ? findCaseDirs(evalsDir) : [];
 // ran in an empty folder, where the SessionStart hook rightly sends everything to kickoff.
 // The first real run showed that: no case fired the skill it names. The runner merges
 // the two files, so the prompt, the settings and the graders all stay in the form checked
-// below. Anything more than the scaffold in case.yaml is refused.
-const SCAFFOLD_ONLY = /^schema_version: *"?[\d.]+"?\nname: *(\S+)\ncontext:\n +scaffold_script: *(\S+)$/;
+// below. The one addition is context.history_file, a saved first turn for a case that
+// measures the second, which prompt.md cannot hold either. Anything more is refused.
+const SCAFFOLD_ONLY = /^schema_version: *"?[\d.]+"?\nname: *(\S+)\ncontext:\n +scaffold_script: *(\S+)(?:\n +history_file: *(\S+))?$/;
 for (const f of existsSync(evalsDir) ? walk(evalsDir) : []) {
   if (basename(f) !== 'case.yaml') continue;
   const dir = dirname(f);
@@ -1214,8 +1215,9 @@ for (const f of existsSync(evalsDir) ? walk(evalsDir) : []) {
   const m = body.match(SCAFFOLD_ONLY);
   if (!m || !existsSync(join(dir, 'prompt.md'))) {
     err(rel(f), 'check 16 reads the prompt.md + graders/ form. It accepts a case.yaml only ' +
-      'beside a prompt.md, holding schema_version, name and context.scaffold_script and ' +
-      'nothing else. Anything more would go unchecked. Move it into prompt.md or graders/.');
+      'beside a prompt.md, holding schema_version, name, context.scaffold_script and ' +
+      'optionally context.history_file, and nothing else. Anything more would go unchecked. ' +
+      'Move it into prompt.md or graders/.');
     continue;
   }
   if (m[1] !== basename(dir)) {
@@ -1227,6 +1229,9 @@ for (const f of existsSync(evalsDir) ? walk(evalsDir) : []) {
     err(rel(f), `scaffold_script "${m[2]}" leaves the case directory - the runner refuses that`);
   } else if (!existsSync(script)) {
     err(rel(f), `scaffold_script "${m[2]}" does not exist, so every run of this case fails to start`);
+  }
+  if (m[3] && (m[3].startsWith('/') || m[3].split(/[\\/]/).includes('..') || !existsSync(join(dir, m[3])))) {
+    err(rel(f), `history_file "${m[3]}" is missing or leaves the case directory, so every run of this case fails to start`);
   }
 }
 
