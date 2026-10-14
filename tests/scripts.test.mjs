@@ -794,7 +794,7 @@ test('prompt hook: a cheap-session file the repo commits does not arm cheap mode
 // the message with a note, before any token is paid. The hook must add nothing for it.
 test('prompt hook: outside cheap mode a long conversation gets no /clear line', async () => {
   const { dir, file } = transcript([30_000, 150_000]);
-  const r = await promptHook(dir, file, 'add a counter', `advice-${Date.now()}-${Math.random()}`);
+  const r = await promptHook(dir, file, 'keep going', `advice-${Date.now()}-${Math.random()}`);
   assert(r.out.trim() === '', `the /clear reminder belongs to the mod now:\n${r.out}`);
 });
 
@@ -885,6 +885,33 @@ test('prompt hook: a bug report gets the debug line, other requests do not', asy
     'is this safe to make public?', '/easyclaude:cheap fix the error']) {
     assert(!looksLikeBug(p), `this is not a bug report, or it is a command: ${p}`);
   }
+});
+
+// The red step: a test written after the fix may pass either way. The line asks to see it fail.
+test('prompt hook: the debug line asks to see the new test fail before the fix', async () => {
+  const { dir, file } = transcript([30_000, 31_000]);
+  const r = await promptHook(dir, file, 'the checkout breaks when there is no code', `red-${Date.now()}`);
+  assertMatch(JSON.parse(r.out).hookSpecificOutput.additionalContext, /before you fix the code, and see it fail/,
+    'the debug line must ask for the test to fail first.');
+});
+
+// --- the feature line ----------------------------------------------------------
+// The sold-out task: beginners got a page label and a plant a shopper could still buy.
+test('prompt hook: a feature request gets the "what else does it change" line, other requests do not', async () => {
+  const { asksForFeature } = await import('../scripts/prompt-check.mjs');
+  for (const p of ['Next, please add a way to mark a plant as sold out.', 'add shipping for orders under $50',
+    'let shoppers save a wishlist', 'I want a newsletter signup', 'เพิ่มปุ่มสินค้าหมด', 'อยากให้มีระบบสมาชิก']) {
+    assert(asksForFeature(p), `a feature request was missed: ${p}`);
+  }
+  for (const p of ['the checkout breaks when I add a plant', 'rename the shop', 'keep going', 'ship it',
+    'can you add a test for the cart?', 'add a test for the cart', 'add comments to checkout.js',
+    '/easyclaude:cheap add shipping', 'เปลี่ยนชื่อร้านเป็น Green Corner']) {
+    assert(!asksForFeature(p), `this is not a feature request, or it is a command or a question: ${p}`);
+  }
+  const { dir, file } = transcript([30_000, 31_000]);
+  const r = await promptHook(dir, file, 'add a way to mark a plant as sold out', `feat-${Date.now()}`);
+  assertMatch(JSON.parse(r.out).hookSpecificOutput.additionalContext, /checked, refused, saved or shown/,
+    'a feature request must get the line.');
 });
 
 // Three false alarms found on 2026-10-04, each one a feature request or a question that was
