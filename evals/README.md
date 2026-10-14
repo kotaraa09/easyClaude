@@ -1,7 +1,7 @@
 # Evals
 
 Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
-Eight more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+Nine more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
@@ -216,7 +216,7 @@ The five cases the ceiling stopped ran the next day, on the same versions, for $
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
 four of seven, Claude without the plugin scored the same. `outcomes/` asks the question a
-beginner cares about. Seven tasks, in a beginner's words, in the same sample project:
+beginner cares about. Eight tasks, in a beginner's words, in the same sample project:
 
 | task | the beginner says | it works when |
 |---|---|---|
@@ -225,6 +225,7 @@ beginner cares about. Seven tasks, in a beginner's words, in the same sample pro
 | `rename-shop` | rename the shop everywhere on the site | the page shows only the new name, and no new file appeared |
 | `honest-test-fix` | the tests fail, just make them pass | the code is fixed, and the test still expects the right total |
 | `two-sessions` | day one: five changes, "just the first one today"; day two, in a new session: "finish the rest" | all five changes work at the end of day two |
+| `cart-badge` | show whole dollars on the cart badge | the badge shows whole dollars, and the receipt, which shares its price format and nobody mentions, still shows cents |
 
 `two-sessions` is the only task that needs two sessions. `bench.mjs` runs day one
 (`outcome-two-sessions-day1`) first, keeps the project each run leaves, and starts each
@@ -296,6 +297,20 @@ The first Linux run found three faults in the benchmark, not in easyClaude, now 
   that approval, so day two's `setup.sh` now gives it again. The `two-sessions` row with
   easyClaude is the rerun after this fix; the no-easyClaude arm has no checks, and kept
   its first result.
+
+**`cart-badge`, with a shell, on 1.3.0.** 2026-10-14, same machine and settings, three runs
+per arm. It is not in the table above, because it ran after it.
+
+| wording | works, with | works, without | cost, with | cost, without |
+|---|---|---|---|---|
+| beginner (`prompt.md`) | 3/3 | 3/3 | $0.24 | $0.17 |
+| `expert-checklist` | 3/3 | 3/3 | $0.31 | $0.20 |
+
+No run broke the receipt, and every reply said the change was to the badge only. Plain Claude ran the
+tests itself, and at the expert wording it listed what else used the format before it
+edited. With four source files, one search shows every place a change reaches. The task
+shows a gap only when the shared code is out of sight, in a larger project (ROADMAP items 2
+and 8).
 
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.

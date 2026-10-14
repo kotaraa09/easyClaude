@@ -2,7 +2,7 @@
 
 What comes next for easyClaude, in order, and why. The goal: a beginner with no coding
 knowledge gets an agent workflow as good as the big labs' own, from one plugin, with
-nothing to learn first. Last reviewed on 2026-10-11, at 1.3.0.
+nothing to learn first. Last reviewed on 2026-10-14, at 1.3.0.
 
 **What a prompt is worth, measured 2026-10-11.** The four outcome tasks were each asked four
 ways: two beginner wordings, and two expert wordings that add only general good practice.
@@ -10,7 +10,8 @@ Without easyClaude, the expert wordings passed 40 of 40 and the beginner wording
 With easyClaude, the beginners passed 40 of 40 and the experts 39 of 40. The whole gap came
 from one task, `fix-checkout`: the experts asked for a regression test, and the beginners
 got one only from the `debug` skill. The other three tasks passed every time at every
-wording, so they cannot show a gap. Items 1, 2 and 9 aim at the tasks that can.
+wording, so they cannot show a gap. Items 1, 2 and 9 aim at the tasks that can. Item 2's
+task, on 2026-10-14, also passed every time in both arms.
 
 Every item says how we will know it worked. Since 0.1.10, `node scripts/bench.mjs` gives
 that answer: beginner tasks, hidden tests, with and without easyClaude. An item that
@@ -61,6 +62,15 @@ test for that feature already in the project. Graded on both features working.
 **Done when.** The task runs in both arms with a shell, at a beginner and an expert wording.
 An expert asks "keep everything else working"; a beginner does not. **Effort:** 1 day.
 
+**Done, 2026-10-14: no gap.** `outcome-cart-badge`: the cart badge and the receipt share one
+price format, and the request asks for whole dollars on the badge only. Under WSL2 with a
+shell, three runs each: 3/3 with easyClaude and 3/3 without, at the beginner and the
+`expert-checklist` wording. No run broke the receipt. Plain Claude ran the tests
+itself, and at the expert wording it also listed what else used the format before it edited.
+In a project of four source files, one search shows everything a change touches, so the trap
+is in plain sight. A task that can show a gap needs the shared code out of sight: a larger
+project, as items 6 and 10 also need. Spent: $2.74.
+
 ### 3. Benchmark: "I want yesterday's version back"
 
 **Why.** The rescue skill exists because Claude restored files before asking, twice, in
@@ -99,8 +109,8 @@ each, with the deny rules kept as a second layer.
 **Done when.** A setup check confirms both are on, and the benchmark scores do not drop
 with them on. **Effort:** 3-5 days.
 
-**Waits for item 1.** Claude Code's sandbox is not available on native Windows, so neither
-the setup check nor the benchmark run can be tested on the current test machine.
+**Can start.** Claude Code's sandbox is not available on native Windows. Item 1 gave the
+test machine Ubuntu under WSL2, where the setup check and the benchmark run can both be tested.
 
 ### 6. Trigger cases that show a difference
 
@@ -158,7 +168,11 @@ line, because a rule inside a skill did not change behaviour in earlier tests.
 
 **Done when.** Item 2's task, which breaks a feature nobody mentioned, passes more often
 with it than without, and the added cost per task is stated. If it does not, it is not
-shipped. **Waits for items 1 and 2.** **Effort:** 2 days, including the measurement.
+shipped. **Effort:** 2 days, including the measurement.
+
+**Waits for a task that shows a gap.** Item 2's task passed 3/3 without easyClaude, because
+plain Claude already looked at what the shared code touched. Item 8 cannot pass more often
+than that. It waits for a version of item 2's task in a larger project.
 
 ### 9. Benchmark: a request that hides a requirement
 

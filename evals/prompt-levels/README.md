@@ -1,6 +1,6 @@
 # Prompt levels
 
-The same four outcome tasks, each asked four ways, to measure one question: how much does the
+The same five outcome tasks, each asked four ways, to measure one question: how much does the
 way a request is written change the result, and does easyClaude close the gap between a
 beginner and someone who writes prompts well?
 
