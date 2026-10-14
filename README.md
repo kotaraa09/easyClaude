@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.png">
-    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate in pastel rounded letters, in a ring of stationery stickers on notebook grid paper: a pencil, a sticky note, washi tape, a paper clip, an eraser, a pushpin, a ruler, scissors, a notebook, a highlighter, a glue stick and a rubber stamp.">
+    <img src="docs/assets/hero-light.png" width="820" alt="Mellu.mate in pastel rounded letters, ringed by stationery stickers such as a pencil, a sticky note, washi tape and scissors, on notebook grid paper.">
   </picture>
 </p>
 
@@ -41,16 +41,16 @@ Where it helps, it does more work and costs more: about $0.23 against $0.13 for 
 
 ## What it does
 
-- It asks when a request like "make it better" can mean several things, says which meaning it would pick, and waits for you.
-- It writes a short plan and a task list before it builds a new feature, and builds nothing until you pick "start building".
-- It keeps the plan in `docs/STATE.md`, so a new session the next day knows what "finish the rest" means.
-- It runs the checks you approved on your computer after each change, and Claude cannot say "done" while one of them fails.
-- It suggests a free library before it hand-writes a calendar, a map or a chart.
-- It blocks a few destructive commands, such as force pushes and reading `.env`.
-- Before `rm -rf`, `git reset --hard` or a database migration runs, [Blast Radius](plugins/blast-radius/PROVENANCE.md) shows what it would delete or change, with Proceed and Cancel.
-- It stops a commit that would save an API key or a password, and says which file the key is in.
-- It answers in your language and in plain words, and `/mellu:plain off` turns the plain words off.
-- A progress bar and a control panel show what it is doing, with a button for each feature.
+- Asks what you mean when a request like "make it better" can mean several things, says which meaning it would pick, and waits for your answer.
+- Writes a short plan and a task list before it builds a new feature, and builds nothing until you pick "start building".
+- Keeps the plan in `docs/STATE.md`, so a new session the next day knows what "finish the rest" means.
+- Runs the checks you approved on your computer after each change, and will not let Claude say "done" while one of them fails.
+- Suggests a free library before it hand-writes a calendar, a map or a chart.
+- Blocks a few destructive commands, such as force pushes and reading `.env`.
+- Shows what `rm -rf`, `git reset --hard` or a database migration would delete or change before it runs, with Proceed and Cancel buttons ([Blast Radius](plugins/blast-radius/PROVENANCE.md)).
+- Stops a commit that would save an API key or a password, and says which file the key is in.
+- Answers in your language and in plain words; `/mellu:plain off` turns the plain words off.
+- Shows its progress in a bar above the prompt, and puts each feature on a button in a control panel.
 
 <details>
 <summary><b>More about the progress bar and the panels</b></summary>
