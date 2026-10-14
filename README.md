@@ -181,6 +181,7 @@ You never need these for the common jobs. They cost nothing until you type them.
 /mellu:full               leave cheap mode
 /mellu:plain [off]        short answers in plain words
 /mellu:autoship pr        stop asking before commit, push and pull request (off, commit, push, pr, merge)
+/mellu:what-went-wrong    explain where a past session went wrong, step by step
 ```
 
 </details>

@@ -181,6 +181,7 @@ claude plugin install blast-radius@mellu-mate
 /mellu:full               ออกจากโหมดประหยัด
 /mellu:plain [off]        คำตอบสั้นภาษาง่าย
 /mellu:autoship pr        เลิกถามก่อน commit push และเปิด pull request (off, commit, push, pr, merge)
+/mellu:what-went-wrong    อธิบายว่าเซสชันก่อนหน้าผิดพลาดตรงไหน ทีละขั้น
 ```
 
 </details>

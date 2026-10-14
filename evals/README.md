@@ -1,6 +1,6 @@
 # Evals
 
-Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
+Nineteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
 Thirteen more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
@@ -36,6 +36,7 @@ landing on `build-task` instead. Nothing goes red. Only a behavioural test catch
 | `library-on-a-calendar` | *"add a calendar so shoppers can pick a delivery day"* | `plan-feature` fires, and names a free library before building |
 | `skills-for-a-godot-game` | *"/mellu:skills"*, in a Godot project | it works out the project is a game, offers game skills, installs nothing |
 | `kickoff-offers-godot-skills` | setup in a Godot project, answered in one message | the close offers at most two Godot skills, with a cost in tokens |
+| `plan-offers-two-ways` | *"let shoppers save their delivery address so they don't type it every time"* | `plan-feature` fires, and offers two ways to build it in plain words, recommends one, and asks |
 
 Every case carries a `tool_used` grader (did the skill fire) and an `llm` grader (did the
 reply help). Under the default ablation the first is an indicator, not part of the score,
@@ -212,6 +213,11 @@ The five cases the ceiling stopped ran the next day, on the same versions, for $
 | quiet-slopmonster-on-write-copy | 3/3 | 3/3 |
 | skills-for-a-godot-game, `--ablation none` | 3/3 | - |
 
+**`plan-offers-two-ways`**, 2026-10-14, Claude Code 2.1.292, three runs per arm: 3/3 with
+Mellu.mate, 3/3 without, $0.87. Plain Claude also offered keeping the address in the browser
+against saving it on a server, with a pick. The line in `plan-feature` that asks for this stays,
+at about 100 tokens a plan, and the case guards it.
+
 ## The outcome benchmark
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
@@ -355,6 +361,23 @@ id the page code looked for, and fixed it. The page check showed in the replies 
 Mellu.mate, all three said Claude had not seen the page, and told the user to open it and
 click Pay. Without it, none gave those steps; one said only "Fixed". No grader reads that,
 so it is not in the score.
+
+**Two lines from Superpowers and Feature Dev, with a shell, 2026-10-14.** Same machine and
+settings, three runs per arm; both arms ran fresh.
+
+| task | wording | with, before | with, after | without | cost per run, with: before / after |
+|---|---|---|---|---|---|
+| `sold-out` | beginner | 2/3 | 3/3 | 1/3 | $0.42 / $0.49 |
+| `sold-out` | `beginner-terse` | 2/3 | 3/3 | 3/3 | $0.40 / $0.49 |
+| `fix-checkout` | beginner | 3/3 | 3/3 | 0/3 | $0.28 / $0.26 |
+
+A feature request now gets one line: say what else the feature must change, where the new
+thing must also be checked, refused, saved or shown, and build those too, or ask. That is
+Feature Dev's clarifying phase. Every beginner run then stopped a sold-out plant in the cart
+or the checkout, for about $0.08 more a run. The bug-report line now asks to run the new test
+once before the fix and see it fail, Superpowers' red step. With Mellu.mate all three runs ran
+the tests before the fix; without, all three changed the code first. The no-Mellu.mate arm
+moved between days again: `fix-checkout` 2/3 on 2026-10-12, 0/3 here.
 
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.

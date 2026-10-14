@@ -52,6 +52,13 @@ marked as recommended:
 Skip any question the code, `docs/STATE.md` or `docs/PRD.md` already answers. Ask about what the
 user sees and does, never about frameworks or file layout.
 
+**When two ways to build it differ in what the user gets**, ask which way, as its own question:
+two options in plain words, each with the time it takes and what it makes easier or harder later,
+the one you recommend first. Saved data, accounts, payments, and a piece many pages use are the
+usual cases: "keep it on this computer only (an hour; lost if they clear the browser)" against
+"save it on a server (a day; works on every device)". A small feature has one sensible way; do
+not invent a second. This is Feature Dev's design step, cut to two options a beginner can weigh.
+
 **Every form ends with the ready question**, header exactly `Ready?` in English: is the plan
 clear enough to start building? First option "yes, start", second "not yet, I have more to
 say", in the user's language. Only the user ends the questions, with that first option. On any

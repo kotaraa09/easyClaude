@@ -794,7 +794,7 @@ test('prompt hook: a cheap-session file the repo commits does not arm cheap mode
 // the message with a note, before any token is paid. The hook must add nothing for it.
 test('prompt hook: outside cheap mode a long conversation gets no /clear line', async () => {
   const { dir, file } = transcript([30_000, 150_000]);
-  const r = await promptHook(dir, file, 'add a counter', `advice-${Date.now()}-${Math.random()}`);
+  const r = await promptHook(dir, file, 'keep going', `advice-${Date.now()}-${Math.random()}`);
   assert(r.out.trim() === '', `the /clear reminder belongs to the mod now:\n${r.out}`);
 });
 
@@ -886,6 +886,33 @@ test('prompt hook: a bug report gets the debug line, other requests do not', asy
     'is this safe to make public?', '/mellu:cheap fix the error']) {
     assert(!looksLikeBug(p), `this is not a bug report, or it is a command: ${p}`);
   }
+});
+
+// The red step: a test written after the fix may pass either way. The line asks to see it fail.
+test('prompt hook: the debug line asks to see the new test fail before the fix', async () => {
+  const { dir, file } = transcript([30_000, 31_000]);
+  const r = await promptHook(dir, file, 'the checkout breaks when there is no code', `red-${Date.now()}`);
+  assertMatch(JSON.parse(r.out).hookSpecificOutput.additionalContext, /before you fix the code, and see it fail/,
+    'the debug line must ask for the test to fail first.');
+});
+
+// --- the feature line ----------------------------------------------------------
+// The sold-out task: beginners got a page label and a plant a shopper could still buy.
+test('prompt hook: a feature request gets the "what else does it change" line, other requests do not', async () => {
+  const { asksForFeature } = await import('../scripts/prompt-check.mjs');
+  for (const p of ['Next, please add a way to mark a plant as sold out.', 'add shipping for orders under $50',
+    'let shoppers save a wishlist', 'I want a newsletter signup', 'เพิ่มปุ่มสินค้าหมด', 'อยากให้มีระบบสมาชิก']) {
+    assert(asksForFeature(p), `a feature request was missed: ${p}`);
+  }
+  for (const p of ['the checkout breaks when I add a plant', 'rename the shop', 'keep going', 'ship it',
+    'can you add a test for the cart?', 'add a test for the cart', 'add comments to checkout.js',
+    '/mellu:cheap add shipping', 'เปลี่ยนชื่อร้านเป็น Green Corner']) {
+    assert(!asksForFeature(p), `this is not a feature request, or it is a command or a question: ${p}`);
+  }
+  const { dir, file } = transcript([30_000, 31_000]);
+  const r = await promptHook(dir, file, 'add a way to mark a plant as sold out', `feat-${Date.now()}`);
+  assertMatch(JSON.parse(r.out).hookSpecificOutput.additionalContext, /checked, refused, saved or shown/,
+    'a feature request must get the line.');
 });
 
 // Three false alarms found on 2026-10-04, each one a feature request or a question that was
@@ -1258,4 +1285,33 @@ test('planning gate: an answer it cannot read keeps the hold and says how to go 
   const r = await gate(dir, ['--answer'], p);
   assertMatch(r.out, /start building/, 'Claude must be told how the user can go on.');
   assert((await edit(dir, 'Write', { file_path: join(dir, 'app.js') })).code === 2, 'an unread answer must not open the build.');
+});
+
+// --- /mellu:what-went-wrong ------------------------------------------------
+// A saved session runs to megabytes. The timeline keeps what explains a wrong turn, numbered,
+// and leaves out what would only cost tokens: reminders, thinking, helpers' own sessions.
+test('session timeline: finds the project folder, lists newest first, and keeps only the steps', async () => {
+  const { projectFolder, sessions, timeline } = await import('../scripts/session-timeline.mjs');
+  const home = projectDir();
+  assert(projectFolder('D:\\WebWork\\green-shop', home).endsWith(join('.claude', 'projects', 'D--WebWork-green-shop')),
+    'the folder is the project path with every other character turned into "-".');
+  const folder = projectFolder('/work/shop', home);
+  mkdirSync(folder, { recursive: true });
+  const line = (o) => JSON.stringify(o);
+  writeFileSync(join(folder, 'old.jsonl'), line({ type: 'user', message: { content: 'hi' } }) + '\n');
+  await new Promise((r) => setTimeout(r, 20));
+  writeFileSync(join(folder, 'new.jsonl'), [
+    line({ type: 'user', message: { content: '<system-reminder>be brief</system-reminder>add a sold-out option' } }),
+    line({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'secret plan' },
+      { type: 'text', text: 'I will add it.' }, { type: 'tool_use', name: 'Edit', input: { file_path: 'index.html' } }] } }),
+    line({ type: 'user', message: { content: [{ type: 'tool_result', is_error: true, content: 'old_string not found' }] } }),
+    line({ type: 'user', message: { content: [{ type: 'tool_result', content: 'fine' }] } }),
+    line({ type: 'assistant', isSidechain: true, message: { content: [{ type: 'text', text: 'a helper talking' }] } }),
+    'not json',
+  ].join('\n'));
+  const list = sessions('/work/shop', home);
+  assert(list.map((s) => s.id).join() === 'new,old', `newest first: ${list.map((s) => s.id)}`);
+  const t = timeline(list[0].file);
+  assert(t === '1. user: add a sold-out option\n2. claude: I will add it.\n3.   Edit: index.html\n4.   failed: old_string not found',
+    `the timeline must keep the user's own words, the reply, the call and the failure, and nothing else:\n${t}`);
 });
