@@ -23,6 +23,7 @@ import { lookBlock, readTurn } from './look-check.mjs';
 import { withLanguage } from './language.mjs';
 import { isTrusted, trust, askedAlready, markAsked, commandList } from './trust.mjs';
 import { locations } from './locations.mjs';
+import { pythonTestsFor } from './py-related.mjs';
 
 const args = process.argv.slice(2);
 const HOOK = args.includes('--hook');
@@ -146,9 +147,10 @@ function stepsFor(steps, changed, docsOnly = []) {
 
 // --- related tests -----------------------------------------------------------
 // A step's "related" command runs only the tests that use the changed files, such as
-// `npx vitest related --run --passWithNoTests {files}`. A project with a test for every
-// feature otherwise waits for all of them after every one-file change, and a gate that
-// slow is the one that gets deleted. The whole command still runs at the end of a task
+// `npx vitest related --run --passWithNoTests {files}`, or {tests} for pytest, which takes
+// the test files easyClaude finds by following imports (py-related.mjs). A project with a
+// test for every feature otherwise waits for all of them after every one-file change, and a
+// gate that slow is the one that gets deleted. The whole command still runs at the end of a task
 // and at ship, where the human-mode run below uses "cmd".
 //
 // The narrow run is a guess about what a change can reach, so it is taken only when the
@@ -169,6 +171,12 @@ function relatedFiles(step, changed, docsOnly) {
     files = files.map((p) => p.slice(step.dir.length + 1));
   }
   const base = step.dir ? join(root, step.dir) : root;
+  // {tests}: the Python test files that import the changed files (py-related.mjs), for
+  // pytest, which cannot work that out itself.
+  if (step.related.includes('{tests}')) {
+    const tests = files.length <= MAX_RELATED && files.every((p) => PLAIN_PATH.test(p)) ? pythonTestsFor(base, files) : null;
+    return tests && tests.length <= MAX_RELATED * 3 && tests.every((p) => PLAIN_PATH.test(p)) ? tests : null;
+  }
   const narrow = files.length > 0 && files.length <= MAX_RELATED && files.every((p) =>
     SOURCE.test(p) && !EVERY_TEST.test(p) && PLAIN_PATH.test(p) && existsSync(join(base, p)));
   return narrow ? files : null;
@@ -176,7 +184,7 @@ function relatedFiles(step, changed, docsOnly) {
 
 const narrowed = (step, changed, docsOnly) => {
   const files = relatedFiles(step, changed, docsOnly);
-  return files ? { ...step, cmd: step.related.split('{files}').join(files.join(' ')), related: true } : step;
+  return files ? { ...step, cmd: step.related.split(/\{(?:files|tests)\}/).join(files.join(' ')), related: true } : step;
 };
 
 function loadConfig() {
@@ -203,8 +211,8 @@ function loadConfig() {
     }
     // Without the placeholder the narrow command would run no file list at all, which for
     // most test tools means the whole suite under a name that says otherwise.
-    if (s.related !== undefined && (typeof s.related !== 'string' || !s.related.includes('{files}'))) {
-      return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has a "related" command without "{files}" - it must say where the changed files go` };
+    if (s.related !== undefined && (typeof s.related !== 'string' || !/\{(?:files|tests)\}/.test(s.related))) {
+      return { error: `.claude/verify.json step "${s.name ?? s.cmd}" has a "related" command without "{files}" or "{tests}" - it must say where the changed files go` };
     }
   }
   const fallback = Number(raw.timeoutMs) > 0 ? Number(raw.timeoutMs) : DEFAULT_TIMEOUT_MS;

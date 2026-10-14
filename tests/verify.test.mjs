@@ -517,6 +517,49 @@ test('related: in an app folder, the files are given relative to that folder', a
   assert(p.ran('apps/web') === 'ALL', 'a change outside the app must run its whole command.');
 });
 
+// {tests}: pytest cannot find the tests a change reaches, so easyClaude follows the imports.
+const WRITES_TESTS = WRITES_FILES.replace('{files}', '{tests}');
+const pythonProject = () => relatedProject({ related: WRITES_TESTS }, {
+  'src/shop/__init__.py': '',
+  'src/shop/cart.py': 'def total(items):\n    return sum(items)\n',
+  'src/shop/checkout.py': 'from .cart import total\n\ndef pay(items):\n    return total(items)\n',
+  'src/shop/unused.py': 'X = 1\n',
+  'tests/conftest.py': '',
+  'tests/test_cart.py': 'from shop.cart import total\n',
+  'tests/test_checkout.py': 'from shop import checkout\n',
+  'tests/test_other.py': 'import os\n',
+});
+
+test('related: {tests} runs the Python tests that import the change, directly or through a module', async () => {
+  for (const [changed, want] of [
+    ['src/shop/cart.py', 'tests/test_cart.py tests/test_checkout.py'],
+    ['src/shop/checkout.py', 'tests/test_checkout.py'],
+    ['tests/test_other.py', 'tests/test_other.py'],
+  ]) {
+    const p = pythonProject();
+    // Appended, so a changed module keeps the imports the narrow run follows.
+    writeFileSync(join(p.dir, changed), `${readFileSync(join(p.dir, changed), 'utf8')}# changed\n`);
+    const r = await p.stopNow();
+    assert(r.code === ALLOW && p.ran() === want, `a change to ${changed} must run "${want}", ran "${p.ran()}":\n${r.out}`);
+  }
+});
+
+test('related: {tests} runs the whole command when it cannot be sure', async () => {
+  for (const [what, change] of [
+    ['a conftest.py', (p) => writeFileSync(join(p.dir, 'tests', 'conftest.py'), '# changed\n')],
+    ['a module no test imports', (p) => writeFileSync(join(p.dir, 'src', 'shop', 'unused.py'), 'X = 2\n')],
+    ['a data file beside the code', (p) => {
+      writeFileSync(join(p.dir, 'src', 'shop', 'cart.py'), 'def total(items):\n    return 0\n');
+      writeFileSync(join(p.dir, 'src', 'shop', 'plants.json'), '[]\n');
+    }],
+  ]) {
+    const p = pythonProject();
+    change(p);
+    const r = await p.stopNow();
+    assert(r.code === ALLOW && p.ran() === 'ALL', `${what} must run the whole command, ran "${p.ran()}":\n${r.out}`);
+  }
+});
+
 test('related: a run by hand, as at the end of a task and at ship, runs the whole command', async () => {
   const p = relatedProject();
   p.edit('src/a.js');

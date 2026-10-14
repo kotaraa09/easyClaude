@@ -27,33 +27,6 @@ for the two-session task at list price, which is plan usage on a Claude plan.
 
 Each item here is a few days at most, and costs a few dollars of runs or none.
 
-### 10. Checks that stay fast as a project grows
-
-**Why.** easyClaude runs the project's checks after each change. In a small project that
-takes seconds. A project with a test for every feature, a build and a browser test can take
-minutes, and then every change waits for it. The gate already has two tiers (fast after
-each change, full at the end of a task and at ship), runs only the checks of the app a
-change is in, and skips a change to notes. It still runs the whole fast tier for any code
-change, and no measurement uses a project larger than the sample plant shop.
-
-**What.** A large sample project: many features, a test file each, a build, a slow
-end-to-end test. Measure the wait per change. Then, where the test tool supports it, let a
-fast step run only the tests related to the changed files (`vitest related`,
-`jest --findRelatedTests`, `pytest` with a changed-file list), with the whole suite kept for
-the full tier. Kickoff sorts a slow build or browser test into the full tier, and says so.
-
-**Done when.** On the large sample, the wait after a one-file change stays under 30
-seconds, and the full tier at ship still catches a bug the fast tier missed. **Effort:**
-3-4 days, plus about $5 of runs.
-
-**Built for JavaScript, 2026-10-11, waits for a release (#107).** A step's `"related"`
-command runs after each change on the changed source files; kickoff adds it for Vitest and
-Jest. On a 200-feature Vitest sample the wait after a one-file change fell from 49 seconds
-to 7-8, and 15 for a helper 40 features use. A bug in the changed feature still blocked the
-turn, and a test that reads a file without importing it, which the narrow run cannot see,
-failed at the end of the task. Measured with the test tools directly, not in benchmark runs
-with Claude, so no money was spent. **Left:** `pytest` (about 1 day).
-
 ### Test speed of easyClaude itself
 
 Since #108 each test area runs in its own process: the full run fell from 306 to about 120
@@ -277,6 +250,42 @@ button id the page does not have, and every project test passes. The hidden test
 stand-in page from the real `index.html` and clicks Pay. Under WSL2 with a shell, three runs
 each: 3/3 with easyClaude, 3/3 without. The difference was in the reply: with easyClaude all
 three told the user how to open the page and what to click; without, none did. Spent: $0.89.
+
+### 10. Checks that stay fast as a project grows
+
+**Why.** easyClaude runs the project's checks after each change. In a small project that
+takes seconds. A project with a test for every feature, a build and a browser test can take
+minutes, and then every change waits for it. The gate already has two tiers (fast after
+each change, full at the end of a task and at ship), runs only the checks of the app a
+change is in, and skips a change to notes. It still runs the whole fast tier for any code
+change, and no measurement uses a project larger than the sample plant shop.
+
+**What.** A large sample project: many features, a test file each, a build, a slow
+end-to-end test. Measure the wait per change. Then, where the test tool supports it, let a
+fast step run only the tests related to the changed files (`vitest related`,
+`jest --findRelatedTests`, `pytest` with a changed-file list), with the whole suite kept for
+the full tier. Kickoff sorts a slow build or browser test into the full tier, and says so.
+
+**Done when.** On the large sample, the wait after a one-file change stays under 30
+seconds, and the full tier at ship still catches a bug the fast tier missed. **Effort:**
+3-4 days, plus about $5 of runs.
+
+**Built for JavaScript, 2026-10-11, waits for a release (#107).** A step's `"related"`
+command runs after each change on the changed source files; kickoff adds it for Vitest and
+Jest. On a 200-feature Vitest sample the wait after a one-file change fell from 49 seconds
+to 7-8, and 15 for a helper 40 features use. A bug in the changed feature still blocked the
+turn, and a test that reads a file without importing it, which the narrow run cannot see,
+failed at the end of the task. Measured with the test tools directly, not in benchmark runs
+with Claude, so no money was spent.
+
+**Done for pytest, 2026-10-14.** pytest cannot find the tests a change reaches, so `scripts/py-related.mjs`
+follows the project's imports, through other modules too, and a related command takes the
+test files as `{tests}`: `python -m pytest -q {tests}`. A conftest.py, setup.py, a file that
+is not Python, or a change no test imports runs the whole command. On a 200-feature pytest
+sample, one test file a feature and a helper 40 features use, the wait after a one-file change
+fell from 45 seconds to under 2 (0.35s to find the tests), and 15 for the helper. A bug in the
+changed feature still failed. The sample's tests wait 40 ms each to stand for real work. No
+money spent. Waits for a release.
 
 ## Stopped
 
