@@ -141,6 +141,10 @@ test('bench: sold-out passes a cart that refuses it or a question about buying, 
   allPass('a question about buying it', await replyChecks(dir, untouched, true, 'Should shoppers still be able to buy a sold-out plant?'));
   someFail('a question about something else', await replyChecks(dir, untouched, true, 'Should the label be red or grey?'));
   someFail('a statement, not a question', await replyChecks(dir, untouched, false, 'Shoppers cannot buy it now.'));
+  const { ENDS_ASKING } = await import('../scripts/bench.mjs');
+  assert(ENDS_ASKING.test("Should checkout refuse it too? Let me know, or I'll proceed with B."), 'a "let me know" ending asks');
+  assert(ENDS_ASKING.test('Let me know, or I will proceed with B in a minute.'), 'a "let me know" with no question mark asks');
+  assert(!ENDS_ASKING.test('Done. Shoppers cannot buy a sold-out plant now.'), 'a finished report does not ask');
 });
 
 test('bench: rename-shop fails untouched and half done, passes a full rename', async () => {

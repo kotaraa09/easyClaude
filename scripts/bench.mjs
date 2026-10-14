@@ -449,6 +449,11 @@ function lastReply(trace) {
 //   mustAsk      the run passes only if it changed nothing and ended on a question
 //   askedAbout   a question that names this pattern passes the task, though nothing was built:
 //                the benchmark sends one message, and a person would have answered it
+// A reply that waits for the user. "Let me know, or I'll go ahead with B" asks as plainly
+// as a question mark: a run on 2026-10-14 named the hidden requirement that way and was
+// counted as not asking.
+export const ENDS_ASKING = /\?|let me know|tell me (?:which|what|if)|would you like|do you want/i;
+
 export async function replyChecks(caseDir, checks, asked, reply) {
   const { mustAsk = false, askedAbout = null } = await import(pathToFileURL(join(caseDir, 'check.mjs')).href);
   if (askedAbout && asked && askedAbout.test(reply)) {
@@ -558,7 +563,7 @@ async function runArm(label, pluginDir, opts) {
       // Changed no file and ended on a question: it asked instead of acting. The benchmark
       // sends one message, so a run that asks fails here, though a person could answer it.
       const changed = (run.graders ?? []).find((g) => g.name === 'changed-files')?.passed;
-      const asked = changed === false && /\?/.test(reply.slice(-600));
+      const asked = changed === false && ENDS_ASKING.test(reply.slice(-600));
       checks = await replyChecks(caseDir, checks, asked, reply);
       runs.push({
         success: checks.every((k) => k.passed), checks, reply, ...replyMeasures(reply),

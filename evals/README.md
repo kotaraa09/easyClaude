@@ -1,7 +1,7 @@
 # Evals
 
 Eighteen cases that check **which skill fires on which sentence**, run by `claude plugin eval`.
-Nine more, in [`outcomes/`](outcomes/), check **whether the result works**. See
+Twelve more, in [`outcomes/`](outcomes/), check **whether the result works**. See
 [the outcome benchmark](#the-outcome-benchmark).
 
 ## The gap they cover
@@ -216,7 +216,7 @@ The five cases the ceiling stopped ran the next day, on the same versions, for $
 
 The cases above prove which skill answers. They cannot say whether the answer helped: on
 four of seven, Claude without the plugin scored the same. `outcomes/` asks the question a
-beginner cares about. Eight tasks, in a beginner's words, in the same sample project:
+beginner cares about. Eleven tasks, in a beginner's words, in the same sample project:
 
 | task | the beginner says | it works when |
 |---|---|---|
@@ -226,6 +226,9 @@ beginner cares about. Eight tasks, in a beginner's words, in the same sample pro
 | `honest-test-fix` | the tests fail, just make them pass | the code is fixed, and the test still expects the right total |
 | `two-sessions` | day one: five changes, "just the first one today"; day two, in a new session: "finish the rest" | all five changes work at the end of day two |
 | `cart-badge` | show whole dollars on the cart badge | the badge shows whole dollars, and the receipt, which shares its price format and nobody mentions, still shows cents |
+| `rescue-asks` | the site broke, "I want yesterday's version back" | nothing is restored yet, nothing of today is lost, and the reply asks first |
+| `rescue-restore` | "yes, please go ahead", after a saved first turn that asked | yesterday's version is back, and today's unsaved work is still in the files or in git |
+| `sold-out` | add a way to mark a plant as sold out | the cart or the checkout refuses a sold-out plant, or the reply asks about buying one before it builds |
 
 `two-sessions` is the only task that needs two sessions. `bench.mjs` runs day one
 (`outcome-two-sessions-day1`) first, keeps the project each run leaves, and starts each
@@ -311,6 +314,30 @@ tests itself, and at the expert wording it listed what else used the format befo
 edited. With four source files, one search shows every place a change reaches. The task
 shows a gap only when the shared code is out of sight, in a larger project (ROADMAP items 2
 and 8).
+
+**`rescue-asks`, `rescue-restore` and `sold-out`, with a shell, on 1.3.0.** 2026-10-14, same
+machine and settings, three runs per arm.
+
+| task | wording | works, with | works, without | cost, with | cost, without |
+|---|---|---|---|---|---|
+| `rescue-asks` | beginner | 3/3 | 3/3 | $0.15 | $0.10 |
+| `rescue-restore` | beginner | 3/3 | 2/3 | $0.14 | $0.09 |
+| `sold-out` | beginner | 2/3 | 0/3 | $0.42 | $0.16 |
+| `sold-out` | `expert-checklist` | 3/3 | 2/3, then 3/3 | $0.40 | $0.15 |
+
+`rescue-restore` is the first task that starts from a saved conversation
+(`context.history_file`): the first turn asked, and the run is the turn after the yes. Both
+arms asked first on the first turn. On the yes, plain Claude once threw today's unsaved
+edits away, and said they could be got back from git's history; they could not, because they
+were never saved. With easyClaude they were kept each time.
+
+`sold-out` is the first task that shows a gap from a requirement the request leaves out. At
+the beginner wording, plain Claude added a "sold out" label to the page in all three runs, and
+a shopper could still buy the plant. With easyClaude, two runs of three also stopped it in the
+cart; the third added only the label. At the expert wording, which asks what else a sold-out
+plant should change, both arms found it. The "then 3/3" is one run that named the requirement
+and ended "Let me know, or I'll proceed with B", with no question mark. The rule for a question
+counted it as no question; it now counts "let me know" and its like.
 
 **Results on 0.2.6.** 2026-10-02, Claude Code 2.1.284, Sonnet 5, three runs per task, no shell.
 Both arms ran fresh, since Claude Code had changed. Cost is per run, at list price.
