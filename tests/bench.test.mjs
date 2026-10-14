@@ -161,6 +161,18 @@ test('bench: sold-out passes a cart that refuses it or a question about buying, 
   assert(!ENDS_ASKING.test('Done. Shoppers cannot buy a sold-out plant now.'), 'a finished report does not ask');
 });
 
+test('bench: dead-button fails untouched, passes a fix in the code or in the page', async () => {
+  const untouched = await grade('outcome-dead-button', 'button');
+  someFail('the untouched shop', untouched);
+  assert(untouched.find((c) => c.name === "the project's own tests pass").passed, 'the bug must hide from the project tests');
+  allPass('the code looks for the right id', await grade('outcome-dead-button', 'button',
+    (dir) => edit(dir, 'src/page.js', (t) => t.replace("'pay-button'", "'pay'"))));
+  allPass('the page gets the id the code looks for', await grade('outcome-dead-button', 'button',
+    (dir) => edit(dir, 'index.html', (t) => t.replace('<button id="pay">', '<button id="pay-button">'))));
+  someFail('the ?. removed, the id still wrong', await grade('outcome-dead-button', 'button',
+    (dir) => edit(dir, 'src/page.js', (t) => t.replace('pay?.addEventListener', 'pay.addEventListener'))));
+});
+
 test('bench: rename-shop fails untouched and half done, passes a full rename', async () => {
   someFail('the untouched shop', await grade('outcome-rename-shop', 'base'));
   someFail('the heading only', await grade('outcome-rename-shop', 'base',
