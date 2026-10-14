@@ -75,14 +75,11 @@ You need **Claude Code** (the [desktop app](https://claude.ai/download) or the t
 **The easy way: ask Claude.** Open Claude Code in any folder and paste this:
 
 ```
-Install the easyClaude plugin for Claude Code for me. First check that Node.js and Git
-are installed, and tell me in plain words how to install anything that is missing.
-Then run these four commands:
-claude plugin marketplace add kotaraa09/easyClaude
-claude plugin install easyclaude@easyclaude
+Install the easyClaude plugin for Claude Code. Check that Node.js and Git are installed,
+and tell me in plain words how to get anything missing. Then run:
+claude plugin install easyclaude --marketplace kotaraa09/easyClaude
 claude plugin install filetree@easyclaude
 claude plugin install blast-radius@easyclaude
-If the claude command is not found, tell me how to install Claude Code for the terminal.
 When it is done, tell me to start a new session.
 ```
 
@@ -93,16 +90,15 @@ Claude asks before it runs each command. Then start a new session, in the deskto
 
 <br>
 
-In a terminal, run the same four commands:
+In a terminal, run the same three commands. The first adds the easyClaude marketplace and installs easyClaude from it:
 
 ```bash
-claude plugin marketplace add kotaraa09/easyClaude
-claude plugin install easyclaude@easyclaude
+claude plugin install easyclaude --marketplace kotaraa09/easyClaude
 claude plugin install filetree@easyclaude
 claude plugin install blast-radius@easyclaude
 ```
 
-Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/easyClaude` and `/plugin install easyclaude@easyclaude` also work. In the desktop app, `/plugin` opens a browsing screen and installs nothing, so use the commands above.
+Inside a terminal session of Claude Code, `/plugin marketplace add kotaraa09/easyClaude` and `/plugin install easyclaude@easyclaude` also work. In the desktop app, `/plugin` opens a browsing screen and installs nothing, so use the commands above. If your Claude Code does not know `--marketplace`, update it, or run `claude plugin marketplace add kotaraa09/easyClaude` first and then `claude plugin install easyclaude@easyclaude`.
 
 [`template/`](template/) is a project to fork that already points at the plugin, so Claude Code is meant to offer the install when you trust the folder. In the desktop app that offer did not appear in testing, so install it first.
 
